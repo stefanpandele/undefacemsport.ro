@@ -35,12 +35,12 @@ const columns = [
         <div class="wrap">
             <div class="grid gap-[26px] md:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
-                    <Link
-                        href="/"
-                        class="flex items-center gap-2 font-archivo text-[19px] font-black"
-                    >
-                        <span class="h-[9px] w-[9px] rounded-[2px] bg-clay" />
-                        terenuri<span class="text-sage">.ro</span>
+                    <Link href="/" class="inline-flex items-center" aria-label="Unde Facem Sport">
+                        <img
+                            src="/images/unde-facem-sport-logo-2.svg"
+                            alt="Unde Facem Sport"
+                            class="h-10 w-auto"
+                        />
                     </Link>
                     <p class="mt-3 max-w-[32ch] text-sm text-sage">
                         Găsești locația, vezi cluburile și orarele, suni direct.
@@ -63,7 +63,7 @@ const columns = [
             <div
                 class="mt-[30px] flex flex-col gap-2 border-t border-line pt-5 text-[13px] text-sage md:flex-row md:justify-between"
             >
-                <span>© 2026 terenuri.ro · Toate drepturile rezervate.</span>
+                <span>© 2026 undefacemsport.ro · Toate drepturile rezervate.</span>
                 <span class="font-jetbrains tracking-[0.06em]">FĂCUT ÎN ROMÂNIA</span>
             </div>
         </div>

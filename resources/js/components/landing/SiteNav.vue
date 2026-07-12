@@ -38,12 +38,12 @@ const btnBase =
         class="sticky top-0 z-[60] border-b border-line bg-paper/85 backdrop-blur-md"
     >
         <div class="wrap flex h-16 items-center gap-7">
-            <Link
-                href="/"
-                class="flex items-center gap-2 font-archivo text-[19px] font-black"
-            >
-                <span class="h-[9px] w-[9px] rounded-[2px] bg-clay" />
-                terenuri<span class="text-sage">.ro</span>
+            <Link href="/" class="flex items-center" aria-label="Unde Facem Sport">
+                <img
+                    src="/images/unde-facem-sport-logo-2.svg"
+                    alt="Unde Facem Sport"
+                    class="h-9 w-auto"
+                />
             </Link>
 
             <div class="hidden gap-[26px] min-[900px]:flex">
