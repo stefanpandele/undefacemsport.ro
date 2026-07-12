@@ -7,6 +7,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Landing page design tokens */
+@theme {
+    --color-paper: #f4f6f1;
+    --color-ink: #0b1410;
+    --color-sage: #5b6a60;
+    --color-grass: #15b877;
+    --color-grass-deep: #0c7a4e;
+    --color-clay: #ff5a2c;
+    --color-line: #dce3d6;
+    --color-panel: #0c1a12;
+
+    --font-archivo: 'Archivo', sans-serif;
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+/* Centered page container used across landing sections */
+@utility wrap {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 1200px;
+    padding-inline: 20px;
+}
+
 @theme inline {
     --font-sans:
         Instrument Sans, ui-sans-serif, system-ui, sans-serif,
