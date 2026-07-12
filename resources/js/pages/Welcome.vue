@@ -1,7 +1,23 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { dashboard, login } from '@/routes';
-import { register } from '@/routes';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { dashboard, login, register } from '@/routes';
+
+const openMenu = ref<null | 'visitor' | 'club'>(null);
+const nav = ref<HTMLElement | null>(null);
+
+function toggle(menu: 'visitor' | 'club') {
+    openMenu.value = openMenu.value === menu ? null : menu;
+}
+
+function handleOutside(event: MouseEvent) {
+    if (nav.value && !nav.value.contains(event.target as Node)) {
+        openMenu.value = null;
+    }
+}
+
+onMounted(() => document.addEventListener('click', handleOutside));
+onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 </script>
 
 <template>
@@ -15,7 +31,7 @@ import { register } from '@/routes';
         <header
             class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
         >
-            <nav class="flex items-center justify-end gap-4">
+            <nav ref="nav" class="flex items-center justify-end gap-3">
                 <Link
                     v-if="$page.props.auth.user"
                     :href="dashboard()"
@@ -24,18 +40,63 @@ import { register } from '@/routes';
                     Dashboard
                 </Link>
                 <template v-else>
-                    <Link
-                        :href="login()"
-                        class="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
-                    >
-                        Log in
-                    </Link>
-                    <Link
-                        :href="register()"
-                        class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                    >
-                        Register
-                    </Link>
+                    <!-- VIZITATOR -->
+                    <div class="relative">
+                        <button
+                            type="button"
+                            @click="toggle('visitor')"
+                            class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                        >
+                            Vizitator
+                        </button>
+                        <div
+                            v-if="openMenu === 'visitor'"
+                            class="absolute right-0 z-10 mt-2 flex min-w-40 flex-col overflow-hidden rounded-md border border-[#19140035] bg-white shadow-lg dark:border-[#3E3E3A] dark:bg-[#161615]"
+                        >
+                            <Link
+                                :href="login()"
+                                class="px-4 py-2 text-left text-sm text-[#1b1b18] hover:bg-[#f5f5f4] dark:text-[#EDEDEC] dark:hover:bg-[#26261f]"
+                            >
+                                Login
+                            </Link>
+                            <Link
+                                :href="register()"
+                                class="px-4 py-2 text-left text-sm text-[#1b1b18] hover:bg-[#f5f5f4] dark:text-[#EDEDEC] dark:hover:bg-[#26261f]"
+                            >
+                                Register
+                            </Link>
+                        </div>
+                    </div>
+
+                    <!-- CLUB -->
+                    <div class="relative">
+                        <button
+                            type="button"
+                            @click="toggle('club')"
+                            class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                        >
+                            Club
+                        </button>
+                        <div
+                            v-if="openMenu === 'club'"
+                            class="absolute right-0 z-10 mt-2 flex min-w-40 flex-col overflow-hidden rounded-md border border-[#19140035] bg-white shadow-lg dark:border-[#3E3E3A] dark:bg-[#161615]"
+                        >
+                            <!-- Club login = panou Filament, deci <a> normal (nu Inertia) -->
+                            <a
+                                href="/club/login"
+                                class="px-4 py-2 text-left text-sm text-[#1b1b18] hover:bg-[#f5f5f4] dark:text-[#EDEDEC] dark:hover:bg-[#26261f]"
+                            >
+                                Login
+                            </a>
+                            <!-- Club register = formularul nostru Inertia cu aprobare -->
+                            <Link
+                                href="/inscriere-club"
+                                class="px-4 py-2 text-left text-sm text-[#1b1b18] hover:bg-[#f5f5f4] dark:text-[#EDEDEC] dark:hover:bg-[#26261f]"
+                            >
+                                Register
+                            </Link>
+                        </div>
+                    </div>
                 </template>
             </nav>
         </header>
