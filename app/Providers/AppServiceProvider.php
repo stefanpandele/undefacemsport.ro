@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -33,6 +34,13 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureDefaults(): void
     {
+        // Behind Cloudflare/proxies the app may not detect HTTPS, which makes
+        // redirects and generated URLs use http:// and get blocked as mixed
+        // content. Force https everywhere except local development.
+        if (! app()->isLocal()) {
+            URL::forceScheme('https');
+        }
+
         // Platform admins (is_admin) bypass every authorization check, including
         // Shield's tenant-scoped roles. This is the app-wide "super admin".
         Gate::before(fn (User $user): ?bool => $user->is_admin ? true : null);

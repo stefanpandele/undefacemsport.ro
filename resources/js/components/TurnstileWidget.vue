@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
-const props = defineProps<{
-    siteKey: string | null;
-    enabled: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        siteKey: string | null;
+        enabled: boolean;
+        theme?: 'light' | 'dark' | 'auto';
+    }>(),
+    {
+        theme: 'light',
+    },
+);
 
 // The verification token is exposed via v-model so the parent form can submit
 // it and clear it. On local/testing the widget is mocked and a placeholder
@@ -66,6 +72,7 @@ async function renderWidget() {
 
         widgetId = window.turnstile.render(containerRef.value, {
             sitekey: props.siteKey,
+            theme: props.theme,
             callback: (value: string) => {
                 token.value = value;
             },

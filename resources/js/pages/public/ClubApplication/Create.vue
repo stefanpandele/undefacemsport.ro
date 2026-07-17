@@ -244,7 +244,7 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                         <span>{{ t('club_application.form.info') }}</span>
                     </div>
 
-                    <div class="mt-5">
+                    <div class="mt-5 flex items-center justify-center">
                         <TurnstileWidget
                             ref="turnstileRef"
                             v-model="form.turnstile_token"

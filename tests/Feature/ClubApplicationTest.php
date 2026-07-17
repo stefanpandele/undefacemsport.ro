@@ -58,6 +58,10 @@ beforeEach(function () {
     // Inertia's SSR round-trip untouched.
     Http::preventStrayRequests();
     Http::allowStrayRequests(['*__inertia_ssr*']);
+
+    // Turnstile is off by default so tests don't depend on the environment;
+    // the dedicated Turnstile tests opt in explicitly.
+    config(['services.turnstile.enabled' => false]);
 });
 
 it('shows the club application form', function () {

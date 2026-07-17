@@ -22,10 +22,12 @@ class TurnstileToken implements ValidationRule
             return;
         }
 
+        // remoteip is intentionally omitted: behind Cloudflare/proxies the
+        // resolved IP may not match the one that solved the challenge, which
+        // makes siteverify reject an otherwise valid token.
         $response = Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
             'secret' => $secret,
             'response' => $value,
-            'remoteip' => request()->ip(),
         ]);
 
         if (! $response->successful() || $response->json('success') !== true) {

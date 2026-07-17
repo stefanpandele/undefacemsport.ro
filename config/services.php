@@ -38,9 +38,10 @@ return [
     'turnstile' => [
         'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
-        // Real Cloudflare widget + server-side verification only when enabled
-        // (dev & prod). Left off on local/testing, where a mock is shown.
-        'enabled' => (bool) env('TURNSTILE_ENABLED', false),
+        // Real Cloudflare widget + server-side verification everywhere except
+        // local/dev, where a mock is shown. Set TURNSTILE_ENABLED in .env
+        // to force it on or off regardless of environment.
+        'enabled' => (bool) env('TURNSTILE_ENABLED', ! in_array(env('APP_ENV', 'production'), ['local', 'dev'], true)),
     ],
 
 ];
