@@ -24,7 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->trustProxies([
-            // CloudFlare IP Ranges
+            // CloudFlare IPv4 Ranges
             '173.245.48.0/20',
             '103.21.244.0/22',
             '103.22.200.0/22',
@@ -40,6 +40,15 @@ return Application::configure(basePath: dirname(__DIR__))
             '104.24.0.0/14',
             '172.64.0.0/13',
             '131.0.72.0/22',
+            // CloudFlare IPv6 Ranges — required when the origin is reached over
+            // IPv6, otherwise $request->ip() resolves to a CloudFlare edge IP.
+            '2400:cb00::/32',
+            '2606:4700::/32',
+            '2803:f800::/32',
+            '2405:b500::/32',
+            '2405:8100::/32',
+            '2a06:98c0::/29',
+            '2c0f:f248::/32',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
