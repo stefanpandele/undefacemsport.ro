@@ -28,25 +28,10 @@ class EnsureAdminIp
             return $ip === 'stefanpandele.go.ro' ? null : $ip;
         });
 
-        // Cloudflare sets CF-Connecting-IP to the real client IP; it can't be
-        // spoofed through Cloudflare and doesn't depend on which upstream
-        // proxies are trusted. On Laravel Cloud $request->ip() resolves to the
-        // load balancer / a Cloudflare edge unless every hop is trusted.
+        // Behind Cloudflare + Laravel Cloud's load balancer, $request->ip()
+        // resolves to the load balancer, not the visitor. Cloudflare's
+        // CF-Connecting-IP carries the real client IP.
         $clientIp = $request->header('CF-Connecting-IP') ?? $request->ip();
-
-        // TEMP DEBUG — visit /admin/login?ipdebug=diag2026 to see the resolved
-        // values directly in the response. Remove once the gate is confirmed.
-        if ($request->query('ipdebug') === 'diag2026') {
-            return response()->json([
-                'client_ip' => $clientIp,
-                'request_ip' => $request->ip(),
-                'allowed_ip' => $allowedIp,
-                'ips_chain' => $request->ips(),
-                'x_forwarded_for' => $request->header('X-Forwarded-For'),
-                'cf_connecting_ip' => $request->header('CF-Connecting-IP'),
-                'matches' => $allowedIp && $clientIp === $allowedIp,
-            ]);
-        }
 
         abort_unless($allowedIp && $clientIp === $allowedIp, 404);
 
