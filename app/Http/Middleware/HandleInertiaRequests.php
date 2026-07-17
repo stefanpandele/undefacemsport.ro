@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -42,6 +43,28 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'locale' => app()->getLocale(),
+            'translations' => $this->translations(),
         ];
+    }
+
+    /**
+     * Load every PHP translation file for the current locale, keyed by group.
+     *
+     * @return array<string, mixed>
+     */
+    protected function translations(): array
+    {
+        $path = lang_path(app()->getLocale());
+
+        if (! File::isDirectory($path)) {
+            return [];
+        }
+
+        return collect(File::files($path))
+            ->mapWithKeys(fn ($file) => [
+                $file->getFilenameWithoutExtension() => require $file->getPathname(),
+            ])
+            ->all();
     }
 }

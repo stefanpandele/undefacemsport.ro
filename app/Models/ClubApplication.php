@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property string $fiscal_code
  * @property string|null $company_name
  * @property bool|null $is_vat_payer
+ * @property string|null $address
  * @property string $contact_name
  * @property string|null $contact_role
  * @property string $contact_email
@@ -20,6 +21,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $county
  * @property string|null $city
  * @property string|null $message
+ * @property string|null $description
+ * @property array<int, array{platform: string, value: string}>|null $social_links
+ * @property string|null $logo_path
  * @property ClubApplicationStatus $status
  * @property Carbon|null $reviewed_at
  * @property int|null $reviewed_by
@@ -35,13 +39,14 @@ class ClubApplication extends Model
     protected $fillable = [
         'club_name',
         'fiscal_code',
+        'company_name',
+        'address',
         'contact_name',
         'contact_role',
         'contact_email',
         'contact_phone',
         'county',
         'city',
-        'message',
     ];
 
     /**
@@ -52,6 +57,7 @@ class ClubApplication extends Model
         return [
             'status' => ClubApplicationStatus::class,
             'is_vat_payer' => 'boolean',
+            'social_links' => 'array',
             'reviewed_at' => 'datetime',
         ];
     }

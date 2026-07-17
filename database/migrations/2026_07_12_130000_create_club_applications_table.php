@@ -14,17 +14,17 @@ return new class extends Migration
         Schema::create('club_applications', function (Blueprint $table) {
             $table->id();
             $table->string('club_name');
+            $table->string('contact_name');
+            $table->string('contact_email');
+            $table->string('contact_phone');
             $table->string('fiscal_code');
             $table->string('company_name')->nullable();
-            $table->boolean('is_vat_payer')->nullable();
-            $table->string('contact_name');
             $table->string('contact_role')->nullable();
-            $table->string('contact_email');
-            $table->string('contact_phone')->nullable();
+            $table->boolean('is_vat_payer')->nullable();
+            $table->string('address')->nullable();
             $table->string('county')->nullable();
             $table->string('city')->nullable();
-            $table->text('message')->nullable();
-            $table->string('status')->default('pending')->index();
+            $table->string('status')->default('pending');
             $table->timestamp('reviewed_at')->nullable();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

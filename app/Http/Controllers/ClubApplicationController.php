@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\LookupCompanyByFiscalCode;
 use App\Http\Requests\StoreClubApplicationRequest;
 use App\Models\ClubApplication;
 use Illuminate\Http\RedirectResponse;
@@ -10,25 +11,26 @@ use Inertia\Response;
 
 class ClubApplicationController extends Controller
 {
-    /**
-     * Show the public club application form.
-     */
     public function create(): Response
     {
-        return Inertia::render('ClubApplication/Create');
+        return Inertia::render('public/ClubApplication/Create');
     }
 
-    /**
-     * Store a new pending club application.
-     */
-    public function store(StoreClubApplicationRequest $request): RedirectResponse
+    public function store(StoreClubApplicationRequest $request, LookupCompanyByFiscalCode $lookupCompany): RedirectResponse
     {
-        ClubApplication::create($request->validated());
+        $company = $lookupCompany->handle($request->validated('fiscal_code'));
 
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => __('Cererea a fost trimisă. Te contactăm după evaluare.'),
-        ]);
+        $application = new ClubApplication($request->validated());
+
+        if ($company !== null) {
+            $application->company_name = $company['company_name'];
+            $application->address = $company['address'];
+            $application->is_vat_payer = $company['is_vat_payer'];
+            $application->county = $company['county'];
+            $application->city = $company['city'];
+        }
+
+        $application->save();
 
         return to_route('club-application.create');
     }

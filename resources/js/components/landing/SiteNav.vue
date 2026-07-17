@@ -3,6 +3,8 @@ import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { login, register } from '@/routes';
 
+import clubApplication from '@/routes/club-application';
+
 const openMenu = ref<null | 'visitor' | 'club'>(null);
 const root = ref<HTMLElement | null>(null);
 
@@ -20,8 +22,8 @@ onMounted(() => document.addEventListener('click', handleOutside));
 onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
 const links = [
-    { label: 'Explorează', href: '#' },
-    { label: 'Locații', href: '#locatii' },
+    { label: 'Explorează', href: '/explorare' },
+    { label: 'Locații', href: '/explorare' },
     { label: 'Prețuri', href: '#' },
 ];
 
@@ -56,7 +58,7 @@ const btnBase =
                     {{ link.label }}
                 </a>
                 <Link
-                    href="/inscriere-club"
+                    :href="clubApplication.create.url()"
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
                 >
                     Adaugă club
@@ -95,7 +97,7 @@ const btnBase =
                         <!-- Club login = panou Filament, deci <a> normal (nu Inertia) -->
                         <a href="/club/login" :class="menuItem">Login</a>
                         <!-- Club register = formularul nostru Inertia cu aprobare -->
-                        <Link href="/inscriere-club" :class="menuItem">Register</Link>
+                        <Link :href="clubApplication.create.url()" :class="menuItem">Register</Link>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 
+import clubApplication from '@/routes/club-application';
+
 const plans = [
     { pn: 'Basic', pp: 'Gratuit · listare + orar' },
     { pn: 'Premium', pp: '49 lei/lună · poziționare + badge' },
@@ -31,7 +33,7 @@ const plans = [
                     </p>
                     <div class="mt-[22px] flex flex-wrap gap-3">
                         <Link
-                            href="/inscriere-club"
+                            :href="clubApplication.create.url()"
                             class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-[22px] py-3 text-[14.5px] font-semibold text-grass-deep transition hover:bg-[#f2f5ef]"
                         >
                             Adaugă clubul tău

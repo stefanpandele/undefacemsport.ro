@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import clubApplication from '@/routes/club-application';
 
 const columns = [
     {
@@ -14,7 +15,7 @@ const columns = [
     {
         h: 'Pentru cluburi',
         links: [
-            { label: 'Adaugă club', href: '/inscriere-club' },
+            { label: 'Adaugă club', href: clubApplication.create.url() },
             { label: 'Prețuri', href: '#' },
             { label: 'Intră în cont', href: '/club/login' },
         ],
@@ -63,8 +64,11 @@ const columns = [
             <div
                 class="mt-[30px] flex flex-col gap-2 border-t border-line pt-5 text-[13px] text-sage md:flex-row md:justify-between"
             >
-                <span>© 2026 undefacemsport.ro · Toate drepturile rezervate.</span>
-                <span class="font-jetbrains tracking-[0.06em]">FĂCUT ÎN ROMÂNIA</span>
+                <span>© 2026 UndeFacemSport.ro · Toate drepturile rezervate.</span>
+                <span>
+                    Made with ❤️
+                    <span class="block sm:inline">by NETmeON!</span>
+                </span>
             </div>
         </div>
     </footer>

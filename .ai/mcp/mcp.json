@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "/Users/stefanpandele/Library/Application Support/Herd/bin/php84",
+      "args": [
+        "/Users/stefanpandele/Coding/Personale/undefacemsport.ro/artisan",
+        "boost:mcp"
+      ]
+    }
+  }
+}
