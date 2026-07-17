@@ -78,5 +78,10 @@ return [
             'required' => 'Introdu numărul de telefon.',
             'max' => 'Numărul de telefon nu poate depăși 50 de caractere.',
         ],
+        'turnstile' => [
+            'required' => 'Confirmă că nu ești robot.',
+            'failed' => 'Verificarea anti-spam a eșuat. Reîncearcă.',
+            'unavailable' => 'Verificarea anti-spam nu este disponibilă momentan. Reîncearcă mai târziu.',
+        ],
     ],
 ];

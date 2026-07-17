@@ -82,6 +82,44 @@ it('stores a pending club application with company details resolved from anaf', 
         ->and($application->reviewed_at)->toBeNull();
 });
 
+it('requires a turnstile token when turnstile is enabled', function () {
+    config()->set('services.turnstile.enabled', true);
+
+    $this->post(route('club-application.store'), validApplicationPayload())
+        ->assertSessionHasErrors('turnstile_token');
+
+    expect(ClubApplication::count())->toBe(0);
+});
+
+it('rejects an application when the turnstile token is invalid', function () {
+    config()->set('services.turnstile.enabled', true);
+
+    Http::fake([
+        'challenges.cloudflare.com/*' => Http::response(['success' => false]),
+    ]);
+
+    $this->post(route('club-application.store'), validApplicationPayload([
+        'turnstile_token' => 'bad-token',
+    ]))->assertSessionHasErrors('turnstile_token');
+
+    expect(ClubApplication::count())->toBe(0);
+});
+
+it('stores an application when turnstile is enabled and the token is valid', function () {
+    config()->set('services.turnstile.enabled', true);
+
+    Http::fake([
+        'challenges.cloudflare.com/*' => Http::response(['success' => true]),
+        'webservicesp.anaf.ro/*' => Http::response(fakeAnafResponse()),
+    ]);
+
+    $this->post(route('club-application.store'), validApplicationPayload([
+        'turnstile_token' => 'valid-token',
+    ]))->assertRedirect(route('club-application.create'));
+
+    expect(ClubApplication::count())->toBe(1);
+});
+
 it('strips the RO prefix before querying anaf', function () {
     fakeAnafFound();
 
@@ -90,24 +128,34 @@ it('strips the RO prefix before querying anaf', function () {
     Http::assertSent(fn ($request) => $request->data()[0]['cui'] === 12345678);
 });
 
-it('rejects an application whose fiscal code is unknown to anaf', function () {
+it('stores an application even when the fiscal code is unknown to anaf', function () {
     fakeAnafNotFound();
 
     $this->post(route('club-application.store'), validApplicationPayload())
-        ->assertSessionHasErrors('fiscal_code');
+        ->assertRedirect(route('club-application.create'));
 
-    expect(ClubApplication::count())->toBe(0);
+    $application = ClubApplication::sole();
+
+    expect($application->club_name)->toBe('Clubul Sportiv Test')
+        ->and($application->fiscal_code)->toBe('RO12345678')
+        ->and($application->company_name)->toBeNull()
+        ->and($application->address)->toBeNull()
+        ->and($application->is_vat_payer)->toBeNull()
+        ->and($application->status)->toBe(ClubApplicationStatus::Pending);
 });
 
-it('rejects an application when anaf is unreachable', function () {
+it('stores an application even when anaf is unreachable', function () {
     Http::fake([
         'webservicesp.anaf.ro/*' => Http::failedConnection(),
     ]);
 
     $this->post(route('club-application.store'), validApplicationPayload())
-        ->assertSessionHasErrors('fiscal_code');
+        ->assertRedirect(route('club-application.create'));
 
-    expect(ClubApplication::count())->toBe(0);
+    $application = ClubApplication::sole();
+
+    expect($application->company_name)->toBeNull()
+        ->and($application->status)->toBe(ClubApplicationStatus::Pending);
 });
 
 it('requires the mandatory fields', function () {

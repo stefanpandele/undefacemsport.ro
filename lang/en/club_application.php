@@ -78,5 +78,10 @@ return [
             'required' => 'Please enter the phone number.',
             'max' => 'The phone number must not exceed 50 characters.',
         ],
+        'turnstile' => [
+            'required' => 'Please confirm you are not a robot.',
+            'failed' => 'Anti-spam verification failed. Please try again.',
+            'unavailable' => 'Anti-spam verification is currently unavailable. Please try again later.',
+        ],
     ],
 ];

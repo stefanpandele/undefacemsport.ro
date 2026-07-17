@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import AnafLookupController from '@/actions/App/Http/Controllers/AnafLookupController';
 import { store } from '@/actions/App/Http/Controllers/ClubApplicationController';
 import InputError from '@/components/InputError.vue';
+import TurnstileWidget from '@/components/TurnstileWidget.vue';
 import { home } from '@/routes';
 import SiteNav from '@/components/landing/SiteNav.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import { useTranslations } from '@/composables/useTranslations';
 
 const { t } = useTranslations();
+
+const page = usePage();
+const turnstile = computed(() => page.props.turnstile);
+const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null);
 
 type CompanyDetails = {
     company_name: string;
@@ -25,6 +30,7 @@ const form = useForm({
     contact_phone: '',
     contact_email: '',
     company: null as CompanyDetails | null,
+    turnstile_token: '',
 });
 
 const submitted = ref(false);
@@ -81,6 +87,11 @@ function submit() {
         onSuccess: () => {
             submitted.value = true;
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        onError: () => {
+            // Turnstile tokens are single-use — force a fresh challenge.
+            form.turnstile_token = '';
+            turnstileRef.value?.reset();
         },
     });
 }
@@ -233,9 +244,19 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                         <span>{{ t('club_application.form.info') }}</span>
                     </div>
 
+                    <div class="mt-5">
+                        <TurnstileWidget
+                            ref="turnstileRef"
+                            v-model="form.turnstile_token"
+                            :site-key="turnstile.siteKey"
+                            :enabled="turnstile.enabled"
+                        />
+                        <InputError class="mt-1.5" :message="form.errors.turnstile_token" />
+                    </div>
+
                     <button
                         type="submit"
-                        :disabled="form.processing"
+                        :disabled="form.processing || !form.turnstile_token"
                         class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-[13px] text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c] disabled:cursor-not-allowed disabled:bg-[#e8b9a8] disabled:hover:bg-[#e8b9a8]"
                     >
                         {{ form.processing ? t('club_application.form.submitting') : t('club_application.form.submit') }}

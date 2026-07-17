@@ -21,6 +21,10 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             locale: string;
             translations: Record<string, unknown>;
+            turnstile: {
+                siteKey: string | null;
+                enabled: boolean;
+            };
             [key: string]: unknown;
         };
     }
@@ -31,5 +35,26 @@ declare module 'vue' {
         $inertia: typeof Router;
         $page: Page;
         $headManager: ReturnType<typeof createHeadManager>;
+    }
+}
+
+interface TurnstileRenderOptions {
+    sitekey: string;
+    callback?: (token: string) => void;
+    'expired-callback'?: () => void;
+    'error-callback'?: () => void;
+    theme?: 'light' | 'dark' | 'auto';
+}
+
+declare global {
+    interface Window {
+        turnstile?: {
+            render: (
+                el: HTMLElement | string,
+                options: TurnstileRenderOptions,
+            ) => string;
+            remove: (widgetId: string) => void;
+            reset: (widgetId?: string) => void;
+        };
     }
 }

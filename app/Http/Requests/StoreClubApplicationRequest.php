@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\TurnstileToken;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -20,7 +21,7 @@ class StoreClubApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'club_name' => ['required', 'string', 'max:255'],
             'fiscal_code' => ['required', 'string', 'max:50'],
             'contact_name' => ['required', 'string', 'max:255'],
@@ -28,6 +29,12 @@ class StoreClubApplicationRequest extends FormRequest
             'contact_phone' => ['required', 'string', 'max:50'],
             'company' => ['nullable', 'string'],
         ];
+
+        if (config('services.turnstile.enabled')) {
+            $rules['turnstile_token'] = ['required', 'string', new TurnstileToken];
+        }
+
+        return $rules;
     }
 
     /**
@@ -47,6 +54,7 @@ class StoreClubApplicationRequest extends FormRequest
             'contact_email.max' => __('club_application.validation.contact_email.max'),
             'contact_phone.required' => __('club_application.validation.contact_phone.required'),
             'contact_phone.max' => __('club_application.validation.contact_phone.max'),
+            'turnstile_token.required' => __('club_application.validation.turnstile.required'),
         ];
     }
 }

@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'locale' => app()->getLocale(),
             'translations' => $this->translations(),
+            'turnstile' => [
+                'siteKey' => config('services.turnstile.site_key'),
+                'enabled' => (bool) config('services.turnstile.enabled'),
+            ],
         ];
     }
 
