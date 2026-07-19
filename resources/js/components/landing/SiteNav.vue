@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { login, register } from '@/routes';
 
 import clubApplication from '@/routes/club-application';
+import { trackEvent } from '@/lib/gtm';
 
 const openMenu = ref<null | 'visitor' | 'club'>(null);
 const root = ref<HTMLElement | null>(null);
@@ -60,6 +61,7 @@ const btnBase =
                 <Link
                     :href="clubApplication.create.url()"
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
+                    @click="trackEvent('cta_click', { cta: 'add_club', location: 'nav' })"
                 >
                     Adaugă club
                 </Link>
@@ -97,7 +99,13 @@ const btnBase =
                         <!-- Club login = panou Filament, deci <a> normal (nu Inertia) -->
                         <a href="/club/login" :class="menuItem">Login</a>
                         <!-- Club register = formularul nostru Inertia cu aprobare -->
-                        <Link :href="clubApplication.create.url()" :class="menuItem">Register</Link>
+                        <Link
+                            :href="clubApplication.create.url()"
+                            :class="menuItem"
+                            @click="trackEvent('cta_click', { cta: 'add_club', location: 'nav_club_menu' })"
+                        >
+                            Register
+                        </Link>
                     </div>
                 </div>
             </div>

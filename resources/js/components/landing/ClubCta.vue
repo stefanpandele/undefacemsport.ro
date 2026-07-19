@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 
 import clubApplication from '@/routes/club-application';
+import { trackEvent } from '@/lib/gtm';
 
 const plans = [
     { pn: 'Basic', pp: 'Gratuit · listare + orar' },
@@ -35,6 +36,7 @@ const plans = [
                         <Link
                             :href="clubApplication.create.url()"
                             class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-[22px] py-3 text-[14.5px] font-semibold text-grass-deep transition hover:bg-[#f2f5ef]"
+                            @click="trackEvent('cta_click', { cta: 'add_club', location: 'club_cta_section' })"
                         >
                             Adaugă clubul tău
                         </Link>
