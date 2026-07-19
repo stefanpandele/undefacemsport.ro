@@ -1,4 +1,4 @@
-import { createInertiaApp, router } from '@inertiajs/vue3';
+import { createInertiaApp } from '@inertiajs/vue3';
 
 // Self-hosted landing fonts (served locally via Vite, no Google Fonts).
 import '@fontsource/archivo/600.css';
@@ -47,20 +47,3 @@ initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();
-
-// Push SPA page views into GTM's dataLayer on client-side navigation. GTM's
-// snippet only fires on the initial load, so Inertia visits need this to be
-// tracked. In GTM, add a Custom Event trigger on `pageview` for your tags.
-declare global {
-    interface Window {
-        dataLayer?: Record<string, unknown>[];
-    }
-}
-
-router.on('navigate', (event) => {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-        event: 'pageview',
-        page: event.detail.page.url,
-    });
-});
