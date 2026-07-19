@@ -6,6 +6,7 @@ import { store } from '@/actions/App/Http/Controllers/ClubApplicationController'
 import InputError from '@/components/InputError.vue';
 import TurnstileWidget from '@/components/TurnstileWidget.vue';
 import { home } from '@/routes';
+import { trackEvent } from '@/lib/gtm';
 import SiteNav from '@/components/landing/SiteNav.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import { useTranslations } from '@/composables/useTranslations';
@@ -85,6 +86,7 @@ function submit() {
     form.post(store.url(), {
         preserveScroll: true,
         onSuccess: () => {
+            trackEvent('form_submit', { form: 'club_application' });
             submitted.value = true;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
