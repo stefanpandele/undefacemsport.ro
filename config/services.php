@@ -44,4 +44,12 @@ return [
         'enabled' => (bool) env('TURNSTILE_ENABLED', ! in_array(env('APP_ENV', 'production'), ['local', 'dev'], true)),
     ],
 
+    'gtm' => [
+        'id' => env('GTM_ID'),
+        // Load Google Tag Manager everywhere except local/dev by default, so we
+        // don't pollute analytics during development. Set GTM_ENABLED in .env
+        // to force it on or off regardless of environment.
+        'enabled' => (bool) env('GTM_ENABLED', ! in_array(env('APP_ENV', 'production'), ['local', 'dev'], true)),
+    ],
+
 ];
