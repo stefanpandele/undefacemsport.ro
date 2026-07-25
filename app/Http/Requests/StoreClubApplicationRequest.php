@@ -23,9 +23,9 @@ class StoreClubApplicationRequest extends FormRequest
     {
         $rules = [
             'club_name' => ['required', 'string', 'max:255'],
-            'fiscal_code' => ['required', 'string', 'max:50'],
+            'fiscal_code' => ['required', 'string', 'unique:clubs,fiscal_code', 'max:50'],
             'contact_name' => ['required', 'string', 'max:255'],
-            'contact_email' => ['required', 'email', 'max:255'],
+            'contact_email' => ['required', 'email', 'unique:users,email', 'max:255'],
             'contact_phone' => ['required', 'string', 'max:50'],
             'company' => ['nullable', 'string'],
         ];

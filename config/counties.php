@@ -1,0 +1,56 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Romanian Counties (Județe)
+|--------------------------------------------------------------------------
+|
+| The 42 administrative counties, used as the searchable options for a
+| location's county. Stored on the location as a plain string.
+|
+*/
+
+return [
+    'Alba',
+    'Arad',
+    'Argeș',
+    'Bacău',
+    'Bihor',
+    'Bistrița-Năsăud',
+    'Botoșani',
+    'Brașov',
+    'Brăila',
+    'București',
+    'Buzău',
+    'Caraș-Severin',
+    'Călărași',
+    'Cluj',
+    'Constanța',
+    'Covasna',
+    'Dâmbovița',
+    'Dolj',
+    'Galați',
+    'Giurgiu',
+    'Gorj',
+    'Harghita',
+    'Hunedoara',
+    'Ialomița',
+    'Iași',
+    'Ilfov',
+    'Maramureș',
+    'Mehedinți',
+    'Mureș',
+    'Neamț',
+    'Olt',
+    'Prahova',
+    'Satu Mare',
+    'Sălaj',
+    'Sibiu',
+    'Suceava',
+    'Teleorman',
+    'Timiș',
+    'Tulcea',
+    'Vaslui',
+    'Vâlcea',
+    'Vrancea',
+];

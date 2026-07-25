@@ -41,3 +41,36 @@ test('the first member added to an existing club becomes its owner', function ()
 
     expect($club->fresh()->owner->is($user))->toBeTrue();
 });
+
+test('ownership can be transferred and the former master stays a member', function () {
+    $master = User::factory()->create();
+    $club = Club::createForOwner($master, [
+        'name' => 'Club Sportiv Test',
+        'slug' => 'club-sportiv-test',
+    ]);
+    $newMaster = User::factory()->create();
+    $club->addMember($newMaster);
+
+    $club->transferOwnershipTo($newMaster);
+    $club->refresh();
+
+    expect($club->owner->is($newMaster))->toBeTrue()
+        ->and($newMaster->isMasterOf($club))->toBeTrue()
+        ->and($master->isMasterOf($club))->toBeFalse()
+        ->and($club->users->contains($master))->toBeTrue();
+});
+
+test('transferring ownership to a non-member adds them to the club first', function () {
+    $master = User::factory()->create();
+    $club = Club::createForOwner($master, [
+        'name' => 'Alt Club',
+        'slug' => 'alt-club',
+    ]);
+    $newMaster = User::factory()->create();
+
+    $club->transferOwnershipTo($newMaster);
+    $club->refresh();
+
+    expect($club->owner->is($newMaster))->toBeTrue()
+        ->and($club->users->contains($newMaster))->toBeTrue();
+});

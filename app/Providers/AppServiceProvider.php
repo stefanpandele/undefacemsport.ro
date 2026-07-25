@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -41,11 +43,19 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Platform admins (is_admin) bypass every authorization check, including
-        // Shield's tenant-scoped roles. This is the app-wide "super admin".
-        Gate::before(fn (User $user): ?bool => $user->is_admin ? true : null);
+        // Super admins (configured by email in config/auth.php) bypass every
+        // authorization check, including Shield's tenant-scoped roles. Managed
+        // by environment, not a database column.
+        Gate::before(fn (User $user): ?bool => $user->isSuperAdmin() ? true : null);
 
         Date::use(CarbonImmutable::class);
+
+        // Define the LocationMap Alpine component in the panel <head>, so it is
+        // registered before Alpine evaluates the field's x-data inside modals.
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn (): string => view('filament.location-map-scripts')->render(),
+        );
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

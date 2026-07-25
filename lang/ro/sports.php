@@ -1,0 +1,23 @@
+<?php
+
+return [
+    'fotbal' => 'Fotbal',
+    'baschet' => 'Baschet',
+    'handbal' => 'Handbal',
+    'volei' => 'Volei',
+    'tenis' => 'Tenis',
+    'tenis-de-masa' => 'Tenis de masă',
+    'inot' => 'Înot',
+    'polo' => 'Polo',
+    'atletism' => 'Atletism',
+    'gimnastica' => 'Gimnastică',
+    'judo' => 'Judo',
+    'karate' => 'Karate',
+    'box' => 'Box',
+    'ciclism' => 'Ciclism',
+    'scrima' => 'Scrimă',
+    'rugby' => 'Rugby',
+    'badminton' => 'Badminton',
+    'sah' => 'Șah',
+    'dans-sportiv' => 'Dans sportiv',
+];

@@ -5,6 +5,7 @@ use App\Http\Controllers\ClubApplicationController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\LocationController;
+use App\Http\Middleware\RedirectToHomeArea;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -23,7 +24,8 @@ Route::get('company-lookup', AnafLookupController::class)
     ->name('anaf.lookup');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::inertia('dashboard', 'Dashboard')->name('dashboard')
+        ->middleware(RedirectToHomeArea::class.':user');
 });
 
 require __DIR__.'/settings.php';

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
@@ -70,6 +71,36 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
         return $this->hasMany(Club::class, 'owner_user_id');
     }
 
+    public function ownsAnyClub(): bool
+    {
+        return $this->ownedClubs()->exists();
+    }
+
+    public function belongsToAnyClub(): bool
+    {
+        return $this->clubs()->exists();
+    }
+
+    public function isMasterOf(Club $club): bool
+    {
+        return $club->owner_user_id !== null
+            && (int) $club->owner_user_id === (int) $this->getKey();
+    }
+
+    /**
+     * Platform super admin — defined by email in config/auth.php, not stored in
+     * the database. Bypasses all authorization via a Gate::before.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return in_array($this->email, config('auth.super_admins'), true);
+    }
+
+    public function isConsumer(): bool
+    {
+        return ! $this->is_admin && ! $this->isSuperAdmin() && ! $this->belongsToAnyClub();
+    }
+
     public function getTenants(Panel $panel): Collection
     {
         return $this->clubs;
@@ -83,9 +114,27 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
     public function canAccessPanel(Panel $panel): bool
     {
         return match ($panel->getId()) {
-            'admin' => $this->is_admin,
+            'admin' => $this->is_admin || $this->isSuperAdmin(),
             'club' => $this->clubs()->exists(),
             default => false,
         };
+    }
+
+    /**
+     * The URL of the area this user belongs to: the admin panel for staff, the
+     * club panel for club members, otherwise the consumer dashboard. Used to
+     * redirect users away from areas they can't access instead of showing 403.
+     */
+    public function homeUrl(): string
+    {
+        if ($this->is_admin || $this->isSuperAdmin()) {
+            return Filament::getPanel('admin')->getUrl();
+        }
+
+        if ($club = $this->clubs()->first()) {
+            return Filament::getPanel('club')->getUrl($club);
+        }
+
+        return route('dashboard');
     }
 }

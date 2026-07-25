@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ClubApplicationStatus;
+use Database\Factories\ClubApplicationFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -30,6 +32,9 @@ use Illuminate\Support\Carbon;
  */
 class ClubApplication extends Model
 {
+    /** @use HasFactory<ClubApplicationFactory> */
+    use HasFactory;
+
     /**
      * Only the public summary form fields are mass-assignable.
      * `status`, `reviewed_at`, `reviewed_by` are set by the approval flow.

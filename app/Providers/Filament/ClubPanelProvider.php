@@ -2,9 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\FilamentAuthenticate;
 use App\Models\Club;
-use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -53,11 +52,9 @@ class ClubPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            ->plugins([
-                FilamentShieldPlugin::make(),
-            ])
+            // Custom Authenticate: redirects wrong-area users home instead of 403.
             ->authMiddleware([
-                Authenticate::class,
+                FilamentAuthenticate::class,
             ])
             ->tenant(Club::class);
     }
