@@ -6,6 +6,39 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Platform Super Admins
+    |--------------------------------------------------------------------------
+    |
+    | Users whose email appears in this list bypass every authorization check
+    | (via a Gate::before in AppServiceProvider). Managed by environment, not a
+    | database column, so super-admin access can't be granted by a DB write and
+    | can differ per environment.
+    |
+    */
+
+    'super_admins' => array_filter(array_map(
+        'trim',
+        explode(',', (string) env('SUPER_ADMIN_EMAILS', '')),
+    )),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Platform Permissions Team
+    |--------------------------------------------------------------------------
+    |
+    | Spatie Permission runs in "teams" mode (per-club roles), so every role
+    | assignment needs a team id. The /admin panel has no tenant, so admin-staff
+    | roles are scoped to this reserved sentinel team id. It must be NON-ZERO
+    | (Spatie treats a falsy 0 as "no team" and stores NULL) and must never
+    | collide with a real club id (clubs auto-increment from 1). A middleware
+    | pins it as the active team on admin requests.
+    |
+    */
+
+    'platform_team_id' => (int) env('PLATFORM_TEAM_ID', 1000000),
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Defaults
     |--------------------------------------------------------------------------
     |

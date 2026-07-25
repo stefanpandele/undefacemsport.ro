@@ -3,8 +3,9 @@
 namespace App\Providers\Filament;
 
 use App\Http\Middleware\EnsureAdminIp;
+use App\Http\Middleware\FilamentAuthenticate;
+use App\Http\Middleware\SetPlatformPermissionsTeam;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -55,11 +56,15 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
                 EnsureAdminIp::class,
             ])
+            // Persistent so the platform team is pinned on Livewire requests too
+            // (e.g. saving a record), not just the initial page load.
+            ->middleware([SetPlatformPermissionsTeam::class], isPersistent: true)
             ->plugins([
                 FilamentShieldPlugin::make(),
             ])
+            // Custom Authenticate: redirects wrong-area users home instead of 403.
             ->authMiddleware([
-                Authenticate::class,
+                FilamentAuthenticate::class,
             ]);
     }
 }

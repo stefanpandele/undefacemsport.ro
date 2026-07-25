@@ -41,9 +41,10 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Platform admins (is_admin) bypass every authorization check, including
-        // Shield's tenant-scoped roles. This is the app-wide "super admin".
-        Gate::before(fn (User $user): ?bool => $user->is_admin ? true : null);
+        // Super admins (configured by email in config/auth.php) bypass every
+        // authorization check, including Shield's tenant-scoped roles. Managed
+        // by environment, not a database column.
+        Gate::before(fn (User $user): ?bool => $user->isSuperAdmin() ? true : null);
 
         Date::use(CarbonImmutable::class);
 
