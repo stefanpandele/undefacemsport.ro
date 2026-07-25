@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Filament\Resources\Clubs\Pages;
+namespace App\Filament\Admin\Resources\ClubApplications\Pages;
 
-use App\Filament\Resources\Clubs\ClubResource;
+use App\Filament\Admin\Resources\ClubApplications\ClubApplicationResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditClub extends EditRecord
+class EditClubApplication extends EditRecord
 {
-    protected static string $resource = ClubResource::class;
+    protected static string $resource = ClubApplicationResource::class;
 
     protected function getHeaderActions(): array
     {

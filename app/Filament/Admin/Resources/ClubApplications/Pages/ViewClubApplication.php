@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\ClubApplications\Pages;
+namespace App\Filament\Admin\Resources\ClubApplications\Pages;
 
-use App\Filament\Resources\ClubApplications\ClubApplicationResource;
+use App\Filament\Admin\Resources\ClubApplications\ClubApplicationResource;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 

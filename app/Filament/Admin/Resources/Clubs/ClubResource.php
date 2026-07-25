@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\Clubs;
+namespace App\Filament\Admin\Resources\Clubs;
 
-use App\Filament\Resources\Clubs\Pages\CreateClub;
-use App\Filament\Resources\Clubs\Pages\EditClub;
-use App\Filament\Resources\Clubs\Pages\ListClubs;
-use App\Filament\Resources\Clubs\Pages\ViewClub;
-use App\Filament\Resources\Clubs\Schemas\ClubForm;
-use App\Filament\Resources\Clubs\Schemas\ClubInfolist;
-use App\Filament\Resources\Clubs\Tables\ClubsTable;
+use App\Filament\Admin\Resources\Clubs\Pages\CreateClub;
+use App\Filament\Admin\Resources\Clubs\Pages\EditClub;
+use App\Filament\Admin\Resources\Clubs\Pages\ListClubs;
+use App\Filament\Admin\Resources\Clubs\Pages\ViewClub;
+use App\Filament\Admin\Resources\Clubs\Schemas\ClubForm;
+use App\Filament\Admin\Resources\Clubs\Schemas\ClubInfolist;
+use App\Filament\Admin\Resources\Clubs\Tables\ClubsTable;
 use App\Models\Club;
 use BackedEnum;
 use Filament\Resources\Resource;

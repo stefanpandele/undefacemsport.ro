@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\ClubApplications;
+namespace App\Filament\Admin\Resources\ClubApplications;
 
-use App\Filament\Resources\ClubApplications\Pages\CreateClubApplication;
-use App\Filament\Resources\ClubApplications\Pages\EditClubApplication;
-use App\Filament\Resources\ClubApplications\Pages\ListClubApplications;
-use App\Filament\Resources\ClubApplications\Pages\ViewClubApplication;
-use App\Filament\Resources\ClubApplications\Schemas\ClubApplicationForm;
-use App\Filament\Resources\ClubApplications\Schemas\ClubApplicationInfolist;
-use App\Filament\Resources\ClubApplications\Tables\ClubApplicationsTable;
+use App\Filament\Admin\Resources\ClubApplications\Pages\CreateClubApplication;
+use App\Filament\Admin\Resources\ClubApplications\Pages\EditClubApplication;
+use App\Filament\Admin\Resources\ClubApplications\Pages\ListClubApplications;
+use App\Filament\Admin\Resources\ClubApplications\Pages\ViewClubApplication;
+use App\Filament\Admin\Resources\ClubApplications\Schemas\ClubApplicationForm;
+use App\Filament\Admin\Resources\ClubApplications\Schemas\ClubApplicationInfolist;
+use App\Filament\Admin\Resources\ClubApplications\Tables\ClubApplicationsTable;
 use App\Models\ClubApplication;
 use BackedEnum;
 use Filament\Resources\Resource;

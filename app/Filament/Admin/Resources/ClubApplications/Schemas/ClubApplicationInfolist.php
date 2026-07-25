@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ClubApplications\Schemas;
+namespace App\Filament\Admin\Resources\ClubApplications\Schemas;
 
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
