@@ -1,0 +1,23 @@
+<?php
+
+return [
+    'fotbal' => 'Football',
+    'baschet' => 'Basketball',
+    'handbal' => 'Handball',
+    'volei' => 'Volleyball',
+    'tenis' => 'Tennis',
+    'tenis-de-masa' => 'Table Tennis',
+    'inot' => 'Swimming',
+    'polo' => 'Water Polo',
+    'atletism' => 'Athletics',
+    'gimnastica' => 'Gymnastics',
+    'judo' => 'Judo',
+    'karate' => 'Karate',
+    'box' => 'Boxing',
+    'ciclism' => 'Cycling',
+    'scrima' => 'Fencing',
+    'rugby' => 'Rugby',
+    'badminton' => 'Badminton',
+    'sah' => 'Chess',
+    'dans-sportiv' => 'Dance Sport',
+];
