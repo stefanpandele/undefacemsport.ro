@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ClubApplications\Tables;
+namespace App\Filament\Admin\Resources\ClubApplications\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;

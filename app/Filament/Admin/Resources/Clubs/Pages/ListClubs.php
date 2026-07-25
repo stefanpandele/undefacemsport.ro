@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\Clubs\Pages;
+namespace App\Filament\Admin\Resources\Clubs\Pages;
 
-use App\Filament\Resources\Clubs\ClubResource;
+use App\Filament\Admin\Resources\Clubs\ClubResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 

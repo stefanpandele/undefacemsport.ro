@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ClubApplications\Schemas;
+namespace App\Filament\Admin\Resources\ClubApplications\Schemas;
 
 use App\Enums\ClubApplicationStatus;
 use Filament\Forms\Components\DateTimePicker;

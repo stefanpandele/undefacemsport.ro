@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             $this->call([
                 AdminPasswordSeeder::class,
                 SportSeeder::class,
+                CountySeeder::class,
+                LocalitySeeder::class,
                 ClubSeeder::class,
                 UserSeeder::class,
                 ClubUserSeeder::class,
