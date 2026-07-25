@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -47,6 +49,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user): ?bool => $user->isSuperAdmin() ? true : null);
 
         Date::use(CarbonImmutable::class);
+
+        // Define the LocationMap Alpine component in the panel <head>, so it is
+        // registered before Alpine evaluates the field's x-data inside modals.
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn (): string => view('filament.location-map-scripts')->render(),
+        );
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
