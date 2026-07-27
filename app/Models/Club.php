@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\Plan;
 use Database\Factories\ClubFactory;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -287,14 +286,14 @@ class Club extends Model
         });
     }
 
-    protected function logoUrl(): Attribute
+    public function getLogoUrlAttribute(): ?string
     {
-        return Attribute::get(fn (): ?string => $this->urlForPath($this->logo_path));
+        return $this->urlForPath($this->logo_path);
     }
 
-    protected function coverUrl(): Attribute
+    public function getCoverUrlAttribute(): ?string
     {
-        return Attribute::get(fn (): ?string => $this->urlForPath($this->cover_path));
+        return $this->urlForPath($this->cover_path);
     }
 
     private function urlForPath(?string $path): ?string

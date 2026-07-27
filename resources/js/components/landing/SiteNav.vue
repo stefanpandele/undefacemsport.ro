@@ -40,7 +40,11 @@ const btnBase =
         class="sticky top-0 z-[60] border-b border-line bg-paper/85 backdrop-blur-md"
     >
         <div class="wrap flex h-16 items-center gap-7">
-            <Link href="/" class="flex items-center" aria-label="Unde Facem Sport">
+            <Link
+                href="/"
+                class="flex items-center"
+                aria-label="Unde Facem Sport"
+            >
                 <img
                     src="/images/unde-facem-sport-logo-2.svg"
                     alt="Unde Facem Sport"
@@ -60,7 +64,12 @@ const btnBase =
                 <Link
                     :href="clubApplication.create.url()"
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
-                    @click="trackEvent('cta_click', { cta: 'add_club', location: 'nav' })"
+                    @click="
+                        trackEvent('cta_click', {
+                            cta: 'add_club',
+                            location: 'nav',
+                        })
+                    "
                 >
                     Adaugă club
                 </Link>
@@ -81,7 +90,9 @@ const btnBase =
                     </button>
                     <div v-if="openMenu === 'visitor'" :class="menuPanel">
                         <Link :href="login()" :class="menuItem">Login</Link>
-                        <Link :href="register()" :class="menuItem">Register</Link>
+                        <Link :href="register()" :class="menuItem"
+                            >Register</Link
+                        >
                     </div>
                 </div>
 
@@ -89,7 +100,10 @@ const btnBase =
                 <div class="relative">
                     <button
                         type="button"
-                        :class="[btnBase, 'bg-clay text-white hover:bg-[#e6501c]']"
+                        :class="[
+                            btnBase,
+                            'bg-clay text-white hover:bg-[#e6501c]',
+                        ]"
                         @click="toggle('club')"
                     >
                         Club
@@ -101,7 +115,12 @@ const btnBase =
                         <Link
                             :href="clubApplication.create.url()"
                             :class="menuItem"
-                            @click="trackEvent('cta_click', { cta: 'add_club', location: 'nav_club_menu' })"
+                            @click="
+                                trackEvent('cta_click', {
+                                    cta: 'add_club',
+                                    location: 'nav_club_menu',
+                                })
+                            "
                         >
                             Register
                         </Link>

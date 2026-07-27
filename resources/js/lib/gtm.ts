@@ -15,7 +15,10 @@ declare global {
  * @param event  GA4-style snake_case event name, e.g. `cta_click`, `form_submit`.
  * @param params Extra data for the event, e.g. `{ form: 'club_application' }`.
  */
-export function trackEvent(event: string, params: Record<string, unknown> = {}): void {
+export function trackEvent(
+    event: string,
+    params: Record<string, unknown> = {},
+): void {
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({ event, ...params });
 }

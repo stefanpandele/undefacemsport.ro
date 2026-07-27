@@ -91,9 +91,9 @@ class ExploreController extends Controller
                 fn (BuilderContract $facilities) => $facilities->whereKey($facility),
             ))
             ->withCount([
-                'clubLocations as club_count' => fn (BuilderContract $query) => $query->when(
+                'clubLocations as club_count' => fn (Builder $query) => $query->when(
                     $sport,
-                    fn (BuilderContract $clubLocations) => $clubLocations->whereHas(
+                    fn (Builder $clubLocations) => $clubLocations->whereHas(
                         'sports',
                         fn (BuilderContract $sports) => $sports->where('sports.slug', $sport),
                     ),
@@ -206,7 +206,7 @@ class ExploreController extends Controller
     /**
      * Age group names offered for each sport in the city, keyed by sport id.
      *
-     * @return Collection<int, Collection<int, string>>
+     * @return Collection<int|string, Collection<int, mixed>>
      */
     private function ageGroupsBySport(?string $city): Collection
     {

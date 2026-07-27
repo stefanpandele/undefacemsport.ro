@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 defineEmits<{ share: [] }>();
@@ -29,7 +28,7 @@ const stats = [
         </svg>
 
         <div
-            class="wrap relative z-[1] grid gap-9 min-[900px]:grid-cols-[1.1fr_0.9fr] min-[900px]:items-center"
+            class="relative z-[1] wrap grid gap-9 min-[900px]:grid-cols-[1.1fr_0.9fr] min-[900px]:items-center"
         >
             <div>
                 <span
@@ -130,13 +129,15 @@ const stats = [
                         Vezi ce ai lângă tine
                     </h3>
                     <p class="mx-auto max-w-[30ch] text-sm text-sage">
-                        Îți arătăm locurile sportive din orașul tău — nu dintr-un
-                        oraș în care nu ești.
+                        Îți arătăm locurile sportive din orașul tău — nu
+                        dintr-un oraș în care nu ești.
                     </p>
                 </div>
                 <div class="px-6 pt-5 pb-[26px]">
                     <div class="mb-4">
-                        <span class="mb-2 block text-xs font-semibold text-sage">
+                        <span
+                            class="mb-2 block text-xs font-semibold text-sage"
+                        >
                             Caută într-o rază de
                         </span>
                         <div class="flex justify-center gap-1.5">

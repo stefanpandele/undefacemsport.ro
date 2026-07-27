@@ -64,9 +64,13 @@ class ScheduleSlotResource extends Resource
             static::locationSportSelect()
                 // The coach options are scoped to the sport, so a pair change
                 // clears the chosen coaches but keeps the days and hours typed.
-                ->afterStateUpdated(fn ($get, $set) => $set('slots', collect($get('slots') ?? [])
-                    ->map(fn (array $slot): array => [...$slot, 'coach_id' => null])
-                    ->all()))
+                ->afterStateUpdated(function ($get, $set): void {
+                    $slots = $get('slots');
+
+                    $set('slots', collect(is_array($slots) ? $slots : [])
+                        ->map(fn (array $slot): array => [...$slot, 'coach_id' => null])
+                        ->all());
+                })
                 ->columnSpanFull(),
             Repeater::make('slots')
                 ->label('Intervale')
@@ -88,9 +92,12 @@ class ScheduleSlotResource extends Resource
     {
         $locationSport = ClubLocationSport::query()
             ->with('clubLocation')
-            ->findOrFail($data['club_location_sport_id']);
+            ->whereKey($data['club_location_sport_id'])
+            ->firstOrFail();
 
-        return collect($data['slots'] ?? [])
+        $slots = $data['slots'] ?? [];
+
+        return collect(is_array($slots) ? $slots : [])
             ->map(fn (array $slot): ScheduleSlot => ScheduleSlot::create([
                 'club_id' => $locationSport->clubLocation->club_id,
                 'club_location_sport_id' => $locationSport->getKey(),

@@ -36,7 +36,11 @@ const columns = [
         <div class="wrap">
             <div class="grid gap-[26px] md:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
-                    <Link href="/" class="inline-flex items-center" aria-label="Unde Facem Sport">
+                    <Link
+                        href="/"
+                        class="inline-flex items-center"
+                        aria-label="Unde Facem Sport"
+                    >
                         <img
                             src="/images/unde-facem-sport-logo-2.svg"
                             alt="Unde Facem Sport"
@@ -49,7 +53,9 @@ const columns = [
                 </div>
 
                 <div v-for="col in columns" :key="col.h">
-                    <h4 class="mb-2.5 text-[13px] font-semibold">{{ col.h }}</h4>
+                    <h4 class="mb-2.5 text-[13px] font-semibold">
+                        {{ col.h }}
+                    </h4>
                     <a
                         v-for="link in col.links"
                         :key="link.label"
@@ -64,7 +70,10 @@ const columns = [
             <div
                 class="mt-[30px] flex flex-col gap-2 border-t border-line pt-5 text-[13px] text-sage md:flex-row md:justify-between"
             >
-                <span>© 2026 UndeFacemSport.ro · Toate drepturile rezervate.</span>
+                <span
+                    >© 2026 UndeFacemSport.ro · Toate drepturile
+                    rezervate.</span
+                >
                 <span>
                     Made with ❤️
                     <span class="block sm:inline">by NETmeON!</span>

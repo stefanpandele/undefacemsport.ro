@@ -39,6 +39,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Seeded Admin Password
+    |--------------------------------------------------------------------------
+    |
+    | Password AdminPasswordSeeder gives the platform admin. In production it
+    | must come from the environment — outside it, a convenient default keeps
+    | local and dev seeding frictionless. Read through config (never env()
+    | directly in a seeder) so a cached config does not resolve it to null.
+    |
+    */
+
+    'admin_password' => (string) env(
+        'ADMIN_PASSWORD',
+        env('APP_ENV') === 'production' ? '' : 'password',
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Defaults
     |--------------------------------------------------------------------------
     |

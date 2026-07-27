@@ -13,11 +13,11 @@ class AdminPasswordSeeder extends Seeder
     public function run(): void
     {
         // In production the admin password must come from the ADMIN_PASSWORD
-        // env var; locally it falls back to a convenient default. Never seed a
-        // production admin with a weak, source-controlled password.
-        $password = env('ADMIN_PASSWORD', app()->isProduction() ? null : 'password');
+        // env var; elsewhere it falls back to a convenient default. Never seed
+        // a production admin with a weak, source-controlled password.
+        $password = config('auth.admin_password');
 
-        if (blank($password)) {
+        if (! is_string($password) || blank($password)) {
             $this->command->warn('ADMIN_PASSWORD is not set — skipping admin user seed.');
 
             return;

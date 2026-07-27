@@ -254,7 +254,7 @@ class ClubController extends Controller
         foreach ($club->clubSports->sortBy('sort_order') as $clubSport) {
             $sportId = $clubSport->sport_id;
 
-            $result[$clubSport->sport->slug] = $club->clubLocations
+            $result[$clubSport->sport->slug] = array_values($club->clubLocations
                 ->filter(fn (ClubLocation $clubLocation): bool => $clubLocation->clubLocationSports->contains('sport_id', $sportId))
                 ->map(fn (ClubLocation $clubLocation): array => [
                     'slug' => $clubLocation->location->slug,
@@ -262,8 +262,7 @@ class ClubController extends Controller
                     'city' => Str::upper($clubLocation->location->city ?? ''),
                     'schedule' => $this->schedule($club, $clubLocation, $sportId),
                 ])
-                ->values()
-                ->all();
+                ->all());
         }
 
         return $result;

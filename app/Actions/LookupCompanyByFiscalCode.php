@@ -34,7 +34,9 @@ class LookupCompanyByFiscalCode
 
         $cached = Cache::get($this->cacheKey($cui));
 
-        if (is_array($cached)) {
+        // A cache entry is untyped data that may predate a change to the shape,
+        // so it is only reused once it still matches what callers expect.
+        if ($this->isCompanyDetails($cached)) {
             return $cached;
         }
 
@@ -45,6 +47,22 @@ class LookupCompanyByFiscalCode
         }
 
         return $company;
+    }
+
+    /**
+     * Whether a cached value still carries every field of CompanyDetails.
+     *
+     * @phpstan-assert-if-true CompanyDetails $value
+     */
+    private function isCompanyDetails(mixed $value): bool
+    {
+        return is_array($value)
+            && is_string($value['company_name'] ?? null)
+            && is_string($value['address'] ?? null)
+            && is_string($value['registration_number'] ?? null)
+            && is_string($value['county'] ?? null)
+            && is_string($value['city'] ?? null)
+            && is_bool($value['is_vat_payer'] ?? null);
     }
 
     /**

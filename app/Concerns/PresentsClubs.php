@@ -47,7 +47,8 @@ trait PresentsClubs
                     'photo' => $coach->photo_url,
                     'bio' => $coach->bio ?? '',
                     'sportIcon' => (string) $sport?->icon,
-                    'sportLabel' => $sport?->translated_name ?? '',
+                    // `??` already short-circuits a null $sport, so `?->` adds nothing.
+                    'sportLabel' => $sport->translated_name ?? '',
                 ];
             })
             ->all();
@@ -96,14 +97,14 @@ trait PresentsClubs
     {
         $byDay = $slots->groupBy(fn (ScheduleSlot $slot): int => $slot->day_of_week->value);
 
-        return collect(Weekday::cases())
+        return array_values(collect(Weekday::cases())
             ->map(function (Weekday $day) use ($byDay, $occupancy): array {
                 $others = $occupancy[$day->value] ?? [];
 
                 $own = ($byDay->get($day->value) ?? collect())
                     ->map(fn (ScheduleSlot $slot): array => [
                         'time' => $this->interval($slot),
-                        'group' => $slot->ageGroup?->name ?? '',
+                        'group' => $slot->ageGroup->name ?? '',
                         'coach' => (string) $slot->coach_id,
                         'foreign' => false,
                         'otherClubs' => $others[$this->interval($slot)] ?? [],
@@ -125,10 +126,10 @@ trait PresentsClubs
                 return [
                     'day' => $day->short(),
                     // Zero-padded 24h times, so a plain string sort is chronological.
-                    'slots' => $own->concat($foreign)->sortBy('time')->values()->all(),
+                    'slots' => array_values($own->concat($foreign)->sortBy('time')->all()),
                 ];
             })
-            ->all();
+            ->all());
     }
 
     /**

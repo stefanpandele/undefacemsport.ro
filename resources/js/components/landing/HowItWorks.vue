@@ -44,7 +44,8 @@ const steps = [
                     <h2
                         class="mt-2.5 font-archivo text-[clamp(24px,3.2vw,34px)] font-extrabold text-white"
                     >
-                        De la „unde fac sport?" la numărul de telefon, în trei pași.
+                        De la „unde fac sport?" la numărul de telefon, în trei
+                        pași.
                     </h2>
                 </div>
 
@@ -59,7 +60,9 @@ const steps = [
                         >
                             {{ step.no }}
                         </div>
-                        <h3 class="mt-2 mb-1.5 font-archivo text-[19px] font-bold text-white">
+                        <h3
+                            class="mt-2 mb-1.5 font-archivo text-[19px] font-bold text-white"
+                        >
                             {{ step.h }}
                         </h3>
                         <p class="text-sm text-[#9fb3a6]">{{ step.p }}</p>

@@ -40,13 +40,13 @@ class AdminAccessSeeder extends Seeder
         // Spatie does not set roles.team_id from the active team on create, so
         // pin it explicitly. Role, assignment and the admin middleware must all
         // share the same platform team, or Shield's role UI shows a mismatch.
-        if ((int) $role->team_id !== (int) $teamId) {
+        if ((int) $role->getAttribute('team_id') !== (int) $teamId) {
             DB::table(config('permission.table_names.roles'))
                 ->where('id', $role->getKey())
                 ->update(['team_id' => $teamId]);
 
             $registrar->forgetCachedPermissions();
-            $role = Role::findOrFail($role->getKey());
+            $role = Role::query()->whereKey($role->getKey())->firstOrFail();
         }
 
         // Limited scope: review club applications, read-only on clubs.

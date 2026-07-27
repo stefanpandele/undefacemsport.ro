@@ -12,7 +12,9 @@ defineEmits<{ openCoach: [coach: Coach] }>();
 
 const MINI_GALLERY_SIZE = 3;
 
-const miniGallery = computed(() => props.club.photos.slice(0, MINI_GALLERY_SIZE));
+const miniGallery = computed(() =>
+    props.club.photos.slice(0, MINI_GALLERY_SIZE),
+);
 const remainingPhotos = computed(() =>
     Math.max(props.club.photos.length - MINI_GALLERY_SIZE, 0),
 );
@@ -26,7 +28,15 @@ const remainingPhotos = computed(() =>
         >
             <div
                 class="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[2.5px] border-white text-2xl shadow-[0_0_0_2px_var(--color-line)]"
-                :style="club.coaches[0]?.photo ? {} : { background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
+                :style="
+                    club.coaches[0]?.photo
+                        ? {}
+                        : {
+                              background:
+                                  club.coaches[0]?.gradient ??
+                                  gradientStyle('g2'),
+                          }
+                "
             >
                 <img
                     v-if="club.coaches[0]?.photo"
@@ -37,13 +47,17 @@ const remainingPhotos = computed(() =>
                 <template v-else>🧑‍🏫</template>
             </div>
             <div>
-                <div class="font-archivo text-[17px] font-extrabold group-hover:text-grass-deep">
+                <div
+                    class="font-archivo text-[17px] font-extrabold group-hover:text-grass-deep"
+                >
                     {{ club.name }}
                 </div>
                 <div class="mt-0.5 text-[12.5px] font-semibold text-grass-deep">
                     cu {{ club.representative }}
                 </div>
-                <div class="mt-1.5 text-[13.5px] text-sage">{{ club.about }}</div>
+                <div class="mt-1.5 text-[13.5px] text-sage">
+                    {{ club.about }}
+                </div>
             </div>
         </Link>
 
@@ -86,7 +100,9 @@ const remainingPhotos = computed(() =>
                 >
                     <div
                         class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm transition group-hover:shadow-[0_0_0_2px_var(--color-grass)]"
-                        :style="coach.photo ? {} : { background: coach.gradient }"
+                        :style="
+                            coach.photo ? {} : { background: coach.gradient }
+                        "
                     >
                         <img
                             v-if="coach.photo"
@@ -97,7 +113,9 @@ const remainingPhotos = computed(() =>
                         <template v-else>🧑‍🏫</template>
                     </div>
                     <div>
-                        <div class="flex items-center gap-1.5 text-xs font-semibold group-hover:text-grass-deep">
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-semibold group-hover:text-grass-deep"
+                        >
                             {{ coach.name }}
                             <span
                                 v-if="coach.solo"
@@ -106,7 +124,9 @@ const remainingPhotos = computed(() =>
                                 1:1
                             </span>
                         </div>
-                        <div class="text-[10px] text-sage">{{ coach.role }}</div>
+                        <div class="text-[10px] text-sage">
+                            {{ coach.role }}
+                        </div>
                     </div>
                 </button>
             </div>
@@ -118,7 +138,11 @@ const remainingPhotos = computed(() =>
                 v-for="chip in club.trustChips"
                 :key="chip.label"
                 class="inline-flex items-center gap-1 rounded-[7px] px-2.5 py-[5px] text-[11px] font-semibold"
-                :class="chip.solo ? 'bg-[#fff1eb] text-clay' : 'bg-[#eaf6ef] text-grass-deep'"
+                :class="
+                    chip.solo
+                        ? 'bg-[#fff1eb] text-clay'
+                        : 'bg-[#eaf6ef] text-grass-deep'
+                "
             >
                 {{ chip.label }}
             </span>
@@ -156,7 +180,15 @@ const remainingPhotos = computed(() =>
             <div class="flex items-center gap-2.5">
                 <div
                     class="flex h-[30px] w-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full text-sm"
-                    :style="club.coaches[0]?.photo ? {} : { background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
+                    :style="
+                        club.coaches[0]?.photo
+                            ? {}
+                            : {
+                                  background:
+                                      club.coaches[0]?.gradient ??
+                                      gradientStyle('g2'),
+                              }
+                    "
                 >
                     <img
                         v-if="club.coaches[0]?.photo"
@@ -168,7 +200,9 @@ const remainingPhotos = computed(() =>
                 </div>
                 <span class="text-[13.5px] text-sage">
                     Contact: <b class="text-ink">{{ club.contactName }}</b>
-                    <template v-if="club.contactPhone"> · {{ club.contactPhone }}</template>
+                    <template v-if="club.contactPhone">
+                        · {{ club.contactPhone }}</template
+                    >
                 </span>
             </div>
             <div v-if="club.contactPhone" class="flex gap-2">

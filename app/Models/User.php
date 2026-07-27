@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -61,11 +62,17 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
         ];
     }
 
+    /**
+     * @return BelongsToMany<Club, $this, Pivot>
+     */
     final public function clubs(): BelongsToMany
     {
         return $this->belongsToMany(Club::class);
     }
 
+    /**
+     * @return HasMany<Club, $this>
+     */
     public function ownedClubs(): HasMany
     {
         return $this->hasMany(Club::class, 'owner_user_id');
@@ -101,6 +108,9 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
         return ! $this->is_admin && ! $this->isSuperAdmin() && ! $this->belongsToAnyClub();
     }
 
+    /**
+     * @return Collection<int, Club>
+     */
     public function getTenants(Panel $panel): Collection
     {
         return $this->clubs;

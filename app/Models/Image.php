@@ -45,6 +45,9 @@ class Image extends Model
         return $this->morphTo();
     }
 
+    /**
+     * @return Attribute<string, never>
+     */
     protected function url(): Attribute
     {
         return Attribute::get(

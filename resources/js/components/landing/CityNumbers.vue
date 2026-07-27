@@ -47,7 +47,9 @@ const filledStats = [
                     >
                         📍
                     </div>
-                    <h3 class="mb-2 font-archivo text-[19px] font-extrabold text-white">
+                    <h3
+                        class="mb-2 font-archivo text-[19px] font-extrabold text-white"
+                    >
                         Orașul tău în cifre
                     </h3>
                     <p class="mx-auto mb-5 max-w-[36ch] text-sm text-[#9fb3a6]">
@@ -62,10 +64,14 @@ const filledStats = [
                             :key="l"
                             class="border-t-2 border-white/[0.14] pt-3.5"
                         >
-                            <div class="font-jetbrains text-[26px] font-bold text-[#5c6b62]">
+                            <div
+                                class="font-jetbrains text-[26px] font-bold text-[#5c6b62]"
+                            >
                                 —
                             </div>
-                            <div class="mt-1 text-[12.5px] text-[#9fb3a6]">{{ l }}</div>
+                            <div class="mt-1 text-[12.5px] text-[#9fb3a6]">
+                                {{ l }}
+                            </div>
                         </div>
                     </div>
                     <button
@@ -86,7 +92,9 @@ const filledStats = [
                             <span
                                 class="flex items-center gap-[7px] font-jetbrains text-[11px] font-semibold tracking-[0.16em] text-grass uppercase"
                             >
-                                <span class="h-[7px] w-[7px] rounded-full bg-grass" />
+                                <span
+                                    class="h-[7px] w-[7px] rounded-full bg-grass"
+                                />
                                 Detectat din locația ta
                             </span>
                             <h2
@@ -100,13 +108,20 @@ const filledStats = [
                                 </span>
                             </h2>
                         </div>
-                        <a href="#" class="text-[13px] font-semibold text-grass whitespace-nowrap">
+                        <a
+                            href="#"
+                            class="text-[13px] font-semibold whitespace-nowrap text-grass"
+                        >
                             Nu ești aici? Schimbă orașul →
                         </a>
                     </div>
 
-                    <div class="relative z-[2] mb-[22px] flex flex-wrap items-center gap-2">
-                        <span class="text-[11.5px] whitespace-nowrap text-[#9fb3a6]">
+                    <div
+                        class="relative z-[2] mb-[22px] flex flex-wrap items-center gap-2"
+                    >
+                        <span
+                            class="text-[11.5px] whitespace-nowrap text-[#9fb3a6]"
+                        >
                             Rază de căutare:
                         </span>
                         <button
@@ -125,16 +140,22 @@ const filledStats = [
                         </button>
                     </div>
 
-                    <div class="relative z-[2] grid grid-cols-2 gap-3.5 md:grid-cols-4">
+                    <div
+                        class="relative z-[2] grid grid-cols-2 gap-3.5 md:grid-cols-4"
+                    >
                         <div
                             v-for="s in filledStats"
                             :key="s.l"
                             class="border-t-2 border-white/[0.14] pt-3.5"
                         >
-                            <div class="font-jetbrains text-[26px] font-bold text-white">
+                            <div
+                                class="font-jetbrains text-[26px] font-bold text-white"
+                            >
                                 {{ s.n }}
                             </div>
-                            <div class="mt-1 text-[12.5px] text-[#9fb3a6]">{{ s.l }}</div>
+                            <div class="mt-1 text-[12.5px] text-[#9fb3a6]">
+                                {{ s.l }}
+                            </div>
                         </div>
                     </div>
 

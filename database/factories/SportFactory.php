@@ -16,10 +16,10 @@ class SportFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = Str::title(fake()->unique()->word().' '.fake()->word());
 
         return [
-            'name' => Str::title($name),
+            'name' => $name,
             'slug' => Str::slug($name),
             'icon' => fake()->randomElement(['⚽', '🏀', '🏐', '🎾', '🏊']),
             'color' => fake()->hexColor(),

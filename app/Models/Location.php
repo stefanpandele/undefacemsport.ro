@@ -21,6 +21,8 @@ use Illuminate\Support\Str;
  * @property string|null $address
  * @property string|null $latitude
  * @property string|null $longitude
+ * @property-read int|null $club_count  only set by an explicit withCount alias
+ * @property-read int|null $facility_count  only set by an explicit withCount alias
  */
 class Location extends Model
 {

@@ -67,6 +67,9 @@ class ClubApplication extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');

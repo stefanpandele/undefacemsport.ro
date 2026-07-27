@@ -26,7 +26,7 @@ class ClubFactory extends Factory
             'fiscal_code' => 'RO'.fake()->unique()->numberBetween(1_000_000, 99_999_999),
             'is_vat_payer' => fake()->boolean(),
             'address' => fake()->streetAddress(),
-            'county' => fake()->state(),
+            'county' => fake()->randomElement(config('counties')),
             'city' => fake()->city(),
             'plan' => Plan::Free,
         ];

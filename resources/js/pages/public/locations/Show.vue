@@ -13,7 +13,10 @@ import { gradientStyle, sportGradient } from '@/lib/gradients';
 import clubApplication from '@/routes/club-application';
 import type { Coach, LocationDetail } from '@/types/sports';
 
-const props = defineProps<{ location: LocationDetail; activeSport: string | null }>();
+const props = defineProps<{
+    location: LocationDetail;
+    activeSport: string | null;
+}>();
 
 // Hero carousel: one slide per sport played here, since locations carry no
 // photos of their own yet.
@@ -63,7 +66,9 @@ const distance = computed(() => {
     const dLng = toRad(lng - myPosition.value.lng);
     const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(myPosition.value.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+        Math.cos(toRad(myPosition.value.lat)) *
+            Math.cos(toRad(lat)) *
+            Math.sin(dLng / 2) ** 2;
     const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return `${km < 10 ? km.toFixed(1) : Math.round(km)} km de mine`;
@@ -93,40 +98,80 @@ function openCoach(coach: Coach) {
 
         <div class="mx-auto max-w-[1180px] px-5">
             <!-- Hero + map -->
-            <div class="grid grid-cols-1 gap-3.5 pt-4 min-[900px]:grid-cols-[2fr_1fr]">
-                <div class="relative h-[220px] overflow-hidden rounded-[20px] min-[900px]:h-[320px]">
+            <div
+                class="grid grid-cols-1 gap-3.5 pt-4 min-[900px]:grid-cols-[2fr_1fr]"
+            >
+                <div
+                    class="relative h-[220px] overflow-hidden rounded-[20px] min-[900px]:h-[320px]"
+                >
                     <div
                         v-for="(slide, i) in slides"
                         :key="i"
                         class="absolute inset-0 transition-opacity duration-500"
-                        :style="{ background: slide, opacity: activeSlide === i ? 1 : 0 }"
+                        :style="{
+                            background: slide,
+                            opacity: activeSlide === i ? 1 : 0,
+                        }"
                     />
                     <div
                         class="absolute inset-0 z-[2]"
-                        style="background: linear-gradient(to top, rgba(4,8,6,0.88) 0%, rgba(4,8,6,0.35) 45%, transparent 75%)"
+                        style="
+                            background: linear-gradient(
+                                to top,
+                                rgba(4, 8, 6, 0.88) 0%,
+                                rgba(4, 8, 6, 0.35) 45%,
+                                transparent 75%
+                            );
+                        "
                     />
-                    <div class="relative z-[3] flex h-full flex-col justify-end p-5 text-white">
-                        <h1 class="font-archivo text-[clamp(22px,3.4vw,32px)] font-extrabold">
+                    <div
+                        class="relative z-[3] flex h-full flex-col justify-end p-5 text-white"
+                    >
+                        <h1
+                            class="font-archivo text-[clamp(22px,3.4vw,32px)] font-extrabold"
+                        >
                             {{ location.name }}
                         </h1>
-                        <div class="mt-1.5 font-jetbrains text-[12.5px] opacity-95">
+                        <div
+                            class="mt-1.5 font-jetbrains text-[12.5px] opacity-95"
+                        >
                             📍 {{ location.address.toUpperCase() }}
                         </div>
                     </div>
-                    <div v-if="slides.length > 1" class="absolute right-5 bottom-4 z-[4] flex gap-[7px]">
+                    <div
+                        v-if="slides.length > 1"
+                        class="absolute right-5 bottom-4 z-[4] flex gap-[7px]"
+                    >
                         <button
                             v-for="(slide, i) in slides"
                             :key="i"
                             type="button"
                             class="h-[7px] rounded-full transition-all"
-                            :class="activeSlide === i ? 'w-5 bg-white' : 'w-[7px] bg-white/50'"
+                            :class="
+                                activeSlide === i
+                                    ? 'w-5 bg-white'
+                                    : 'w-[7px] bg-white/50'
+                            "
                             @click="activeSlide = i"
                         />
                     </div>
                 </div>
                 <div
                     class="relative h-[180px] overflow-hidden rounded-[20px] min-[900px]:h-[320px]"
-                    style="background: linear-gradient(#eef2ea,#eef2ea), repeating-linear-gradient(0deg, transparent 0 30px, #dfe6da 30px 31px), repeating-linear-gradient(90deg, transparent 0 30px, #dfe6da 30px 31px)"
+                    style="
+                        background:
+                            linear-gradient(#eef2ea, #eef2ea),
+                            repeating-linear-gradient(
+                                0deg,
+                                transparent 0 30px,
+                                #dfe6da 30px 31px
+                            ),
+                            repeating-linear-gradient(
+                                90deg,
+                                transparent 0 30px,
+                                #dfe6da 30px 31px
+                            );
+                    "
                 >
                     <div
                         v-if="location.lat !== null && location.lng !== null"
@@ -151,16 +196,22 @@ function openCoach(coach: Coach) {
 
             <!-- Facilities + CTA -->
             <section class="py-6.5">
-                <div class="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-[2fr_1fr]">
+                <div
+                    class="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-[2fr_1fr]"
+                >
                     <div
                         class="relative overflow-hidden rounded-[18px] border-[1.5px] border-dashed border-line bg-[#fafaf7] px-5 py-5.5"
                     >
                         <div class="relative mb-4 flex items-center gap-2.5">
-                            <h2 class="font-archivo text-[19px] font-extrabold">Facilități</h2>
+                            <h2 class="font-archivo text-[19px] font-extrabold">
+                                Facilități
+                            </h2>
                             <span
                                 class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1.5 font-jetbrains text-[11.5px] font-bold text-grass-deep"
                             >
-                                <span class="h-1.5 w-1.5 rounded-full bg-grass" />
+                                <span
+                                    class="h-1.5 w-1.5 rounded-full bg-grass"
+                                />
                                 {{ location.facilities.length }} TOTAL
                             </span>
                         </div>
@@ -168,9 +219,12 @@ function openCoach(coach: Coach) {
                             v-if="!location.facilities.length"
                             class="relative text-[13.5px] text-sage"
                         >
-                            Nicio facilitate înregistrată încă pentru această locație.
+                            Nicio facilitate înregistrată încă pentru această
+                            locație.
                         </div>
-                        <div class="relative grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-4">
+                        <div
+                            class="relative grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-4"
+                        >
                             <div
                                 v-for="fac in location.facilities"
                                 :key="fac.label"
@@ -181,7 +235,9 @@ function openCoach(coach: Coach) {
                                 >
                                     {{ fac.icon }}
                                 </div>
-                                <div class="text-[11.5px] font-semibold leading-tight">
+                                <div
+                                    class="text-[11.5px] leading-tight font-semibold"
+                                >
                                     {{ fac.label }}
                                 </div>
                             </div>
@@ -191,9 +247,14 @@ function openCoach(coach: Coach) {
                         class="flex flex-col justify-center rounded-[18px] border-[1.5px] border-dashed border-line bg-[#fafaf7] p-5.5 text-center"
                     >
                         <div class="mb-2.5 text-[26px]">🙋</div>
-                        <h3 class="mb-1.5 font-archivo text-[17px] font-extrabold">Ții lecții aici?</h3>
+                        <h3
+                            class="mb-1.5 font-archivo text-[17px] font-extrabold"
+                        >
+                            Ții lecții aici?
+                        </h3>
                         <p class="mb-4 text-[13.5px] text-sage">
-                            Adaugă-ți clubul și programul, ca lumea să te găsească.
+                            Adaugă-ți clubul și programul, ca lumea să te
+                            găsească.
                         </p>
                         <Link
                             :href="clubApplication.create.url()"
@@ -230,10 +291,16 @@ function openCoach(coach: Coach) {
                             {{ sport.icon }}
                         </div>
                         <div class="px-2 pt-2.5 pb-3 text-center">
-                            <div class="font-archivo text-sm font-extrabold">{{ sport.label }}</div>
+                            <div class="font-archivo text-sm font-extrabold">
+                                {{ sport.label }}
+                            </div>
                             <div
                                 class="mt-[3px] font-jetbrains text-[10px] font-semibold"
-                                :class="activeSport === sport.key ? 'text-grass-deep' : 'text-sage'"
+                                :class="
+                                    activeSport === sport.key
+                                        ? 'text-grass-deep'
+                                        : 'text-sage'
+                                "
                             >
                                 {{ sport.clubCount }}
                                 {{ sport.clubCount === 1 ? 'CLUB' : 'CLUBURI' }}
@@ -246,11 +313,13 @@ function openCoach(coach: Coach) {
                     v-if="!activeSport"
                     class="mt-4.5 rounded-2xl border-[1.5px] border-dashed border-line px-5 py-10 text-center text-sage"
                 >
-                    <div class="mb-2.5 text-[26px]">{{ location.sports.length ? '👆' : '🏟️' }}</div>
+                    <div class="mb-2.5 text-[26px]">
+                        {{ location.sports.length ? '👆' : '🏟️' }}
+                    </div>
                     <p class="mx-auto max-w-[36ch] text-sm">
                         <template v-if="location.sports.length">
-                            Alege un sport de mai sus ca să vezi cluburile și orarul disponibil
-                            pentru el, aici.
+                            Alege un sport de mai sus ca să vezi cluburile și
+                            orarul disponibil pentru el, aici.
                         </template>
                         <template v-else>
                             Niciun club nu ține încă lecții aici.
@@ -261,7 +330,9 @@ function openCoach(coach: Coach) {
 
             <!-- Clubs -->
             <div v-if="activeSport" class="pb-15">
-                <h2 class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold">
+                <h2
+                    class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold"
+                >
                     Cluburi
                     <span
                         class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1.5 font-jetbrains text-[11.5px] font-bold text-grass-deep"
@@ -282,7 +353,10 @@ function openCoach(coach: Coach) {
                 </template>
                 <div v-else class="py-8 text-center text-sage">
                     Niciun club nu ține încă lecții de acest sport aici.
-                    <Link :href="clubApplication.create.url()" class="font-semibold text-grass-deep">
+                    <Link
+                        :href="clubApplication.create.url()"
+                        class="font-semibold text-grass-deep"
+                    >
                         Fii primul care se listează →
                     </Link>
                 </div>
@@ -295,7 +369,11 @@ function openCoach(coach: Coach) {
                 <DialogHeader>
                     <div
                         class="mx-auto mb-4 flex h-[140px] w-[140px] items-center justify-center overflow-hidden rounded-full border-4 border-white text-[56px] shadow-[0_0_0_2px_var(--color-line)]"
-                        :style="activeCoach?.photo ? {} : { background: activeCoach?.gradient }"
+                        :style="
+                            activeCoach?.photo
+                                ? {}
+                                : { background: activeCoach?.gradient }
+                        "
                     >
                         <img
                             v-if="activeCoach?.photo"

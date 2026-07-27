@@ -32,10 +32,10 @@ class FilamentAuthenticate extends BaseAuthenticate
         $user = $guard->user();
         $panel = Filament::getCurrentOrDefaultPanel();
 
-        if ($user instanceof FilamentUser && ! $user->canAccessPanel($panel)) {
-            throw new HttpResponseException(
-                redirect($user instanceof User ? $user->homeUrl() : Filament::getLoginUrl())
-            );
+        // User is the app's only FilamentUser, so reaching here means we have
+        // one and can send them to their own home area.
+        if ($user instanceof User && ! $user->canAccessPanel($panel)) {
+            throw new HttpResponseException(redirect($user->homeUrl()));
         }
 
         abort_if(

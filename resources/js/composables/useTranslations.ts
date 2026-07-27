@@ -17,7 +17,9 @@ export function useTranslations() {
             .split('.')
             .reduce<string | TranslationTree | undefined>(
                 (node, segment) =>
-                    node && typeof node === 'object' ? node[segment] : undefined,
+                    node && typeof node === 'object'
+                        ? node[segment]
+                        : undefined,
                 translations,
             );
 

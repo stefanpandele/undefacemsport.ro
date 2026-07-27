@@ -21,9 +21,7 @@ const sports = [
                     Sporturi populare
                 </h2>
             </div>
-            <div
-                class="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8"
-            >
+            <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
                 <button
                     v-for="sport in sports"
                     :key="sport.nm"

@@ -169,7 +169,7 @@ class ClubProfileSeeder extends Seeder
                 }
 
                 $clubSport->ageGroups()->sync(
-                    $ageGroups->shuffle()->take(fake()->numberBetween(1, 3))->modelKeys(),
+                    $ageGroups->shuffle()->take(fake()->numberBetween(1, 3))->pluck('id')->all(),
                 );
 
                 return $clubSport;

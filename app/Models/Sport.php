@@ -28,6 +28,8 @@ class Sport extends Model
     /**
      * The sport's name in the current locale (from lang/{locale}/sports.php,
      * keyed by slug), falling back to the stored `name`.
+     *
+     * @return Attribute<string, never>
      */
     protected function translatedName(): Attribute
     {

@@ -4,12 +4,12 @@ import { computed, ref, watch } from 'vue';
 import AnafLookupController from '@/actions/App/Http/Controllers/AnafLookupController';
 import { store } from '@/actions/App/Http/Controllers/ClubApplicationController';
 import InputError from '@/components/InputError.vue';
-import TurnstileWidget from '@/components/TurnstileWidget.vue';
-import { home } from '@/routes';
-import { trackEvent } from '@/lib/gtm';
-import SiteNav from '@/components/landing/SiteNav.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
+import SiteNav from '@/components/landing/SiteNav.vue';
+import TurnstileWidget from '@/components/TurnstileWidget.vue';
 import { useTranslations } from '@/composables/useTranslations';
+import { trackEvent } from '@/lib/gtm';
+import { home } from '@/routes';
 
 const { t } = useTranslations();
 
@@ -140,21 +140,32 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                             v-model="form.club_name"
                             type="text"
                             :class="fieldClass"
-                            :placeholder="t('club_application.form.club_name.placeholder')"
+                            :placeholder="
+                                t('club_application.form.club_name.placeholder')
+                            "
                         />
-                        <InputError class="mt-1.5" :message="form.errors.club_name" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.club_name"
+                        />
                     </div>
 
                     <!-- CUI + ANAF lookup -->
                     <div class="mb-4.5">
-                        <label for="fiscal_code" :class="labelClass">{{ t('club_application.form.fiscal_code.label') }}</label>
+                        <label for="fiscal_code" :class="labelClass">{{
+                            t('club_application.form.fiscal_code.label')
+                        }}</label>
                         <div class="flex items-start gap-2">
                             <input
                                 id="fiscal_code"
                                 v-model="form.fiscal_code"
                                 type="text"
                                 :class="fieldClass"
-                                :placeholder="t('club_application.form.fiscal_code.placeholder')"
+                                :placeholder="
+                                    t(
+                                        'club_application.form.fiscal_code.placeholder',
+                                    )
+                                "
                                 @keydown.enter.prevent="lookupCompany"
                                 @change="lookupCompany"
                             />
@@ -169,22 +180,54 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                             >
                                 ✓ {{ t('club_application.anaf.found') }}
                             </div>
-                            <div class="flex justify-between gap-4 py-1 text-[12.5px]">
-                                <span class="text-sage">{{ t('club_application.anaf.name') }}</span>
-                                <span class="text-right">{{ company.company_name || '—' }}</span>
+                            <div
+                                class="flex justify-between gap-4 py-1 text-[12.5px]"
+                            >
+                                <span class="text-sage">{{
+                                    t('club_application.anaf.name')
+                                }}</span>
+                                <span class="text-right">{{
+                                    company.company_name || '—'
+                                }}</span>
                             </div>
-                            <div class="flex justify-between gap-4 py-1 text-[12.5px]">
-                                <span class="shrink-0 text-sage">{{ t('club_application.anaf.address') }}</span>
-                                <span class="text-right">{{ company.address || '—' }}</span>
+                            <div
+                                class="flex justify-between gap-4 py-1 text-[12.5px]"
+                            >
+                                <span class="shrink-0 text-sage">{{
+                                    t('club_application.anaf.address')
+                                }}</span>
+                                <span class="text-right">{{
+                                    company.address || '—'
+                                }}</span>
                             </div>
-                            <div class="flex justify-between gap-4 py-1 text-[12.5px]">
-                                <span class="text-sage">{{ t('club_application.anaf.registration_number') }}</span>
-                                <span class="text-right">{{ company.registration_number || '—' }}</span>
+                            <div
+                                class="flex justify-between gap-4 py-1 text-[12.5px]"
+                            >
+                                <span class="text-sage">{{
+                                    t(
+                                        'club_application.anaf.registration_number',
+                                    )
+                                }}</span>
+                                <span class="text-right">{{
+                                    company.registration_number || '—'
+                                }}</span>
                             </div>
-                            <div class="flex justify-between gap-4 py-1 text-[12.5px]">
-                                <span class="text-sage">{{ t('club_application.anaf.vat_status') }}</span>
+                            <div
+                                class="flex justify-between gap-4 py-1 text-[12.5px]"
+                            >
+                                <span class="text-sage">{{
+                                    t('club_application.anaf.vat_status')
+                                }}</span>
                                 <span class="text-right">
-                                    {{ company.is_vat_payer ? t('club_application.anaf.vat_payer') : t('club_application.anaf.vat_non_payer') }}
+                                    {{
+                                        company.is_vat_payer
+                                            ? t(
+                                                  'club_application.anaf.vat_payer',
+                                              )
+                                            : t(
+                                                  'club_application.anaf.vat_non_payer',
+                                              )
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -196,7 +239,10 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                             ⚠️ {{ t('club_application.anaf.not_found') }}
                         </div>
 
-                        <InputError class="mt-1.5" :message="form.errors.fiscal_code" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.fiscal_code"
+                        />
                     </div>
 
                     <div class="my-[22px] border-t border-dashed border-line" />
@@ -210,33 +256,58 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                             v-model="form.contact_name"
                             type="text"
                             :class="fieldClass"
-                            :placeholder="t('club_application.form.contact_name.placeholder')"
+                            :placeholder="
+                                t(
+                                    'club_application.form.contact_name.placeholder',
+                                )
+                            "
                         />
-                        <InputError class="mt-1.5" :message="form.errors.contact_name" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.contact_name"
+                        />
                     </div>
 
                     <div class="mb-4.5">
-                        <label for="contact_phone" :class="labelClass">{{ t('club_application.form.contact_phone.label') }}</label>
+                        <label for="contact_phone" :class="labelClass">{{
+                            t('club_application.form.contact_phone.label')
+                        }}</label>
                         <input
                             id="contact_phone"
                             v-model="form.contact_phone"
                             type="tel"
                             :class="fieldClass"
-                            :placeholder="t('club_application.form.contact_phone.placeholder')"
+                            :placeholder="
+                                t(
+                                    'club_application.form.contact_phone.placeholder',
+                                )
+                            "
                         />
-                        <InputError class="mt-1.5" :message="form.errors.contact_phone" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.contact_phone"
+                        />
                     </div>
 
                     <div>
-                        <label for="contact_email" :class="labelClass">{{ t('club_application.form.contact_email.label') }}</label>
+                        <label for="contact_email" :class="labelClass">{{
+                            t('club_application.form.contact_email.label')
+                        }}</label>
                         <input
                             id="contact_email"
                             v-model="form.contact_email"
                             type="email"
                             :class="fieldClass"
-                            :placeholder="t('club_application.form.contact_email.placeholder')"
+                            :placeholder="
+                                t(
+                                    'club_application.form.contact_email.placeholder',
+                                )
+                            "
                         />
-                        <InputError class="mt-1.5" :message="form.errors.contact_email" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.contact_email"
+                        />
                     </div>
 
                     <div
@@ -253,7 +324,10 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                             :site-key="turnstile.siteKey"
                             :enabled="turnstile.enabled"
                         />
-                        <InputError class="mt-1.5" :message="form.errors.turnstile_token" />
+                        <InputError
+                            class="mt-1.5"
+                            :message="form.errors.turnstile_token"
+                        />
                     </div>
 
                     <button
@@ -261,12 +335,16 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                         :disabled="form.processing || !form.turnstile_token"
                         class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-[13px] text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c] disabled:cursor-not-allowed disabled:bg-[#e8b9a8] disabled:hover:bg-[#e8b9a8]"
                     >
-                        {{ form.processing ? t('club_application.form.submitting') : t('club_application.form.submit') }}
+                        {{
+                            form.processing
+                                ? t('club_application.form.submitting')
+                                : t('club_application.form.submit')
+                        }}
                     </button>
                 </form>
             </div>
 
-<!--             Success-->
+            <!--             Success-->
             <div v-else class="px-5 py-[50px] text-center">
                 <div
                     class="mx-auto mb-5 flex h-[70px] w-[70px] items-center justify-center rounded-full bg-grass text-[32px] text-white"

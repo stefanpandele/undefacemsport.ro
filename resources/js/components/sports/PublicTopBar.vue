@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import clubApplication from '@/routes/club-application';
-
 </script>
 
 <template>
-    <nav class="sticky top-0 z-[60] border-b border-line bg-paper/90 backdrop-blur-md">
-        <div class="mx-auto flex h-[60px] max-w-[1180px] items-center gap-6 px-5">
+    <nav
+        class="sticky top-0 z-[60] border-b border-line bg-paper/90 backdrop-blur-md"
+    >
+        <div
+            class="mx-auto flex h-[60px] max-w-[1180px] items-center gap-6 px-5"
+        >
             <Link href="/" aria-label="Unde Facem Sport">
                 <img
                     src="/images/unde-facem-sport-logo-2.svg"

@@ -42,25 +42,27 @@ class LocationController extends Controller
             ])
             ->firstOrFail();
 
-        $location = $this->presentLocation($location);
+        $clubs = $this->clubBlocks($location);
+        $sports = $this->sports($location, $clubs);
+        $requested = $request->string('sport')->toString();
 
         return Inertia::render('public/locations/Show', [
-            'location' => $location,
+            'location' => $this->presentLocation($location, $clubs, $sports),
             // Arriving from the explore page with a sport filter opens the page
             // on that sport instead of the "pick a sport" prompt.
-            'activeSport' => collect($location['sports'])
-                ->pluck('key')
-                ->first(fn (string $key): bool => $key === $request->string('sport')->toString()),
+            'activeSport' => in_array($requested, array_column($sports, 'key'), true)
+                ? $requested
+                : null,
         ]);
     }
 
     /**
+     * @param  list<array<string, mixed>>  $clubs
+     * @param  list<array{key: string, label: string, icon: string, color: string|null, clubCount: int}>  $sports
      * @return array<string, mixed>
      */
-    private function presentLocation(Location $location): array
+    private function presentLocation(Location $location, array $clubs, array $sports): array
     {
-        $clubs = $this->clubBlocks($location);
-
         return [
             'slug' => $location->slug,
             'name' => $location->name,
@@ -76,7 +78,7 @@ class LocationController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'sports' => $this->sports($location, $clubs),
+            'sports' => $sports,
             'clubs' => $clubs,
         ];
     }
@@ -84,14 +86,14 @@ class LocationController extends Controller
     /**
      * The sports taught here, with how many clubs teach each of them.
      *
-     * @param  array<int, array<string, mixed>>  $clubs
-     * @return array<int, array<string, mixed>>
+     * @param  list<array<string, mixed>>  $clubs
+     * @return list<array{key: string, label: string, icon: string, color: string|null, clubCount: int}>
      */
     private function sports(Location $location, array $clubs): array
     {
         $clubCounts = collect($clubs)->countBy('sport');
 
-        return $location->clubLocations
+        return array_values($location->clubLocations
             ->flatMap(fn (ClubLocation $clubLocation) => $clubLocation->clubLocationSports)
             ->map(fn (ClubLocationSport $clubLocationSport): Sport => $clubLocationSport->sport)
             ->unique('id')
@@ -101,23 +103,22 @@ class LocationController extends Controller
                 'label' => $sport->translated_name,
                 'icon' => (string) $sport->icon,
                 'color' => $sport->color,
-                'clubCount' => $clubCounts->get($sport->slug, 0),
+                'clubCount' => (int) $clubCounts->get($sport->slug, 0),
             ])
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
      * One block per (club, sport) taught here — the same club appears once for
      * every sport it teaches at this location, with the schedule for it.
      *
-     * @return array<int, array<string, mixed>>
+     * @return list<array<string, mixed>>
      */
     private function clubBlocks(Location $location): array
     {
         $occupancy = $this->occupancy($location);
 
-        return $location->clubLocations
+        return array_values($location->clubLocations
             ->flatMap(fn (ClubLocation $clubLocation) => $clubLocation->clubLocationSports
                 ->map(fn (ClubLocationSport $clubLocationSport): array => $this->clubBlock(
                     $clubLocation->club,
@@ -125,8 +126,7 @@ class LocationController extends Controller
                     $occupancy,
                 )))
             ->sortBy('name')
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -164,7 +164,7 @@ class LocationController extends Controller
     {
         return collect($occupancy[$sportId] ?? [])
             ->map(fn (array $byInterval): array => collect($byInterval)
-                ->map(fn (array $clubs): array => collect($clubs)->except($club->getKey())->values()->all())
+                ->map(fn (array $clubs): array => array_values(collect($clubs)->except($club->getKey())->all()))
                 ->reject(fn (array $clubs): bool => $clubs === [])
                 ->all())
             ->reject(fn (array $byInterval): bool => $byInterval === [])
@@ -201,7 +201,7 @@ class LocationController extends Controller
                 $clubLocationSport->scheduleSlots,
                 $this->otherClubs($occupancy, $club, $sport->getKey()),
             ),
-            'contactName' => $primary?->name ?? $club->name,
+            'contactName' => $primary->name ?? $club->name,
             'contactPhone' => $club->contacts->firstWhere('type', ContactType::Phone)?->value,
         ];
     }
