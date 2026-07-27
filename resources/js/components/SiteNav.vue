@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { trackEvent } from '@/lib/gtm';
-import { explore, login, register } from '@/routes';
+import { explore, login, pricing, register } from '@/routes';
 import clubApplication from '@/routes/club-application';
 import sportRoutes from '@/routes/sports';
 
@@ -24,10 +24,12 @@ function handleOutside(event: MouseEvent) {
 onMounted(() => document.addEventListener('click', handleOutside));
 onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
+// The main bar is the catalogue and nothing else. Pricing lives under Club,
+// because a visitor looking for a hall never pays anything — it is the club
+// that needs it, and it is a page you read before deciding, not a nav item.
 const links = [
     { label: 'Explorează', href: explore.url(), icon: '🔎' },
     { label: 'Sporturi', href: sportRoutes.index.url(), icon: '🏅' },
-    { label: 'Prețuri', href: '#', icon: '🏷️' },
 ];
 
 const sectionLabel =
@@ -173,6 +175,11 @@ const btnBase =
                         >
                             Register
                         </Link>
+                        <!-- Separated: reading the price is not signing in. -->
+                        <div class="my-1 border-t border-line" />
+                        <Link :href="pricing.url()" :class="menuItem">
+                            Prețuri
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -236,6 +243,10 @@ const btnBase =
                     >
                         <span :class="sheetIcon">➕</span>
                         Register
+                    </Link>
+                    <Link :href="pricing.url()" :class="sheetItem">
+                        <span :class="sheetIcon">🏷️</span>
+                        Prețuri
                     </Link>
                 </div>
             </div>

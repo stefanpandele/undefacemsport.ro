@@ -6,6 +6,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\PricingController;
 use App\Http\Controllers\SportController;
 use App\Http\Middleware\RedirectToHomeArea;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('sporturi', [SportController::class, 'index'])->name('sports.index');
+Route::get('preturi', PricingController::class)->name('pricing');
 Route::get('explorare', [ExploreController::class, 'index'])->name('explore');
 Route::get('locatii/{slug}', [LocationController::class, 'show'])->name('locations.show');
 Route::get('cluburi/{slug}', [ClubController::class, 'show'])->name('clubs.show');

@@ -23,7 +23,15 @@ return [
     | listing looks.
     */
 
+    /*
+    | `price` is monthly, in RON, and feeds the public /preturi page directly —
+    | so what a club is told it pays and what the app enforces can never drift
+    | apart. PLACEHOLDERS until real billing exists.
+    */
+
     Plan::Free->value => [
+        'price' => 0,
+        'tagline' => 'Pentru un club cu un singur sport, la o singură sală.',
         'features' => ['gallery'],
         'limits' => [
             'sports' => 1,
@@ -33,6 +41,8 @@ return [
     ],
 
     Plan::Pro->value => [
+        'price' => 99,
+        'tagline' => 'Pentru cluburile care predau mai multe sporturi, în mai multe locuri.',
         'features' => ['gallery', 'sport_covers'],
         'limits' => [
             'sports' => 5,
@@ -42,6 +52,8 @@ return [
     ],
 
     Plan::Premium->value => [
+        'price' => 199,
+        'tagline' => 'Pentru cluburile mari, fără limite pe sporturi sau locații.',
         'features' => ['gallery', 'sport_covers', 'custom_contacts'],
         'limits' => [
             'sports' => null,
