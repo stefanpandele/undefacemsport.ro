@@ -30,7 +30,9 @@ class LocationController extends Controller
         $location = Location::query()
             ->where('slug', $slug)
             ->with([
-                'facilities',
+                // Amenities a club proposed but no admin has reviewed yet are
+                // not shown to visitors.
+                'facilities' => fn ($query) => $query->approved(),
                 'clubLocations.club.contacts',
                 'clubLocations.club.coaches.sports',
                 'clubLocations.club.clubSports.sport',

@@ -295,6 +295,8 @@ class ExploreController extends Controller
     private function facilities(?string $city): array
     {
         return Facility::query()
+            // A club's unreviewed suggestion is not a filter anyone can trust.
+            ->approved()
             ->whereHas('locations', fn (BuilderContract $query) => $query->when(
                 $city,
                 fn (BuilderContract $locations) => $locations->where('city', $city),

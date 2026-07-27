@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\FacilityStatus;
 use App\Models\Facility;
 use Illuminate\Database\Seeder;
 
@@ -33,7 +34,11 @@ class FacilitySeeder extends Seeder
         $order = 0;
 
         foreach (self::FACILITIES as $name => $icon) {
-            Facility::updateOrCreate(['name' => $name], ['icon' => $icon, 'sort_order' => $order++]);
+            Facility::updateOrCreate(
+                ['name' => $name],
+                ['icon' => $icon, 'status' => FacilityStatus::Approved, 'sort_order' => $order++],
+            );
         }
+
     }
 }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\ContactRole;
 use App\Enums\ContactType;
+use App\Enums\FacilityStatus;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Club;
@@ -125,6 +126,19 @@ class ClubAccessSeeder extends Seeder
             ['icon' => '♿', 'sort_order' => 99],
         );
         $clubLocation->location->facilities()->syncWithoutDetaching([$accessible->id]);
+
+        // One suggestion left unreviewed, so /admin has something in the
+        // approval queue and the public pages have a case that stays hidden.
+        $sauna = Facility::updateOrCreate(
+            ['name' => 'Saună'],
+            [
+                'icon' => '🧖',
+                'status' => FacilityStatus::Pending,
+                'suggested_by_club_id' => $club->getKey(),
+                'sort_order' => 100,
+            ],
+        );
+        $clubLocation->location->facilities()->syncWithoutDetaching([$sauna->id]);
 
         $clubLocationSport = ClubLocationSport::query()
             ->where('club_location_id', $clubLocation->id)

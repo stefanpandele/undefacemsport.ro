@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
  * @property string|null $longitude
  * @property-read int|null $club_count  only set by an explicit withCount alias
  * @property-read int|null $facility_count  only set by an explicit withCount alias
+ * @property-read FacilityLocation|null $pivot  only set when hydrated through Facility::locations()
  */
 class Location extends Model
 {
@@ -161,10 +162,12 @@ class Location extends Model
     /**
      * Amenities offered at this physical location (shared across clubs).
      *
-     * @return BelongsToMany<Facility, $this>
+     * @return BelongsToMany<Facility, $this, FacilityLocation>
      */
     public function facilities(): BelongsToMany
     {
-        return $this->belongsToMany(Facility::class);
+        return $this->belongsToMany(Facility::class)
+            ->using(FacilityLocation::class)
+            ->withPivot('photo_path');
     }
 }
