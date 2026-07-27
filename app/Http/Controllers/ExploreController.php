@@ -19,6 +19,10 @@ class ExploreController extends Controller
 {
     /**
      * Browse a city's locations and the sports played in them.
+     *
+     * Without a city the page is a city picker instead: guessing one for the
+     * visitor used to land someone from Cluj in București without saying so.
+     * Filters only appear once a city is chosen — they are meaningless before.
      */
     public function index(Request $request): Response
     {
@@ -30,48 +34,94 @@ class ExploreController extends Controller
 
         return Inertia::render('public/explore/Index', [
             'city' => $city,
-            'cities' => $cities->all(),
+            'cities' => $cities,
             'filters' => [
                 'sport' => $sport,
                 'facility' => $facility,
                 'search' => $search,
             ],
-            'locations' => $this->locations($city, $sport, $facility, $search),
-            'sports' => $this->sports($city),
-            'facilities' => $this->facilities($city),
+            'locations' => $city === null ? [] : $this->locations($city, $sport, $facility, $search),
+            'sports' => $city === null ? [] : $this->sports($city),
+            'facilities' => $city === null ? [] : $this->facilities($city),
         ]);
     }
 
     /**
-     * Every city that has at least one location.
+     * Every city that has a location, with enough substance to be worth a card:
+     * how much there is to find, the colour of its biggest sport, and a centre
+     * point so a visitor who does share their position can be dropped into the
+     * nearest city.
      *
-     * @return Collection<int, string>
+     * Busiest first, so the cities most people are looking for need no reading.
+     *
+     * @return list<array{name: string, locationCount: int, clubCount: int, sportCount: int, color: string|null, lat: float|null, lng: float|null}>
      */
-    private function cities(): Collection
+    private function cities(): array
     {
-        return Location::query()
-            ->whereNotNull('city')
-            ->distinct()
-            ->orderBy('city')
-            ->pluck('city');
+        $topSports = $this->topSportsByCity();
+
+        return array_values(DB::table('locations')
+            ->leftJoin('club_location', 'club_location.location_id', '=', 'locations.id')
+            ->whereNotNull('locations.city')
+            ->groupBy('locations.city')
+            ->select(['locations.city'])
+            ->selectRaw('count(distinct locations.id) as location_count')
+            ->selectRaw('count(distinct club_location.club_id) as club_count')
+            ->selectRaw('avg(locations.latitude) as lat')
+            ->selectRaw('avg(locations.longitude) as lng')
+            ->orderByDesc('location_count')
+            ->orderBy('locations.city')
+            ->get()
+            ->map(function (object $row) use ($topSports): array {
+                $sports = $topSports->get($row->city, collect());
+                $color = $sports->first()->color ?? null;
+
+                return [
+                    'name' => (string) $row->city,
+                    'locationCount' => (int) $row->location_count,
+                    'clubCount' => (int) $row->club_count,
+                    'sportCount' => $sports->count(),
+                    'color' => $color === null ? null : (string) $color,
+                    'lat' => $row->lat === null ? null : (float) $row->lat,
+                    'lng' => $row->lng === null ? null : (float) $row->lng,
+                ];
+            })
+            ->all());
     }
 
     /**
-     * The requested city when it exists, otherwise the busiest one.
+     * The sports of each city, most widespread first. One row per sport, so the
+     * card gets both its colour (the biggest sport) and how many sports there
+     * are to choose from.
      *
-     * @param  Collection<int, string>  $cities
+     * @return Collection<int|string, Collection<int, \stdClass>>
      */
-    private function resolveCity(string $requested, Collection $cities): ?string
+    private function topSportsByCity(): Collection
     {
-        if ($cities->contains($requested)) {
-            return $requested;
-        }
+        return DB::table('club_location_sport')
+            ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
+            ->join('locations', 'locations.id', '=', 'club_location.location_id')
+            ->join('sports', 'sports.id', '=', 'club_location_sport.sport_id')
+            ->whereNotNull('locations.city')
+            ->groupBy('locations.city', 'sports.id', 'sports.color')
+            ->select(['locations.city', 'sports.color'])
+            ->selectRaw('count(distinct locations.id) as location_count')
+            ->orderByDesc('location_count')
+            ->get()
+            ->groupBy('city');
+    }
 
-        return Location::query()
-            ->whereNotNull('city')
-            ->groupBy('city')
-            ->orderByRaw('count(*) desc')
-            ->value('city');
+    /**
+     * The requested city, or null when it is missing or unknown — the page then
+     * asks the visitor to pick one rather than choosing on their behalf.
+     *
+     * @param  list<array{name: string, ...}>  $cities
+     */
+    private function resolveCity(string $requested, array $cities): ?string
+    {
+        return in_array($requested, array_column($cities, 'name'), true)
+            ? $requested
+            : null;
     }
 
     /**

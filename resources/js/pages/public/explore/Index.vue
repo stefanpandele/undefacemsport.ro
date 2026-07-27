@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
+import clubApplication from '@/routes/club-application';
 import locationRoutes from '@/routes/locations';
 
 type ExploreLocation = {
@@ -29,6 +30,16 @@ type ExploreSport = {
     ages: string[];
 };
 
+type ExploreCity = {
+    name: string;
+    locationCount: number;
+    clubCount: number;
+    sportCount: number;
+    color: string | null;
+    lat: number | null;
+    lng: number | null;
+};
+
 type ExploreFilters = {
     sport: string | null;
     facility: number | null;
@@ -37,7 +48,7 @@ type ExploreFilters = {
 
 const props = defineProps<{
     city: string | null;
-    cities: string[];
+    cities: ExploreCity[];
     filters: ExploreFilters;
     locations: ExploreLocation[];
     sports: ExploreSport[];
@@ -46,6 +57,26 @@ const props = defineProps<{
 
 const view = ref<'location' | 'sport'>('location');
 const search = ref(props.filters.search ?? '');
+
+// City picker: typing narrows the list, for the towns that are not among the
+// first cards. Diacritics-insensitive, so "brasov" finds "Brașov".
+const cityQuery = ref('');
+
+function normalize(value: string): string {
+    return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+const matchingCities = computed(() => {
+    const needle = normalize(cityQuery.value.trim());
+
+    return needle
+        ? props.cities.filter((c) => normalize(c.name).includes(needle))
+        : props.cities;
+});
+
+function chooseCity(name: string) {
+    router.get(explore.url(), { oras: name }, { preserveScroll: false });
+}
 
 /**
  * Push the filters into the URL so the list, the map and the counters all come
@@ -112,21 +143,79 @@ function locateMe() {
     );
 }
 
+function haversineKm(
+    aLat: number,
+    aLng: number,
+    bLat: number,
+    bLng: number,
+): number {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = toRad(bLat - aLat);
+    const dLng = toRad(bLng - aLng);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function distanceKm(loc: ExploreLocation): number | null {
     if (!myPosition.value || loc.lat === null || loc.lng === null) {
         return null;
     }
 
-    const toRad = (deg: number) => (deg * Math.PI) / 180;
-    const dLat = toRad(loc.lat - myPosition.value.lat);
-    const dLng = toRad(loc.lng - myPosition.value.lng);
-    const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(myPosition.value.lat)) *
-            Math.cos(toRad(loc.lat)) *
-            Math.sin(dLng / 2) ** 2;
+    return haversineKm(
+        myPosition.value.lat,
+        myPosition.value.lng,
+        loc.lat,
+        loc.lng,
+    );
+}
 
-    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+// Optional shortcut on the picker: sharing a position only ever picks the city
+// for you, never anything finer. Declining costs nothing — the cards are there.
+const detecting = ref(false);
+const detectFailed = ref(false);
+
+function useMyCity() {
+    if (!navigator.geolocation) {
+        detectFailed.value = true;
+
+        return;
+    }
+
+    detecting.value = true;
+    detectFailed.value = false;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            detecting.value = false;
+
+            const nearest = props.cities
+                .filter((c) => c.lat !== null && c.lng !== null)
+                .map((c) => ({
+                    city: c,
+                    km: haversineKm(
+                        position.coords.latitude,
+                        position.coords.longitude,
+                        c.lat as number,
+                        c.lng as number,
+                    ),
+                }))
+                .sort((a, b) => a.km - b.km)[0];
+
+            if (nearest) {
+                chooseCity(nearest.city.name);
+            } else {
+                detectFailed.value = true;
+            }
+        },
+        () => {
+            detecting.value = false;
+            detectFailed.value = true;
+        },
+        { timeout: 8000 },
+    );
 }
 
 function distanceLabel(loc: ExploreLocation): string | null {
@@ -197,393 +286,551 @@ function locationHref(loc: ExploreLocation): string {
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
         <PublicTopBar />
 
-        <!-- Search bar -->
-        <div
-            class="sticky top-[60px] z-[60] border-b border-line bg-white py-3.5"
-        >
-            <div class="mx-auto max-w-[1280px] px-5">
-                <div class="flex flex-wrap gap-2">
-                    <select
-                        class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
-                        :value="filters.sport ?? ''"
-                        @change="
-                            applyFilters({
-                                sport:
-                                    ($event.target as HTMLSelectElement)
-                                        .value || null,
-                            })
-                        "
+        <!-- ===== No city yet: pick one. Nothing else on screen. ===== -->
+        <template v-if="!city">
+            <div class="mx-auto max-w-[900px] px-5 pt-12 pb-16 text-center">
+                <span
+                    class="mb-3.5 block font-jetbrains text-[11px] font-semibold tracking-[0.16em] text-grass-deep uppercase"
+                >
+                    {{ cities.length }}
+                    {{ cities.length === 1 ? 'oraș' : 'orașe' }} pe hartă
+                </span>
+                <h1
+                    class="font-archivo text-[clamp(28px,5.5vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em]"
+                >
+                    În ce oraș faci sport?
+                </h1>
+                <p class="mx-auto mt-3.5 max-w-[46ch] text-[16px] text-sage">
+                    Alege-ți orașul și vezi imediat sălile, bazinele și
+                    terenurile din el, cu cluburile care țin antrenamente acolo.
+                </p>
+
+                <div class="mx-auto mt-7 max-w-[420px]">
+                    <!-- The fastest route first: one tap and you are in your
+                         own city. Everything below is the way out for anyone
+                         who would rather not share a position. -->
+                    <button
+                        type="button"
+                        class="inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-full bg-clay px-6 py-3.5 text-[15px] font-semibold text-white shadow-[0_16px_30px_-16px_rgba(255,90,44,0.7)] transition hover:bg-[#e6501c] disabled:opacity-70"
+                        :disabled="detecting"
+                        @click="useMyCity"
                     >
-                        <option value="">Toate sporturile</option>
-                        <option v-for="s in sports" :key="s.key" :value="s.key">
-                            {{ s.label }}
-                        </option>
-                    </select>
-                    <select
-                        class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
-                        :value="city ?? ''"
-                        @change="
-                            applyFilters({
-                                oras: ($event.target as HTMLSelectElement)
-                                    .value,
-                            })
-                        "
+                        <span
+                            class="flex h-[22px] w-[22px] rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] bg-white/25"
+                        >
+                            <span class="rotate-45 text-[11px]">📍</span>
+                        </span>
+                        {{ detecting ? 'Te caut…' : 'Lângă locația mea' }}
+                    </button>
+                    <p v-if="detectFailed" class="mt-2 text-[12.5px] text-clay">
+                        N-am putut afla unde ești — caută-ți orașul mai jos.
+                    </p>
+
+                    <div
+                        class="my-4 flex items-center gap-3 text-[12px] font-semibold text-sage"
                     >
-                        <option v-for="c in cities" :key="c" :value="c">
-                            {{ c }}
-                        </option>
-                    </select>
+                        <span class="h-px flex-1 bg-line" />
+                        sau
+                        <span class="h-px flex-1 bg-line" />
+                    </div>
+
                     <input
-                        v-model="search"
-                        type="text"
-                        placeholder="Caută o locație…"
-                        class="min-w-[160px] flex-1 rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
+                        v-model="cityQuery"
+                        type="search"
+                        placeholder="Caută orașul tău…"
+                        class="w-full rounded-[14px] border border-line bg-white px-4.5 py-3.5 text-[15px] shadow-[0_20px_40px_-30px_rgba(11,20,16,0.35)] outline-none focus:border-grass"
                     />
                 </div>
-                <div
-                    v-if="facilities.length"
-                    class="flex gap-2 overflow-x-auto pt-2.5"
-                >
-                    <button
-                        type="button"
-                        class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
-                        :class="
-                            filters.facility
-                                ? 'border-line bg-white'
-                                : 'border-grass bg-[#eaf6ef] text-grass-deep'
-                        "
-                        @click="applyFilters({ facilitate: null })"
-                    >
-                        Toate
-                    </button>
-                    <button
-                        v-for="facility in facilities"
-                        :key="facility.id"
-                        type="button"
-                        class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
-                        :class="
-                            filters.facility === facility.id
-                                ? 'border-grass bg-[#eaf6ef] text-grass-deep'
-                                : 'border-line bg-white'
-                        "
-                        @click="applyFilters({ facilitate: facility.id })"
-                    >
-                        {{ facility.name }}
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Map band -->
-        <div
-            class="relative h-[220px] min-[900px]:h-[340px]"
-            style="
-                background:
-                    linear-gradient(#eef2ea, #eef2ea),
-                    repeating-linear-gradient(
-                        0deg,
-                        transparent 0 38px,
-                        #dfe6da 38px 39px
-                    ),
-                    repeating-linear-gradient(
-                        90deg,
-                        transparent 0 38px,
-                        #dfe6da 38px 39px
-                    );
-            "
-        >
-            <button
-                v-for="loc in mappable"
-                :key="loc.slug"
-                type="button"
-                :aria-label="loc.name"
-                class="absolute rotate-[-45deg] rounded-[50%_50%_50%_0] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition-all"
-                :class="
-                    activePin === loc.slug
-                        ? 'h-[30px] w-[30px] bg-clay'
-                        : 'h-6 w-6 bg-grass-deep'
-                "
-                :style="pinStyle(loc)"
-                @click="activePin = activePin === loc.slug ? null : loc.slug"
-            />
-            <div
-                v-if="activePinLocation"
-                class="absolute top-[38%] left-[34%] z-[2] w-[190px] rounded-xl border border-line bg-white px-3 py-2.5 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
-            >
-                <Link
-                    :href="locationHref(activePinLocation)"
-                    class="font-archivo text-[13.5px] font-extrabold hover:text-grass-deep"
-                >
-                    {{ activePinLocation.name }}
-                </Link>
-                <div class="mt-1 font-jetbrains text-[10.5px] text-grass-deep">
-                    {{ activePinLocation.clubCount }}
-                    {{ activePinLocation.clubCount === 1 ? 'CLUB' : 'CLUBURI' }}
-                    <template v-if="activePinLocation.live">
-                        · ACUM ACTIV</template
-                    >
-                </div>
-            </div>
-            <div
-                v-if="!mappable.length"
-                class="absolute inset-0 flex items-center justify-center text-[13.5px] text-sage"
-            >
-                Nicio locație cu coordonate pe hartă.
-            </div>
-            <button
-                type="button"
-                class="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)] disabled:opacity-60"
-                :disabled="locating"
-                @click="locateMe"
-            >
-                📍
-                {{
-                    locating
-                        ? 'Te caut…'
-                        : myPosition
-                          ? 'Sortat după distanță'
-                          : 'Locația mea'
-                }}
-            </button>
-        </div>
-
-        <div class="mx-auto max-w-[1280px] px-5">
-            <!-- Toggle -->
-            <div class="flex justify-center pt-5.5 pb-1.5">
-                <div
-                    class="inline-flex rounded-full border-[1.5px] border-line bg-white p-1"
-                >
-                    <button
-                        type="button"
-                        class="rounded-full px-5 py-2.5 font-jetbrains text-[12.5px] font-bold tracking-[0.03em] transition"
-                        :class="
-                            view === 'location'
-                                ? 'bg-grass text-white'
-                                : 'text-sage'
-                        "
-                        @click="view = 'location'"
-                    >
-                        DUPĂ LOCAȚIE
-                    </button>
-                    <button
-                        type="button"
-                        class="rounded-full px-5 py-2.5 font-jetbrains text-[12.5px] font-bold tracking-[0.03em] transition"
-                        :class="
-                            view === 'sport'
-                                ? 'bg-grass text-white'
-                                : 'text-sage'
-                        "
-                        @click="view = 'sport'"
-                    >
-                        DUPĂ SPORT
-                    </button>
-                </div>
             </div>
 
-            <!-- Filter banner -->
-            <div
-                v-if="activeSport && view === 'location'"
-                class="mt-4.5 flex items-center justify-center gap-2.5"
-            >
+            <div class="mx-auto max-w-[1180px] px-5 pb-20">
                 <div
-                    class="inline-flex items-center gap-2 rounded-full bg-ink py-2 pr-2 pl-4 text-[13px] font-semibold text-white"
+                    v-if="!matchingCities.length"
+                    class="py-10 text-center text-[14.5px] text-sage"
                 >
-                    <span class="text-[15px]">{{ activeSport.icon }}</span>
-                    <span
-                        >Filtrat după: <b>{{ activeSport.label }}</b></span
-                    >
-                    <button
-                        type="button"
-                        class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white/15 hover:bg-white/30"
-                        @click="applyFilters({ sport: null })"
-                    >
-                        ✕
-                    </button>
-                </div>
-            </div>
-
-            <!-- Locations view -->
-            <div v-show="view === 'location'">
-                <div class="my-5 flex items-center justify-between">
-                    <h1 class="font-archivo text-[19px] font-extrabold">
-                        Locații în {{ city ?? 'România' }}
-                    </h1>
-                    <span class="text-[13.5px] text-sage">
-                        {{ locations.length }}
-                        {{ locations.length === 1 ? 'rezultat' : 'rezultate' }}
-                    </span>
-                </div>
-                <div
-                    v-if="!locations.length"
-                    class="pb-15 text-[14.5px] text-sage"
-                >
-                    Nicio locație pentru filtrele alese.
-                </div>
-                <div
-                    class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3"
-                >
+                    Niciun oraș care să semene cu „{{ cityQuery }}”.
+                    <br />
                     <Link
-                        v-for="loc in visibleLocations"
-                        :key="loc.slug"
-                        :href="locationHref(loc)"
-                        class="overflow-hidden rounded-[18px] border border-line bg-white transition hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
+                        :href="clubApplication.create.url()"
+                        class="font-semibold text-grass-deep"
                     >
-                        <div
-                            class="relative flex h-[130px] items-end p-3"
-                            :style="{ background: locationColor(loc) }"
-                        >
-                            <span
-                                v-if="loc.live"
-                                class="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-md bg-grass-deep px-2 py-1 font-jetbrains text-[9.5px] font-bold text-white"
-                            >
-                                <span
-                                    class="h-[5px] w-[5px] rounded-full bg-[#9CFFCB]"
-                                />
-                                ACUM ACTIV
-                            </span>
-                            <span
-                                v-if="distanceLabel(loc)"
-                                class="absolute top-2.5 right-2.5 rounded-md bg-white/95 px-2 py-1 font-jetbrains text-[10px] font-bold"
-                            >
-                                {{ distanceLabel(loc) }}
-                            </span>
-                            <div
-                                class="absolute inset-0"
-                                style="
-                                    background: linear-gradient(
-                                        to top,
-                                        rgba(8, 16, 11, 0.78),
-                                        transparent 62%
-                                    );
-                                "
-                            />
-                            <div class="relative text-white">
-                                <div
-                                    class="font-archivo text-[16.5px] font-extrabold"
-                                >
-                                    {{ loc.name }}
-                                </div>
-                                <div
-                                    class="font-jetbrains text-[10.5px] font-semibold uppercase opacity-90"
-                                >
-                                    📍 {{ loc.city }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-4">
-                            <div class="mb-3 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="sport in loc.sports"
-                                    :key="sport.key"
-                                    class="rounded-[7px] px-2.5 py-[3px] text-[11.5px] font-semibold transition"
-                                    :class="
-                                        filters.sport === sport.key
-                                            ? 'bg-clay text-white'
-                                            : 'bg-[#eaf6ef] text-grass-deep'
-                                    "
-                                >
-                                    {{ sport.label }}
-                                </span>
-                            </div>
-                            <div
-                                class="flex items-center justify-between border-t border-line pt-2.5 text-xs text-sage"
-                            >
-                                <span
-                                    ><b class="text-ink">{{ loc.clubCount }}</b>
-                                    cluburi active</span
-                                >
-                                <span
-                                    class="inline-flex items-center gap-1 font-jetbrains text-[10.5px] font-semibold"
-                                >
-                                    🛠 {{ loc.facilityCount }} facilități
-                                </span>
-                            </div>
-                        </div>
+                        Listează primul club de acolo →
                     </Link>
                 </div>
-            </div>
-
-            <!-- Sports view -->
-            <div v-show="view === 'sport'">
-                <div class="my-5 flex items-center justify-between">
-                    <h1 class="font-archivo text-[19px] font-extrabold">
-                        Sporturi în {{ city ?? 'România' }}
-                    </h1>
-                    <span class="text-[13.5px] text-sage">
-                        {{ sports.length }}
-                        {{ sports.length === 1 ? 'sport' : 'sporturi' }}
-                    </span>
-                </div>
                 <div
-                    v-if="!sports.length"
-                    class="pb-15 text-[14.5px] text-sage"
-                >
-                    Niciun sport înregistrat aici încă.
-                </div>
-                <div
-                    class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3"
+                    v-else
+                    class="grid grid-cols-2 gap-3.5 md:grid-cols-3 lg:grid-cols-4"
                 >
                     <button
-                        v-for="sport in sports"
-                        :key="sport.key"
+                        v-for="c in matchingCities"
+                        :key="c.name"
                         type="button"
-                        class="overflow-hidden rounded-[18px] border border-line bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
-                        @click="filterBySport(sport.key)"
+                        class="group cursor-pointer overflow-hidden rounded-[18px] border border-line bg-white text-left transition hover:-translate-y-1 hover:border-grass hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
+                        @click="chooseCity(c.name)"
                     >
                         <div
-                            class="flex h-24 items-center gap-3 px-4.5 text-white"
-                            :style="{ background: sportGradient(sport.color) }"
-                        >
-                            <span class="text-[30px]">{{ sport.icon }}</span>
-                            <span
-                                class="font-archivo text-[19px] font-extrabold"
-                                >{{ sport.label }}</span
-                            >
-                        </div>
-                        <div class="px-4 pt-3.5 pb-4">
-                            <div class="mb-3 flex gap-4">
-                                <div>
-                                    <div
-                                        class="font-jetbrains text-[17px] font-bold"
-                                    >
-                                        {{ sport.locationCount }}
-                                    </div>
-                                    <div class="text-[10.5px] text-sage">
-                                        locații
-                                    </div>
-                                </div>
-                                <div>
-                                    <div
-                                        class="font-jetbrains text-[17px] font-bold"
-                                    >
-                                        {{ sport.clubCount }}
-                                    </div>
-                                    <div class="text-[10.5px] text-sage">
-                                        cluburi
-                                    </div>
-                                </div>
-                            </div>
+                            class="h-[52px]"
+                            :style="{ background: sportGradient(c.color) }"
+                        />
+                        <div class="px-4 pt-3 pb-3.5">
                             <div
-                                v-if="sport.ages.length"
-                                class="mb-3.5 flex flex-wrap gap-1.5"
+                                class="font-archivo text-[16.5px] leading-tight font-extrabold group-hover:text-grass-deep"
                             >
-                                <span
-                                    v-for="age in sport.ages"
-                                    :key="age"
-                                    class="rounded-[7px] border border-line bg-[#f2f5ef] px-2.5 py-1 text-[11px] font-semibold text-sage"
-                                >
-                                    {{ age }}
-                                </span>
+                                {{ c.name }}
                             </div>
-                            <span
-                                class="flex items-center gap-1 text-[13px] font-semibold text-grass-deep"
+                            <!-- Three numbers, not a sentence: they are what a
+                                 visitor actually compares cities on. -->
+                            <div
+                                class="mt-2.5 grid grid-cols-3 gap-1 border-t border-line pt-2.5"
                             >
-                                Vezi locațiile →
-                            </span>
+                                <div>
+                                    <div
+                                        class="font-jetbrains text-[15px] leading-none font-bold"
+                                    >
+                                        {{ c.locationCount }}
+                                    </div>
+                                    <div
+                                        class="mt-1 text-[9.5px] leading-tight text-sage"
+                                    >
+                                        {{
+                                            c.locationCount === 1
+                                                ? 'locație'
+                                                : 'locații'
+                                        }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div
+                                        class="font-jetbrains text-[15px] leading-none font-bold"
+                                    >
+                                        {{ c.clubCount }}
+                                    </div>
+                                    <div
+                                        class="mt-1 text-[9.5px] leading-tight text-sage"
+                                    >
+                                        {{
+                                            c.clubCount === 1
+                                                ? 'club'
+                                                : 'cluburi'
+                                        }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div
+                                        class="font-jetbrains text-[15px] leading-none font-bold"
+                                    >
+                                        {{ c.sportCount }}
+                                    </div>
+                                    <div
+                                        class="mt-1 text-[9.5px] leading-tight text-sage"
+                                    >
+                                        {{
+                                            c.sportCount === 1
+                                                ? 'sport'
+                                                : 'sporturi'
+                                        }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </button>
                 </div>
             </div>
-        </div>
+        </template>
+
+        <!-- ===== City chosen: locations, with the filters that now matter ===== -->
+        <template v-else>
+            <!-- Search bar -->
+            <div
+                class="sticky top-[60px] z-[60] border-b border-line bg-white py-3.5"
+            >
+                <div class="mx-auto max-w-[1280px] px-5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div
+                            class="flex items-center gap-2 rounded-[10px] bg-[#eaf6ef] py-2 pr-2 pl-3.5"
+                        >
+                            <span
+                                class="font-archivo text-[14.5px] font-extrabold text-grass-deep"
+                            >
+                                📍 {{ city }}
+                            </span>
+                            <Link
+                                :href="explore.url()"
+                                class="rounded-md bg-white px-2 py-1 font-jetbrains text-[10.5px] font-bold text-sage transition hover:text-grass-deep"
+                            >
+                                SCHIMBĂ
+                            </Link>
+                        </div>
+                        <input
+                            v-model="search"
+                            type="text"
+                            placeholder="Caută o locație…"
+                            class="min-w-[160px] flex-1 rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
+                        />
+                    </div>
+                    <div
+                        v-if="facilities.length"
+                        class="flex gap-2 overflow-x-auto pt-2.5"
+                    >
+                        <button
+                            type="button"
+                            class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
+                            :class="
+                                filters.facility
+                                    ? 'border-line bg-white'
+                                    : 'border-grass bg-[#eaf6ef] text-grass-deep'
+                            "
+                            @click="applyFilters({ facilitate: null })"
+                        >
+                            Toate
+                        </button>
+                        <button
+                            v-for="facility in facilities"
+                            :key="facility.id"
+                            type="button"
+                            class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
+                            :class="
+                                filters.facility === facility.id
+                                    ? 'border-grass bg-[#eaf6ef] text-grass-deep'
+                                    : 'border-line bg-white'
+                            "
+                            @click="applyFilters({ facilitate: facility.id })"
+                        >
+                            {{ facility.name }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map band -->
+            <div
+                class="relative h-[220px] min-[900px]:h-[340px]"
+                style="
+                    background:
+                        linear-gradient(#eef2ea, #eef2ea),
+                        repeating-linear-gradient(
+                            0deg,
+                            transparent 0 38px,
+                            #dfe6da 38px 39px
+                        ),
+                        repeating-linear-gradient(
+                            90deg,
+                            transparent 0 38px,
+                            #dfe6da 38px 39px
+                        );
+                "
+            >
+                <button
+                    v-for="loc in mappable"
+                    :key="loc.slug"
+                    type="button"
+                    :aria-label="loc.name"
+                    class="absolute rotate-[-45deg] rounded-[50%_50%_50%_0] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition-all"
+                    :class="
+                        activePin === loc.slug
+                            ? 'h-[30px] w-[30px] bg-clay'
+                            : 'h-6 w-6 bg-grass-deep'
+                    "
+                    :style="pinStyle(loc)"
+                    @click="
+                        activePin = activePin === loc.slug ? null : loc.slug
+                    "
+                />
+                <div
+                    v-if="activePinLocation"
+                    class="absolute top-[38%] left-[34%] z-[2] w-[190px] rounded-xl border border-line bg-white px-3 py-2.5 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
+                >
+                    <Link
+                        :href="locationHref(activePinLocation)"
+                        class="font-archivo text-[13.5px] font-extrabold hover:text-grass-deep"
+                    >
+                        {{ activePinLocation.name }}
+                    </Link>
+                    <div
+                        class="mt-1 font-jetbrains text-[10.5px] text-grass-deep"
+                    >
+                        {{ activePinLocation.clubCount }}
+                        {{
+                            activePinLocation.clubCount === 1
+                                ? 'CLUB'
+                                : 'CLUBURI'
+                        }}
+                        <template v-if="activePinLocation.live">
+                            · ACUM ACTIV</template
+                        >
+                    </div>
+                </div>
+                <div
+                    v-if="!mappable.length"
+                    class="absolute inset-0 flex items-center justify-center text-[13.5px] text-sage"
+                >
+                    Nicio locație cu coordonate pe hartă.
+                </div>
+                <button
+                    type="button"
+                    class="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)] disabled:opacity-60"
+                    :disabled="locating"
+                    @click="locateMe"
+                >
+                    📍
+                    {{
+                        locating
+                            ? 'Te caut…'
+                            : myPosition
+                              ? 'Sortat după distanță'
+                              : 'Locația mea'
+                    }}
+                </button>
+            </div>
+
+            <div class="mx-auto max-w-[1280px] px-5">
+                <!-- Toggle -->
+                <div class="flex justify-center pt-5.5 pb-1.5">
+                    <div
+                        class="inline-flex rounded-full border-[1.5px] border-line bg-white p-1"
+                    >
+                        <button
+                            type="button"
+                            class="rounded-full px-5 py-2.5 font-jetbrains text-[12.5px] font-bold tracking-[0.03em] transition"
+                            :class="
+                                view === 'location'
+                                    ? 'bg-grass text-white'
+                                    : 'text-sage'
+                            "
+                            @click="view = 'location'"
+                        >
+                            DUPĂ LOCAȚIE
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-full px-5 py-2.5 font-jetbrains text-[12.5px] font-bold tracking-[0.03em] transition"
+                            :class="
+                                view === 'sport'
+                                    ? 'bg-grass text-white'
+                                    : 'text-sage'
+                            "
+                            @click="view = 'sport'"
+                        >
+                            DUPĂ SPORT
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter banner -->
+                <div
+                    v-if="activeSport && view === 'location'"
+                    class="mt-4.5 flex items-center justify-center gap-2.5"
+                >
+                    <div
+                        class="inline-flex items-center gap-2 rounded-full bg-ink py-2 pr-2 pl-4 text-[13px] font-semibold text-white"
+                    >
+                        <span class="text-[15px]">{{ activeSport.icon }}</span>
+                        <span
+                            >Filtrat după: <b>{{ activeSport.label }}</b></span
+                        >
+                        <button
+                            type="button"
+                            class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white/15 hover:bg-white/30"
+                            @click="applyFilters({ sport: null })"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Locations view -->
+                <div v-show="view === 'location'">
+                    <div class="my-5 flex items-center justify-between">
+                        <h1 class="font-archivo text-[19px] font-extrabold">
+                            Locații în {{ city ?? 'România' }}
+                        </h1>
+                        <span class="text-[13.5px] text-sage">
+                            {{ locations.length }}
+                            {{
+                                locations.length === 1
+                                    ? 'rezultat'
+                                    : 'rezultate'
+                            }}
+                        </span>
+                    </div>
+                    <div
+                        v-if="!locations.length"
+                        class="pb-15 text-[14.5px] text-sage"
+                    >
+                        Nicio locație pentru filtrele alese.
+                    </div>
+                    <div
+                        class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3"
+                    >
+                        <Link
+                            v-for="loc in visibleLocations"
+                            :key="loc.slug"
+                            :href="locationHref(loc)"
+                            class="overflow-hidden rounded-[18px] border border-line bg-white transition hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
+                        >
+                            <div
+                                class="relative flex h-[130px] items-end p-3"
+                                :style="{ background: locationColor(loc) }"
+                            >
+                                <span
+                                    v-if="loc.live"
+                                    class="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-md bg-grass-deep px-2 py-1 font-jetbrains text-[9.5px] font-bold text-white"
+                                >
+                                    <span
+                                        class="h-[5px] w-[5px] rounded-full bg-[#9CFFCB]"
+                                    />
+                                    ACUM ACTIV
+                                </span>
+                                <span
+                                    v-if="distanceLabel(loc)"
+                                    class="absolute top-2.5 right-2.5 rounded-md bg-white/95 px-2 py-1 font-jetbrains text-[10px] font-bold"
+                                >
+                                    {{ distanceLabel(loc) }}
+                                </span>
+                                <div
+                                    class="absolute inset-0"
+                                    style="
+                                        background: linear-gradient(
+                                            to top,
+                                            rgba(8, 16, 11, 0.78),
+                                            transparent 62%
+                                        );
+                                    "
+                                />
+                                <div class="relative text-white">
+                                    <div
+                                        class="font-archivo text-[16.5px] font-extrabold"
+                                    >
+                                        {{ loc.name }}
+                                    </div>
+                                    <div
+                                        class="font-jetbrains text-[10.5px] font-semibold uppercase opacity-90"
+                                    >
+                                        📍 {{ loc.city }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-4 pt-3 pb-4">
+                                <div class="mb-3 flex flex-wrap gap-1.5">
+                                    <span
+                                        v-for="sport in loc.sports"
+                                        :key="sport.key"
+                                        class="rounded-[7px] px-2.5 py-[3px] text-[11.5px] font-semibold transition"
+                                        :class="
+                                            filters.sport === sport.key
+                                                ? 'bg-clay text-white'
+                                                : 'bg-[#eaf6ef] text-grass-deep'
+                                        "
+                                    >
+                                        {{ sport.label }}
+                                    </span>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between border-t border-line pt-2.5 text-xs text-sage"
+                                >
+                                    <span
+                                        ><b class="text-ink">{{
+                                            loc.clubCount
+                                        }}</b>
+                                        cluburi active</span
+                                    >
+                                    <span
+                                        class="inline-flex items-center gap-1 font-jetbrains text-[10.5px] font-semibold"
+                                    >
+                                        🛠 {{ loc.facilityCount }} facilități
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+                    </div>
+                </div>
+
+                <!-- Sports view -->
+                <div v-show="view === 'sport'">
+                    <div class="my-5 flex items-center justify-between">
+                        <h1 class="font-archivo text-[19px] font-extrabold">
+                            Sporturi în {{ city ?? 'România' }}
+                        </h1>
+                        <span class="text-[13.5px] text-sage">
+                            {{ sports.length }}
+                            {{ sports.length === 1 ? 'sport' : 'sporturi' }}
+                        </span>
+                    </div>
+                    <div
+                        v-if="!sports.length"
+                        class="pb-15 text-[14.5px] text-sage"
+                    >
+                        Niciun sport înregistrat aici încă.
+                    </div>
+                    <div
+                        class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3"
+                    >
+                        <button
+                            v-for="sport in sports"
+                            :key="sport.key"
+                            type="button"
+                            class="overflow-hidden rounded-[18px] border border-line bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
+                            @click="filterBySport(sport.key)"
+                        >
+                            <div
+                                class="flex h-24 items-center gap-3 px-4.5 text-white"
+                                :style="{
+                                    background: sportGradient(sport.color),
+                                }"
+                            >
+                                <span class="text-[30px]">{{
+                                    sport.icon
+                                }}</span>
+                                <span
+                                    class="font-archivo text-[19px] font-extrabold"
+                                    >{{ sport.label }}</span
+                                >
+                            </div>
+                            <div class="px-4 pt-3.5 pb-4">
+                                <div class="mb-3 flex gap-4">
+                                    <div>
+                                        <div
+                                            class="font-jetbrains text-[17px] font-bold"
+                                        >
+                                            {{ sport.locationCount }}
+                                        </div>
+                                        <div class="text-[10.5px] text-sage">
+                                            locații
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div
+                                            class="font-jetbrains text-[17px] font-bold"
+                                        >
+                                            {{ sport.clubCount }}
+                                        </div>
+                                        <div class="text-[10.5px] text-sage">
+                                            cluburi
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    v-if="sport.ages.length"
+                                    class="mb-3.5 flex flex-wrap gap-1.5"
+                                >
+                                    <span
+                                        v-for="age in sport.ages"
+                                        :key="age"
+                                        class="rounded-[7px] border border-line bg-[#f2f5ef] px-2.5 py-1 text-[11px] font-semibold text-sage"
+                                    >
+                                        {{ age }}
+                                    </span>
+                                </div>
+                                <span
+                                    class="flex items-center gap-1 text-[13px] font-semibold text-grass-deep"
+                                >
+                                    Vezi locațiile →
+                                </span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 </template>
