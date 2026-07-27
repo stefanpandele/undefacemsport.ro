@@ -25,6 +25,9 @@ declare module '@inertiajs/core' {
                 siteKey: string | null;
                 enabled: boolean;
             };
+            maps: {
+                key: string;
+            };
             [key: string]: unknown;
         };
     }

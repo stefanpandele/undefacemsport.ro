@@ -49,6 +49,11 @@ class HandleInertiaRequests extends Middleware
                 'siteKey' => config('services.turnstile.site_key'),
                 'enabled' => (bool) config('services.turnstile.enabled'),
             ],
+            // Browser key for the public maps, same one the club panel's map
+            // field uses. Restricted by HTTP referrer, so exposing it is fine.
+            'maps' => [
+                'key' => (string) config('filament-google-maps.keys.web_key'),
+            ],
         ];
     }
 

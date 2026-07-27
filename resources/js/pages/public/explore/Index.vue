@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import LocationsMap from '@/components/sports/LocationsMap.vue';
 import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
@@ -253,32 +254,28 @@ const visibleLocations = computed(() => {
     );
 });
 
-// Map band: the pins keep the real geography, normalised into the band.
+const mapKey = computed(() => usePage().props.maps?.key ?? '');
+
 const mappable = computed(() =>
     props.locations.filter((l) => l.lat !== null && l.lng !== null),
 );
+
+/** Where to open the map before the pins have been fitted into view. */
+const cityCenter = computed(() => {
+    const current = props.cities.find((c) => c.name === props.city);
+
+    return current?.lat !== null &&
+        current?.lat !== undefined &&
+        current.lng !== null
+        ? { lat: current.lat, lng: current.lng as number }
+        : null;
+});
 
 const activePin = ref<string | null>(null);
 
 const activePinLocation = computed(
     () => props.locations.find((l) => l.slug === activePin.value) ?? null,
 );
-
-function pinStyle(loc: ExploreLocation) {
-    const lats = mappable.value.map((l) => l.lat as number);
-    const lngs = mappable.value.map((l) => l.lng as number);
-    const span = (values: number[]) =>
-        Math.max(...values) - Math.min(...values);
-    const place = (value: number, values: number[]) =>
-        span(values) === 0
-            ? 50
-            : 10 + ((value - Math.min(...values)) / span(values)) * 80;
-
-    return {
-        top: `${100 - place(loc.lat as number, lats)}%`,
-        left: `${place(loc.lng as number, lngs)}%`,
-    };
-}
 
 function locationColor(loc: ExploreLocation): string {
     return sportGradient(loc.color);
@@ -529,47 +526,34 @@ function locationHref(loc: ExploreLocation): string {
                 </div>
             </div>
 
-            <!-- Map band -->
-            <div
-                class="relative h-[220px] min-[900px]:h-[340px]"
-                style="
-                    background:
-                        linear-gradient(#eef2ea, #eef2ea),
-                        repeating-linear-gradient(
-                            0deg,
-                            transparent 0 38px,
-                            #dfe6da 38px 39px
-                        ),
-                        repeating-linear-gradient(
-                            90deg,
-                            transparent 0 38px,
-                            #dfe6da 38px 39px
-                        );
-                "
-            >
-                <button
-                    v-for="loc in mappable"
-                    :key="loc.slug"
-                    type="button"
-                    :aria-label="loc.name"
-                    class="absolute rotate-[-45deg] rounded-[50%_50%_50%_0] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition-all"
-                    :class="
-                        activePin === loc.slug
-                            ? 'h-[30px] w-[30px] bg-clay'
-                            : 'h-6 w-6 bg-grass-deep'
-                    "
-                    :style="pinStyle(loc)"
-                    @click="
-                        activePin = activePin === loc.slug ? null : loc.slug
-                    "
+            <!-- Map -->
+            <div class="relative h-[260px] bg-[#eef2ea] min-[900px]:h-[380px]">
+                <LocationsMap
+                    v-if="mapKey && mappable.length"
+                    :locations="mappable"
+                    :api-key="mapKey"
+                    :center="cityCenter"
+                    :active-slug="activePin"
+                    @select="activePin = $event"
                 />
                 <div
+                    v-else
+                    class="absolute inset-0 flex items-center justify-center px-5 text-center text-[13.5px] text-sage"
+                >
+                    {{
+                        mapKey
+                            ? 'Nicio locație cu coordonate pe hartă.'
+                            : 'Harta nu este configurată.'
+                    }}
+                </div>
+
+                <div
                     v-if="activePinLocation"
-                    class="absolute top-[38%] left-[34%] z-[2] w-[190px] rounded-xl border border-line bg-white px-3 py-2.5 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
+                    class="absolute bottom-3.5 left-3.5 z-[2] w-[220px] rounded-xl border border-line bg-white px-3.5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
                 >
                     <Link
                         :href="locationHref(activePinLocation)"
-                        class="font-archivo text-[13.5px] font-extrabold hover:text-grass-deep"
+                        class="font-archivo text-[14px] font-extrabold hover:text-grass-deep"
                     >
                         {{ activePinLocation.name }}
                     </Link>
@@ -587,15 +571,10 @@ function locationHref(loc: ExploreLocation): string {
                         >
                     </div>
                 </div>
-                <div
-                    v-if="!mappable.length"
-                    class="absolute inset-0 flex items-center justify-center text-[13.5px] text-sage"
-                >
-                    Nicio locație cu coordonate pe hartă.
-                </div>
+
                 <button
                     type="button"
-                    class="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)] disabled:opacity-60"
+                    class="absolute right-3.5 bottom-3.5 z-[2] flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)] disabled:opacity-60"
                     :disabled="locating"
                     @click="locateMe"
                 >

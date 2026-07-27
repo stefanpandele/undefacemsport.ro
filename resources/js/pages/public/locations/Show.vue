@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import ClubBlock from '@/components/sports/ClubBlock.vue';
+import LocationsMap from '@/components/sports/LocationsMap.vue';
 import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import {
     Dialog,
@@ -17,6 +18,8 @@ const props = defineProps<{
     location: LocationDetail;
     activeSport: string | null;
 }>();
+
+const mapKey = computed(() => usePage().props.maps?.key ?? '');
 
 // Hero carousel: one slide per sport played here, since locations carry no
 // photos of their own yet.
@@ -180,35 +183,37 @@ function goToClub(key: string) {
                     </div>
                 </div>
                 <div
-                    class="relative h-[180px] overflow-hidden rounded-[20px] min-[900px]:h-[320px]"
-                    style="
-                        background:
-                            linear-gradient(#eef2ea, #eef2ea),
-                            repeating-linear-gradient(
-                                0deg,
-                                transparent 0 30px,
-                                #dfe6da 30px 31px
-                            ),
-                            repeating-linear-gradient(
-                                90deg,
-                                transparent 0 30px,
-                                #dfe6da 30px 31px
-                            );
-                    "
+                    class="relative h-[180px] overflow-hidden rounded-[20px] bg-[#eef2ea] min-[900px]:h-[320px]"
                 >
-                    <div
-                        v-if="location.lat !== null && location.lng !== null"
-                        class="absolute top-[44%] left-[44%] h-[26px] w-[26px] rotate-[-45deg] rounded-[50%_50%_50%_0] bg-clay"
+                    <LocationsMap
+                        v-if="
+                            mapKey &&
+                            location.lat !== null &&
+                            location.lng !== null
+                        "
+                        :locations="[location]"
+                        :api-key="mapKey"
+                        :single-zoom="16"
                     />
                     <div
+                        v-else
+                        class="absolute inset-0 flex items-center justify-center px-4 text-center text-[13px] text-sage"
+                    >
+                        {{
+                            mapKey
+                                ? 'Locația nu are încă coordonate pe hartă.'
+                                : 'Harta nu este configurată.'
+                        }}
+                    </div>
+                    <div
                         v-if="distance"
-                        class="absolute bottom-3 left-3 rounded-[9px] bg-ink px-2.5 py-[7px] font-jetbrains text-[11px] font-bold whitespace-nowrap text-white"
+                        class="absolute bottom-3 left-3 z-[2] rounded-[9px] bg-ink px-2.5 py-[7px] font-jetbrains text-[11px] font-bold whitespace-nowrap text-white"
                     >
                         📍 {{ distance }}
                     </div>
                     <button
                         type="button"
-                        class="absolute right-3 bottom-3 rounded-[10px] border border-line bg-white px-2.5 py-[7px] text-xs font-semibold disabled:opacity-60"
+                        class="absolute right-3 bottom-3 z-[2] cursor-pointer rounded-[10px] border border-line bg-white px-2.5 py-[7px] text-xs font-semibold disabled:opacity-60"
                         :disabled="locating"
                         @click="locateMe"
                     >
