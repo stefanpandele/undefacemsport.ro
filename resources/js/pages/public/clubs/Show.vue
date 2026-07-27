@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import PublicTopBar from '@/components/sports/PublicTopBar.vue';
+import SiteNav from '@/components/SiteNav.vue';
 import WeekSchedule from '@/components/sports/WeekSchedule.vue';
 import {
     Dialog,
@@ -129,7 +129,7 @@ function openCoach(coach: Coach) {
     <Head :title="`${club.name} — Unde Facem Sport`" />
 
     <div class="min-h-screen bg-paper pb-24 font-inter text-ink antialiased">
-        <PublicTopBar />
+        <SiteNav />
 
         <div class="mx-auto max-w-[820px] px-5">
             <!-- Profile header -->

@@ -8,7 +8,7 @@ import HowItWorks from '@/components/landing/HowItWorks.vue';
 import PopularSports from '@/components/landing/PopularSports.vue';
 import type { PopularSport } from '@/components/landing/PopularSports.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
-import SiteNav from '@/components/landing/SiteNav.vue';
+import SiteNav from '@/components/SiteNav.vue';
 
 defineProps<{
     popularSports: PopularSport[];

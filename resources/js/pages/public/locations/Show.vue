@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import SiteNav from '@/components/SiteNav.vue';
 import ClubBlock from '@/components/sports/ClubBlock.vue';
 import LocationsMap from '@/components/sports/LocationsMap.vue';
-import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import {
     Dialog,
     DialogContent,
@@ -120,7 +120,7 @@ function goToClub(key: string) {
     <Head :title="`${location.name} — Unde Facem Sport`" />
 
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
-        <PublicTopBar />
+        <SiteNav />
 
         <div class="mx-auto max-w-[1180px] px-5">
             <!-- Hero + map -->

@@ -5,7 +5,7 @@ import AnafLookupController from '@/actions/App/Http/Controllers/AnafLookupContr
 import { store } from '@/actions/App/Http/Controllers/ClubApplicationController';
 import InputError from '@/components/InputError.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
-import SiteNav from '@/components/landing/SiteNav.vue';
+import SiteNav from '@/components/SiteNav.vue';
 import TurnstileWidget from '@/components/TurnstileWidget.vue';
 import { useTranslations } from '@/composables/useTranslations';
 import { trackEvent } from '@/lib/gtm';

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import SiteNav from '@/components/SiteNav.vue';
 import LocationsMap from '@/components/sports/LocationsMap.vue';
-import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
 import clubApplication from '@/routes/club-application';
@@ -306,7 +306,7 @@ function locationHref(loc: ExploreLocation): string {
     <Head :title="`Explorează ${city ?? 'România'} — Unde Facem Sport`" />
 
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
-        <PublicTopBar />
+        <SiteNav />
 
         <!-- ===== No city yet: pick one. Nothing else on screen. ===== -->
         <template v-if="!city">

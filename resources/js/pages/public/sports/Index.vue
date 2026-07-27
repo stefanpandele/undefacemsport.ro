@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import SiteNav from '@/components/SiteNav.vue';
 import AutocompleteField from '@/components/sports/AutocompleteField.vue';
 import type { AutocompleteOption } from '@/components/sports/AutocompleteField.vue';
-import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
 import sportRoutes from '@/routes/sports';
@@ -56,7 +56,7 @@ const matching = computed(() => {
     <Head title="Sporturi — Unde Facem Sport" />
 
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
-        <PublicTopBar />
+        <SiteNav />
 
         <div class="mx-auto max-w-[1180px] px-5 pt-12 pb-20">
             <div class="text-center">
