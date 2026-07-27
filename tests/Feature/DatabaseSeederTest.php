@@ -95,6 +95,22 @@ test('seeding puts clubs in the same hall on the same sport and interval', funct
     expect($shared)->not->toBeEmpty();
 });
 
+test('seeding tops up a database that already holds a few clubs', function () {
+    // Regression: ClubSeeder used to bail out entirely when any club existed,
+    // so a database left short by an earlier failed run stayed short forever —
+    // too few clubs per city for any of them to share a hall.
+    Club::factory()->count(2)->create();
+    Club::factory()->premium()->create();
+
+    $this->seed();
+
+    expect(Club::count())->toBe(16);
+
+    Club::with('clubSports')->get()->each(
+        fn (Club $club) => expect($club->clubSports)->not->toBeEmpty(),
+    );
+});
+
 test('seeded clubs stay within their plan limits', function () {
     $this->seed();
 
