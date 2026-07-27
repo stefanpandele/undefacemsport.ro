@@ -113,6 +113,9 @@ class ClubAccessSeeder extends Seeder
                 'city' => 'București',
                 'address' => 'Str. Studioului 12',
                 'name' => 'Studioul Demo',
+                // Without coordinates the location has no pin on the explore map.
+                'latitude' => 44.4396,
+                'longitude' => 26.0963,
             ],
             [$sport->id],
         );

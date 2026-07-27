@@ -17,9 +17,10 @@ class ClubSeeder extends Seeder
             return;
         }
 
-        // Mix of plans so the club panel's subscription limits are testable.
-        Club::factory()->count(2)->create();            // free  (1 sport)
-        Club::factory()->pro()->count(2)->create();     // pro   (5 sports)
-        Club::factory()->premium()->count(1)->create(); // premium (unlimited)
+        // Mix of plans so the club panel's subscription limits are testable,
+        // in enough volume for the public explore/location pages to look real.
+        Club::factory()->count(4)->create();            // free  (1 sport)
+        Club::factory()->pro()->count(7)->create();     // pro   (5 sports)
+        Club::factory()->premium()->count(3)->create(); // premium (unlimited)
     }
 }
