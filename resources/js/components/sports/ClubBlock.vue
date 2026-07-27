@@ -4,11 +4,14 @@ import { computed } from 'vue';
 import WeekSchedule from '@/components/sports/WeekSchedule.vue';
 import { gradientStyle } from '@/lib/gradients';
 import clubs from '@/routes/clubs';
-import type { Coach, LocationClub } from '@/types/sports';
+import type { Coach, LocationClub, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{ club: LocationClub }>();
 
-defineEmits<{ openCoach: [coach: Coach] }>();
+defineEmits<{
+    openCoach: [coach: Coach];
+    openHall: [slot: ScheduleSlot];
+}>();
 
 const MINI_GALLERY_SIZE = 3;
 
@@ -21,7 +24,12 @@ const remainingPhotos = computed(() =>
 </script>
 
 <template>
-    <div class="mb-4 rounded-[18px] border border-line bg-white p-5">
+    <!-- The id is the anchor the hall-occupancy modal links to; scroll-mt keeps
+         the block clear of the sticky top bar when jumped to. -->
+    <div
+        :id="`club-${club.key}`"
+        class="mb-4 scroll-mt-24 rounded-[18px] border border-line bg-white p-5"
+    >
         <Link
             :href="clubs.show.url(club.slug)"
             class="group mb-3.5 flex cursor-pointer gap-3.5"
@@ -170,6 +178,7 @@ const remainingPhotos = computed(() =>
                 :schedule="club.schedule"
                 :coaches="club.coaches"
                 @open-coach="$emit('openCoach', $event)"
+                @open-hall="$emit('openHall', $event)"
             />
         </div>
 

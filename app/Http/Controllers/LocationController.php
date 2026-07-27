@@ -134,7 +134,10 @@ class LocationController extends Controller
      * once for the whole location and then narrowed per club block, so a page
      * with many clubs still walks the slots a single time.
      *
-     * @return array<int, array<int, array<string, array<int, string>>>> sport => day => interval => club id => club name
+     * Each entry carries the club's block key as well as its name, so the page
+     * can link straight to that club's block further down.
+     *
+     * @return array<int, array<int, array<string, array<int, array{name: string, key: string}>>>> sport => day => interval => club id => club
      */
     private function occupancy(Location $location): array
     {
@@ -144,8 +147,13 @@ class LocationController extends Controller
             $club = $clubLocation->club;
 
             foreach ($clubLocation->clubLocationSports as $clubLocationSport) {
+                $entry = [
+                    'name' => $club->name,
+                    'key' => $this->blockKey($club, $clubLocationSport->sport),
+                ];
+
                 foreach ($clubLocationSport->scheduleSlots as $slot) {
-                    $map[$clubLocationSport->sport_id][$slot->day_of_week->value][$this->interval($slot)][$club->getKey()] = $club->name;
+                    $map[$clubLocationSport->sport_id][$slot->day_of_week->value][$this->interval($slot)][$club->getKey()] = $entry;
                 }
             }
         }
@@ -154,11 +162,20 @@ class LocationController extends Controller
     }
 
     /**
+     * Identifies one (club, sport) block on the page — also the anchor the
+     * hall-occupancy modal links to.
+     */
+    private function blockKey(Club $club, Sport $sport): string
+    {
+        return $club->slug.'-'.$sport->slug;
+    }
+
+    /**
      * The occupancy of this hall for one club's sport, with that club itself
      * removed — what is left is "who else is here".
      *
-     * @param  array<int, array<int, array<string, array<int, string>>>>  $occupancy
-     * @return array<int, array<string, list<string>>>
+     * @param  array<int, array<int, array<string, array<int, array{name: string, key: string}>>>>  $occupancy
+     * @return array<int, array<string, list<array{name: string, key: string}>>>
      */
     private function otherClubs(array $occupancy, Club $club, int $sportId): array
     {
@@ -172,7 +189,7 @@ class LocationController extends Controller
     }
 
     /**
-     * @param  array<int, array<int, array<string, array<int, string>>>>  $occupancy
+     * @param  array<int, array<int, array<string, array<int, array{name: string, key: string}>>>>  $occupancy
      * @return array<string, mixed>
      */
     private function clubBlock(Club $club, ClubLocationSport $clubLocationSport, array $occupancy = []): array
@@ -183,7 +200,7 @@ class LocationController extends Controller
         $primary = $coaches->first();
 
         return [
-            'key' => $club->slug.'-'.$sport->slug,
+            'key' => $this->blockKey($club, $sport),
             'slug' => $club->slug,
             'sport' => $sport->slug,
             'name' => $club->name,

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Coach, ScheduleDay, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{
@@ -7,24 +6,10 @@ const props = defineProps<{
     coaches: Coach[];
 }>();
 
-defineEmits<{ openCoach: [coach: Coach] }>();
-
-/** Which slot has its "who else is in the hall" panel open, as `day-index`. */
-const openInfo = ref<string | null>(null);
-const root = ref<HTMLElement | null>(null);
-
-function toggleInfo(key: string): void {
-    openInfo.value = openInfo.value === key ? null : key;
-}
-
-function handleOutside(event: MouseEvent): void {
-    if (root.value && !root.value.contains(event.target as Node)) {
-        openInfo.value = null;
-    }
-}
-
-onMounted(() => document.addEventListener('click', handleOutside));
-onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
+defineEmits<{
+    openCoach: [coach: Coach];
+    openHall: [slot: ScheduleSlot];
+}>();
 
 function coachByKey(key: string): Coach | undefined {
     return props.coaches.find((c) => c.key === key);
@@ -44,7 +29,7 @@ function clubLabel(slot: ScheduleSlot): string {
 </script>
 
 <template>
-    <div ref="root" class="rounded-xl bg-panel px-3.5 py-1.5">
+    <div class="rounded-xl bg-panel px-3.5 py-1.5">
         <div
             v-for="row in schedule"
             :key="row.day"
@@ -66,7 +51,7 @@ function clubLabel(slot: ScheduleSlot): string {
                 <div
                     v-for="(slot, i) in row.slots"
                     :key="i"
-                    class="relative rounded-lg border px-2.5 py-[5px] leading-tight"
+                    class="rounded-lg border px-2.5 py-[5px] leading-tight"
                     :class="
                         slot.foreign
                             ? 'border-[#d4573f]/40 bg-[#d4573f]/10'
@@ -135,36 +120,17 @@ function clubLabel(slot: ScheduleSlot): string {
                         </span>
                         <button
                             type="button"
-                            class="flex h-[13px] w-[13px] items-center justify-center rounded-full border text-[8px] font-bold transition-colors"
+                            class="flex h-[13px] w-[13px] cursor-pointer items-center justify-center rounded-full border text-[8px] font-bold transition-colors"
                             :class="
                                 slot.foreign
                                     ? 'border-[#e08268]/60 text-[#e08268] hover:bg-[#e08268]/20'
                                     : 'border-[#9fb3a6]/60 text-[#9fb3a6] hover:bg-white/10'
                             "
-                            :aria-expanded="openInfo === `${row.day}-${i}`"
                             :aria-label="`Vezi cluburile care au antrenament la ${slot.time}`"
-                            @click.stop="toggleInfo(`${row.day}-${i}`)"
+                            @click="$emit('openHall', slot)"
                         >
                             i
                         </button>
-
-                        <div
-                            v-if="openInfo === `${row.day}-${i}`"
-                            class="absolute top-full left-0 z-20 mt-1 w-max max-w-[190px] rounded-lg border border-white/15 bg-[#12211a] p-2 shadow-lg"
-                        >
-                            <div
-                                class="mb-1 font-jetbrains text-[9px] font-bold tracking-[0.08em] text-[#7f9488] uppercase"
-                            >
-                                {{ slot.time }} · în aceeași sală
-                            </div>
-                            <div
-                                v-for="club in slot.otherClubs"
-                                :key="club"
-                                class="text-[10.5px] leading-snug text-[#cfe9dd]"
-                            >
-                                {{ club }}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

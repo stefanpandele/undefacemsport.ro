@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { gradientStyle, sportGradient } from '@/lib/gradients';
 import clubApplication from '@/routes/club-application';
-import type { Coach, LocationDetail } from '@/types/sports';
+import type { Coach, LocationDetail, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{
     location: LocationDetail;
@@ -87,6 +87,29 @@ const coachOpen = ref(false);
 function openCoach(coach: Coach) {
     activeCoach.value = coach;
     coachOpen.value = true;
+}
+
+// "Who else is in the hall" modal, opened from a schedule slot's info button.
+const activeHallSlot = ref<ScheduleSlot | null>(null);
+const hallOpen = ref(false);
+
+function openHall(slot: ScheduleSlot) {
+    activeHallSlot.value = slot;
+    hallOpen.value = true;
+}
+
+/**
+ * Jump to that club's block further down the page. The modal has to close
+ * first, or its overlay would swallow the scroll.
+ */
+function goToClub(key: string) {
+    hallOpen.value = false;
+
+    requestAnimationFrame(() => {
+        document
+            .getElementById(`club-${key}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 </script>
 
@@ -349,6 +372,7 @@ function openCoach(coach: Coach) {
                         :key="club.key"
                         :club="club"
                         @open-coach="openCoach"
+                        @open-hall="openHall"
                     />
                 </template>
                 <div v-else class="py-8 text-center text-sage">
@@ -393,6 +417,43 @@ function openCoach(coach: Coach) {
                 <p class="mt-3.5 text-[13px] leading-relaxed text-sage">
                     {{ activeCoach?.bio }}
                 </p>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Who else has the hall at this interval -->
+        <Dialog v-model:open="hallOpen">
+            <DialogContent class="max-w-[380px]">
+                <DialogHeader>
+                    <DialogTitle class="font-archivo text-[19px]">
+                        În aceeași sală, {{ activeHallSlot?.time }}
+                    </DialogTitle>
+                </DialogHeader>
+                <p class="text-[13px] leading-relaxed text-sage">
+                    {{
+                        activeHallSlot?.otherClubs.length === 1
+                            ? 'Încă un club'
+                            : `Încă ${activeHallSlot?.otherClubs.length} cluburi`
+                    }}
+                    țin antrenament aici în acest interval.
+                </p>
+                <div class="mt-1 flex flex-col gap-1.5">
+                    <button
+                        v-for="club in activeHallSlot?.otherClubs ?? []"
+                        :key="club.key"
+                        type="button"
+                        class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-grass hover:bg-[#f7faf8]"
+                        @click="goToClub(club.key)"
+                    >
+                        <span class="text-[14px] font-semibold text-ink">
+                            {{ club.name }}
+                        </span>
+                        <span
+                            class="shrink-0 font-jetbrains text-[11px] font-bold text-grass-deep"
+                        >
+                            vezi orarul →
+                        </span>
+                    </button>
+                </div>
             </DialogContent>
         </Dialog>
     </div>

@@ -90,8 +90,8 @@ trait PresentsClubs
      * so a visitor sees how busy the venue really is.
      *
      * @param  Collection<int, ScheduleSlot>  $slots
-     * @param  array<int, array<string, list<string>>>  $occupancy  day value => interval => other club names
-     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string, foreign: bool, otherClubs: list<string>}>}>
+     * @param  array<int, array<string, list<array{name: string, key: string}>>>  $occupancy  day value => interval => other clubs
+     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string, foreign: bool, otherClubs: list<array{name: string, key: string}>}>}>
      */
     protected function presentWeek(Collection $slots, array $occupancy = []): array
     {

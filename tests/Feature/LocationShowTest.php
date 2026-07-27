@@ -9,13 +9,19 @@ use App\Models\Facility;
 use App\Models\Location;
 use App\Models\ScheduleSlot;
 use App\Models\Sport;
+use Illuminate\Support\Str;
 
 /**
  * A club teaching one sport at a location, with a coach and one weekly slot.
  */
 function swimmingClubAt(string $locationName, Sport $sport, string $clubName): ClubLocationSport
 {
-    $club = Club::factory()->create(['name' => $clubName, 'description' => 'Despre '.$clubName]);
+    // A slug derived from the name keeps the page's block keys predictable.
+    $club = Club::factory()->create([
+        'name' => $clubName,
+        'slug' => Str::slug($clubName),
+        'description' => 'Despre '.$clubName,
+    ]);
     $club->contacts()->create(['type' => ContactType::Phone, 'value' => '0722111222']);
 
     $clubSport = $club->clubSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
@@ -162,8 +168,14 @@ test('clubs sharing an interval in the same hall are counted on each other slots
         ->assertInertia(fn ($page) => $page
             ->where('location.clubs.0.schedule.0.slots.0.time', '17:00–18:00')
             ->where('location.clubs.0.schedule.0.slots.0.foreign', false)
-            ->where('location.clubs.0.schedule.0.slots.0.otherClubs', ['Club Aqua Junior'])
-            ->where('location.clubs.1.schedule.0.slots.0.otherClubs', ['Aqua Masters'])
+            // Each entry carries the other club's block key, so the modal can
+            // link straight to it further down the page.
+            ->where('location.clubs.0.schedule.0.slots.0.otherClubs', [
+                ['name' => 'Club Aqua Junior', 'key' => 'club-aqua-junior-inot'],
+            ])
+            ->where('location.clubs.1.schedule.0.slots.0.otherClubs', [
+                ['name' => 'Aqua Masters', 'key' => 'aqua-masters-inot'],
+            ])
         );
 });
 
@@ -191,7 +203,9 @@ test('an interval only another club trains in shows as an anonymous busy slot', 
             ->where('location.clubs.1.schedule.0.slots.1.time', '19:00–20:30')
             ->where('location.clubs.1.schedule.0.slots.1.foreign', true)
             ->where('location.clubs.1.schedule.0.slots.1.group', '')
-            ->where('location.clubs.1.schedule.0.slots.1.otherClubs', ['Aqua Masters'])
+            ->where('location.clubs.1.schedule.0.slots.1.otherClubs', [
+                ['name' => 'Aqua Masters', 'key' => 'aqua-masters-inot'],
+            ])
             // Aqua Masters owns both intervals, so neither is foreign for it.
             ->where('location.clubs.0.schedule.0.slots.1.foreign', false)
             ->where('location.clubs.0.schedule.0.slots.1.otherClubs', [])

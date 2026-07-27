@@ -8,6 +8,12 @@ export type Coach = {
     bio: string;
 };
 
+/** A club sharing the hall, and the key of its block on the location page. */
+export type HallSharer = {
+    name: string;
+    key: string;
+};
+
 export type ScheduleSlot = {
     time: string;
     group: string;
@@ -15,7 +21,7 @@ export type ScheduleSlot = {
     /** A slot no club on this block runs — another club has the hall then. */
     foreign: boolean;
     /** Other clubs training in the same hall, same sport, same interval. */
-    otherClubs: string[];
+    otherClubs: HallSharer[];
 };
 
 export type ScheduleDay = {
