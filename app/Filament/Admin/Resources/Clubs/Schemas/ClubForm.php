@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Clubs\Schemas;
 
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -15,6 +16,9 @@ class ClubForm
                     ->required(),
                 TextInput::make('slug')
                     ->required(),
+                Textarea::make('description')
+                    ->label('Descriere (afișată pe pagina publică)')
+                    ->columnSpanFull(),
                 TextInput::make('owner_user_id')
                     ->numeric()
                     ->default(null),

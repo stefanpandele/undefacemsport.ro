@@ -6,6 +6,10 @@ use App\Filament\Admin\Resources\Clubs\Pages\CreateClub;
 use App\Filament\Admin\Resources\Clubs\Pages\EditClub;
 use App\Filament\Admin\Resources\Clubs\Pages\ListClubs;
 use App\Filament\Admin\Resources\Clubs\Pages\ViewClub;
+use App\Filament\Admin\Resources\Clubs\RelationManagers\ClubSportsRelationManager;
+use App\Filament\Admin\Resources\Clubs\RelationManagers\CoachesRelationManager;
+use App\Filament\Admin\Resources\Clubs\RelationManagers\LocationsRelationManager;
+use App\Filament\Admin\Resources\Clubs\RelationManagers\ScheduleSlotsRelationManager;
 use App\Filament\Admin\Resources\Clubs\Schemas\ClubForm;
 use App\Filament\Admin\Resources\Clubs\Schemas\ClubInfolist;
 use App\Filament\Admin\Resources\Clubs\Tables\ClubsTable;
@@ -40,7 +44,10 @@ class ClubResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ClubSportsRelationManager::class,
+            LocationsRelationManager::class,
+            CoachesRelationManager::class,
+            ScheduleSlotsRelationManager::class,
         ];
     }
 
