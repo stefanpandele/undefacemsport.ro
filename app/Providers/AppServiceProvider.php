@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Filament\Actions\CreateAction;
+use Filament\Actions\EditAction;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Date;
@@ -49,6 +51,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user): ?bool => $user->isSuperAdmin() ? true : null);
 
         Date::use(CarbonImmutable::class);
+
+        // Create/edit modals hold unsaved form input, so a stray click on the
+        // backdrop must not discard it. Confirmation modals keep the default.
+        CreateAction::configureUsing(fn (CreateAction $action) => $action->closeModalByClickingAway(false));
+        EditAction::configureUsing(fn (EditAction $action) => $action->closeModalByClickingAway(false));
 
         // Define the LocationMap Alpine component in the panel <head>, so it is
         // registered before Alpine evaluates the field's x-data inside modals.

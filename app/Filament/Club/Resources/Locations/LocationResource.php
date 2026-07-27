@@ -3,10 +3,12 @@
 namespace App\Filament\Club\Resources\Locations;
 
 use App\Filament\Club\Resources\Locations\Pages\ManageLocations;
+use App\Filament\Concerns\ResolvesClub;
 use App\Filament\Forms\Components\LocationMap;
 use App\Models\Club;
 use App\Models\ClubLocation;
 use App\Models\County;
+use App\Models\Facility;
 use App\Models\Locality;
 use App\Models\Location;
 use App\Models\Sport;
@@ -20,6 +22,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -28,11 +31,14 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 use RuntimeException;
 
 class LocationResource extends Resource
 {
+    use ResolvesClub;
+
     protected static ?string $model = ClubLocation::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMapPin;
@@ -56,6 +62,7 @@ class LocationResource extends Resource
                     ->afterStateUpdated(function ($state, $set, Component $livewire): void {
                         $set('city', null);
                         $set('name_locked', false);
+                        $set('known_location_id', null);
                         static::geocodeAndGoto($set, $livewire, static::composeAddress(null, null, $state), zoom: 9);
                     }),
                 Select::make('city')
@@ -76,10 +83,13 @@ class LocationResource extends Resource
                     ->required()
                     ->columnSpanFull()
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn ($set) => $set('name_locked', false))
-                    ->rule(static function ($get, ?ClubLocation $record): Closure {
-                        return static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
-                            $club = Filament::getTenant();
+                    ->afterStateUpdated(function ($set): void {
+                        $set('name_locked', false);
+                        $set('known_location_id', null);
+                    })
+                    ->rule(static function ($get, ?ClubLocation $record, ?Component $livewire): Closure {
+                        return static function (string $attribute, mixed $value, Closure $fail) use ($get, $record, $livewire): void {
+                            $club = static::resolveClub($livewire);
 
                             if ($club instanceof Club && $club->clubLocationAt($get('county'), $get('city'), $value, $record?->getKey()) !== null) {
                                 $fail('Ai deja o locație la această adresă.');
@@ -127,7 +137,7 @@ class LocationResource extends Resource
                                     $set('name', $shared->name);
                                     $set('name_locked', true);
 
-                                    $club = Filament::getTenant();
+                                    $club = static::resolveClub($livewire);
                                     $alreadyMine = $club instanceof Club
                                         && $club->clubLocationAt($get('county'), $get('city'), $get('address'), $record?->getKey()) !== null;
 
@@ -142,6 +152,7 @@ class LocationResource extends Resource
                                     $set('name_locked', false);
                                 }
 
+                                $set('known_location_id', $shared?->getKey());
                                 $set('location', $coordinates);
 
                                 $livewire->dispatch(
@@ -165,8 +176,8 @@ class LocationResource extends Resource
                 Select::make('sports')
                     ->label('Sporturi predate aici')
                     ->helperText('Doar sporturile declarate la clubul tău.')
-                    ->options(function (): array {
-                        $club = Filament::getTenant();
+                    ->options(function (?Component $livewire): array {
+                        $club = static::resolveClub($livewire);
 
                         return $club instanceof Club
                             ? $club->sports->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])->all()
@@ -174,6 +185,20 @@ class LocationResource extends Resource
                     })
                     ->multiple()
                     ->searchable(),
+                Hidden::make('known_location_id')
+                    ->dehydrated(false),
+                Placeholder::make('existing_facilities')
+                    ->label('Facilități existente')
+                    ->content(fn ($get): string => static::existingFacilitiesLabel($get('known_location_id')))
+                    ->visible(fn ($get): bool => filled($get('known_location_id')))
+                    ->columnSpanFull(),
+                Select::make('new_facilities')
+                    ->label('Adaugă facilități')
+                    ->helperText('Facilitățile sunt ale locației (partajate): le poți adăuga, dar nu elimina pe cele existente.')
+                    ->options(fn ($get): array => static::addableFacilities($get('known_location_id')))
+                    ->multiple()
+                    ->searchable()
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -197,7 +222,6 @@ class LocationResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()
-                    ->closeModalByClickingAway(false)
                     ->mutateRecordDataUsing(fn (array $data, ClubLocation $record): array => static::fillFromRecord($data, $record))
                     ->using(fn (ClubLocation $record, array $data): ClubLocation => static::persist($data, $record)),
                 DeleteAction::make(),
@@ -215,15 +239,15 @@ class LocationResource extends Resource
      *
      * @param  array<string, mixed>  $data
      */
-    public static function persist(array $data, ?ClubLocation $record = null): ClubLocation
+    public static function persist(array $data, ?ClubLocation $record = null, ?Component $livewire = null): ClubLocation
     {
-        $club = $record instanceof ClubLocation ? $record->club : Filament::getTenant();
+        $club = $record instanceof ClubLocation ? $record->club : static::resolveClub($livewire);
 
         if (! $club instanceof Club) {
             throw new RuntimeException('Nu există context de club pentru salvarea locației.');
         }
 
-        return $club->syncLocation(
+        $clubLocation = $club->syncLocation(
             [
                 'county' => $data['county'],
                 'city' => $data['city'],
@@ -235,6 +259,14 @@ class LocationResource extends Resource
             $data['sports'] ?? [],
             $record,
         );
+
+        // Facilities belong to the shared location and are only ever added,
+        // never removed (other clubs rely on them too).
+        if (! empty($data['new_facilities'])) {
+            $clubLocation->location->facilities()->syncWithoutDetaching($data['new_facilities']);
+        }
+
+        return $clubLocation;
     }
 
     /**
@@ -254,8 +286,43 @@ class LocationResource extends Resource
             'name' => $location?->name,
             'location' => $location?->location,
             'name_locked' => true,
+            'known_location_id' => $record->location_id,
+            'new_facilities' => [],
             'sports' => $record->sports->pluck('id')->all(),
         ]);
+    }
+
+    /**
+     * Comma-separated names of the facilities already on the shared location.
+     */
+    protected static function existingFacilitiesLabel(mixed $locationId): string
+    {
+        if (blank($locationId)) {
+            return '—';
+        }
+
+        $names = Facility::query()
+            ->whereHas('locations', fn (Builder $query) => $query->whereKey($locationId))
+            ->orderBy('sort_order')
+            ->pluck('name');
+
+        return $names->isEmpty() ? 'Nicio facilitate încă' : $names->implode(', ');
+    }
+
+    /**
+     * Facilities that can still be added to the location (all minus existing).
+     *
+     * @return array<int, string>
+     */
+    protected static function addableFacilities(mixed $locationId): array
+    {
+        $query = Facility::query()->orderBy('sort_order');
+
+        if (filled($locationId)) {
+            $query->whereDoesntHave('locations', fn (Builder $sub) => $sub->whereKey($locationId));
+        }
+
+        return $query->pluck('name', 'id')->all();
     }
 
     /**

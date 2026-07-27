@@ -3,6 +3,8 @@
 namespace App\Filament\Club\Resources\ClubSports;
 
 use App\Filament\Club\Resources\ClubSports\Pages\ManageClubSports;
+use App\Filament\Concerns\ResolvesClub;
+use App\Filament\Forms\Components\WebpUpload;
 use App\Models\Club;
 use App\Models\ClubSport;
 use App\Models\Sport;
@@ -12,19 +14,22 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Livewire\Component;
 
 class ClubSportResource extends Resource
 {
+    use ResolvesClub;
+
     protected static ?string $model = ClubSport::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
@@ -41,19 +46,51 @@ class ClubSportResource extends Resource
             ->components([
                 Select::make('sport_id')
                     ->label('Sport')
-                    ->options(fn (?ClubSport $record): array => static::availableSports($record))
+                    ->options(fn (?ClubSport $record, ?Component $livewire): array => static::availableSports($record, $livewire))
                     ->searchable()
                     ->required(),
-                FileUpload::make('cover_path')
-                    ->label('Cover')
-                    ->image()
-                    ->disk('s3')
-                    ->directory('clubs/sport-covers'),
-                Textarea::make('description')
-                    ->label('Descriere')
+                Toggle::make('offers_private_sessions')
+                    ->label('Oferă antrenamente 1:1'),
+                Select::make('ageGroups')
+                    ->label('Grupe / public-țintă')
+                    ->relationship('ageGroups', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->columnSpanFull(),
+                Repeater::make('benefits')
+                    ->label('Beneficii')
+                    ->relationship()
+                    ->schema([
+                        TextInput::make('icon')
+                            ->label('Emoji')
+                            ->maxLength(16),
+                        TextInput::make('label')
+                            ->label('Text')
+                            ->required()
+                            ->columnSpan(2),
+                    ])
+                    ->columns(3)
+                    ->orderColumn('sort_order')
+                    ->addActionLabel('Adaugă beneficiu')
+                    ->columnSpanFull(),
+                Repeater::make('galleryImages')
+                    ->label('Galerie foto')
+                    ->relationship()
+                    ->schema([
+                        WebpUpload::make('path')
+                            ->label('Poză')
+                            ->square(1200)
+                            ->disk('s3')
+                            ->directory('club-sports/gallery')
+                            ->required(),
+                    ])
+                    ->orderColumn('sort_order')
+                    ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => $data + ['disk' => 's3', 'collection' => 'gallery'])
+                    ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => $data + ['disk' => 's3', 'collection' => 'gallery'])
+                    ->addActionLabel('Adaugă poză')
                     ->columnSpanFull(),
                 TextInput::make('sort_order')
-                    ->label('Ordine')
+                    ->label('Ordine sport')
                     ->numeric()
                     ->default(0),
             ]);
@@ -63,12 +100,15 @@ class ClubSportResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('cover_path')
-                    ->label('Cover')
-                    ->disk('s3'),
                 TextColumn::make('sport.translated_name')
                     ->label('Sport')
                     ->sortable(),
+                IconColumn::make('offers_private_sessions')
+                    ->label('1:1')
+                    ->boolean(),
+                TextColumn::make('ageGroups.name')
+                    ->label('Grupe')
+                    ->badge(),
                 TextColumn::make('sort_order')
                     ->label('Ordine')
                     ->numeric()
@@ -105,9 +145,9 @@ class ClubSportResource extends Resource
      *
      * @return array<int, string>
      */
-    protected static function availableSports(?ClubSport $record): array
+    protected static function availableSports(?ClubSport $record, ?Component $livewire = null): array
     {
-        $club = Filament::getTenant();
+        $club = static::resolveClub($livewire);
 
         $taken = $club instanceof Club
             ? $club->clubSports()

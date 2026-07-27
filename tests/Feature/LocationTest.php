@@ -2,6 +2,7 @@
 
 use App\Filament\Club\Resources\Locations\LocationResource;
 use App\Models\Club;
+use App\Models\Facility;
 use App\Models\Location;
 use App\Models\Sport;
 use App\Models\User;
@@ -104,4 +105,35 @@ test('Location::atAddress returns the shared location regardless of club', funct
 
     expect(Location::atAddress('Cluj', 'Cluj-Napoca', 'Strada W 5')?->name)->toBe('Sala W')
         ->and(Location::atAddress('Cluj', 'Cluj-Napoca', 'Necunoscută'))->toBeNull();
+});
+
+test('location facilities are shared and only ever added', function () {
+    $location = Location::factory()->create();
+    $facilities = Facility::factory()->count(3)->create();
+
+    $location->facilities()->attach([$facilities[0]->id, $facilities[1]->id]);
+
+    // Another club adds a facility without touching the existing ones.
+    $location->facilities()->syncWithoutDetaching([$facilities[2]->id]);
+    expect($location->facilities()->count())->toBe(3);
+
+    // Re-saving a subset never removes the others.
+    $location->facilities()->syncWithoutDetaching([$facilities[0]->id]);
+    expect($location->facilities()->count())->toBe(3);
+});
+
+test('saving a location adds the chosen facilities to the shared location', function () {
+    $club = Club::factory()->create();
+    $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. F 1', 'name' => 'Sala F'];
+    $clubLocation = $club->syncLocation($address);
+    $facility = Facility::factory()->create();
+
+    LocationResource::persist($address + [
+        'location' => ['lat' => 46.77, 'lng' => 23.59],
+        'sports' => [],
+        'new_facilities' => [$facility->id],
+    ], $clubLocation);
+
+    expect($clubLocation->location->facilities()->count())->toBe(1)
+        ->and($clubLocation->location->facilities->first()->is($facility))->toBeTrue();
 });

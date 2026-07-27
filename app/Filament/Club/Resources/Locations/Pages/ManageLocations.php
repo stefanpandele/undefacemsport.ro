@@ -15,7 +15,6 @@ class ManageLocations extends ManageRecords
     {
         return [
             CreateAction::make()
-                ->closeModalByClickingAway(false)
                 ->using(fn (array $data): ClubLocation => LocationResource::persist($data)),
         ];
     }
