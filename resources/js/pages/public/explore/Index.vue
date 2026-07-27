@@ -76,7 +76,15 @@ const matchingCities = computed(() => {
 });
 
 function chooseCity(name: string) {
-    router.get(explore.url(), { oras: name }, { preserveScroll: false });
+    // Carry the sport over, or arriving from the sports index would drop the
+    // very thing the visitor came here for.
+    const params: Record<string, string> = { oras: name };
+
+    if (props.filters.sport) {
+        params.sport = props.filters.sport;
+    }
+
+    router.get(explore.url(), params, { preserveScroll: false });
 }
 
 /**
@@ -307,17 +315,38 @@ function locationHref(loc: ExploreLocation): string {
                     class="mb-3.5 block font-jetbrains text-[11px] font-semibold tracking-[0.16em] text-grass-deep uppercase"
                 >
                     {{ cities.length }}
-                    {{ cities.length === 1 ? 'oraș' : 'orașe' }} pe hartă
+                    {{ cities.length === 1 ? 'oraș' : 'orașe' }}
+                    {{ filters.sport ? 'cu acest sport' : 'pe hartă' }}
                 </span>
                 <h1
                     class="font-archivo text-[clamp(28px,5.5vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em]"
                 >
-                    În ce oraș faci sport?
+                    {{
+                        filters.sport
+                            ? 'În ce oraș cauți?'
+                            : 'În ce oraș faci sport?'
+                    }}
                 </h1>
                 <p class="mx-auto mt-3.5 max-w-[46ch] text-[16px] text-sage">
                     Alege-ți orașul și vezi imediat sălile, bazinele și
                     terenurile din el, cu cluburile care țin antrenamente acolo.
                 </p>
+
+                <!-- Arrived from the sports index: say what is being filtered,
+                     and leave a way to drop it without going back. -->
+                <div v-if="filters.sport" class="mt-4 flex justify-center">
+                    <span
+                        class="inline-flex items-center gap-2 rounded-full bg-ink py-2 pr-2 pl-4 text-[13px] font-semibold text-white"
+                    >
+                        Cauți: <b>{{ filters.sport }}</b>
+                        <Link
+                            :href="explore.url()"
+                            class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white/15 hover:bg-white/30"
+                        >
+                            ✕
+                        </Link>
+                    </span>
+                </div>
 
                 <div class="mx-auto mt-7 max-w-[420px]">
                     <!-- The fastest route first: one tap and you are in your

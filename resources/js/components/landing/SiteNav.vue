@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { trackEvent } from '@/lib/gtm';
 import { explore, login, register } from '@/routes';
 import clubApplication from '@/routes/club-application';
+import sportRoutes from '@/routes/sports';
 
 const openMenu = ref<null | 'visitor' | 'club'>(null);
 const root = ref<HTMLElement | null>(null);
@@ -23,7 +24,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
 const links = [
     { label: 'Explorează', href: explore.url() },
-    { label: 'Locații', href: explore.url() },
+    { label: 'Sporturi', href: sportRoutes.index.url() },
     { label: 'Prețuri', href: '#' },
 ];
 

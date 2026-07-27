@@ -4,12 +4,15 @@ use App\Http\Controllers\AnafLookupController;
 use App\Http\Controllers\ClubApplicationController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ExploreController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\SportController;
 use App\Http\Middleware\RedirectToHomeArea;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'Welcome')->name('home');
+Route::get('/', HomeController::class)->name('home');
 
+Route::get('sporturi', [SportController::class, 'index'])->name('sports.index');
 Route::get('explorare', [ExploreController::class, 'index'])->name('explore');
 Route::get('locatii/{slug}', [LocationController::class, 'show'])->name('locations.show');
 Route::get('cluburi/{slug}', [ClubController::class, 'show'])->name('clubs.show');

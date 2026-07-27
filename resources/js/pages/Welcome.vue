@@ -6,8 +6,11 @@ import ClubCta from '@/components/landing/ClubCta.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import HowItWorks from '@/components/landing/HowItWorks.vue';
 import PopularSports from '@/components/landing/PopularSports.vue';
+import type { PopularSport } from '@/components/landing/PopularSports.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import SiteNav from '@/components/landing/SiteNav.vue';
+
+defineProps<{ popularSports: PopularSport[] }>();
 
 // Shared state: sharing location in the hero reveals the "city numbers" section.
 const locationShared = ref(false);
@@ -23,7 +26,7 @@ function shareLocation() {
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
         <SiteNav />
         <HeroSection @share="shareLocation" />
-        <PopularSports />
+        <PopularSports :sports="popularSports" />
         <CityNumbers :location-shared="locationShared" @share="shareLocation" />
         <HowItWorks />
         <ClubCta />

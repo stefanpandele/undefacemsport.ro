@@ -8,6 +8,7 @@ use App\Models\Location;
 use App\Models\Sport;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -26,9 +27,12 @@ class ExploreController extends Controller
      */
     public function index(Request $request): Response
     {
-        $cities = $this->cities();
-        $city = $this->resolveCity($request->string('oras')->trim()->toString(), $cities);
         $sport = $request->string('sport')->trim()->toString() ?: null;
+        // Arriving from the sports index, the picker only offers cities where
+        // that sport is actually taught — sending someone to a city that has
+        // none of it would be a dead end dressed up as a choice.
+        $cities = $this->cities($sport);
+        $city = $this->resolveCity($request->string('oras')->trim()->toString(), $cities);
         $facilities = array_values($request->collect('facilitati')
             ->map(fn (mixed $id): int => (int) $id)
             ->filter(fn (int $id): bool => $id > 0)
@@ -58,15 +62,23 @@ class ExploreController extends Controller
      *
      * Busiest first, so the cities most people are looking for need no reading.
      *
+     * @param  string|null  $sport  keep only the cities where this sport is taught
      * @return list<array{name: string, locationCount: int, clubCount: int, sportCount: int, color: string|null, lat: float|null, lng: float|null}>
      */
-    private function cities(): array
+    private function cities(?string $sport = null): array
     {
         $topSports = $this->topSportsByCity();
 
         return array_values(DB::table('locations')
             ->leftJoin('club_location', 'club_location.location_id', '=', 'locations.id')
             ->whereNotNull('locations.city')
+            ->when($sport, fn (QueryBuilder $query) => $query->whereExists(
+                fn (QueryBuilder $exists) => $exists->from('club_location as cl')
+                    ->join('club_location_sport as cls', 'cls.club_location_id', '=', 'cl.id')
+                    ->join('sports', 'sports.id', '=', 'cls.sport_id')
+                    ->whereColumn('cl.location_id', 'locations.id')
+                    ->where('sports.slug', $sport),
+            ))
             ->groupBy('locations.city')
             ->select(['locations.city'])
             ->selectRaw('count(distinct locations.id) as location_count')
