@@ -6,7 +6,7 @@ use App\Models\User;
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
 
-    expect(Club::count())->toBe(6); // 5 demo clubs + 1 known "Clubul Demo"
+    expect(Club::count())->toBe(7); // 5 demo clubs + the 2 known login clubs
 
     Club::with('owner', 'users')->get()->each(function (Club $club): void {
         expect($club->owner)->not->toBeNull()
