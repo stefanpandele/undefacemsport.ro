@@ -64,6 +64,9 @@ const btnBase =
                 />
             </Link>
 
+            <!-- Catalogue on the left, accounts on the right. Listing a club
+                 used to sit here too, pointing at the same page as Register
+                 inside the Club menu — one destination, two links. -->
             <div class="hidden gap-[26px] min-[900px]:flex">
                 <Link
                     v-for="link in links"
@@ -72,18 +75,6 @@ const btnBase =
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
                 >
                     {{ link.label }}
-                </Link>
-                <Link
-                    :href="clubApplication.create.url()"
-                    class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
-                    @click="
-                        trackEvent('cta_click', {
-                            cta: 'add_club',
-                            location: 'nav',
-                        })
-                    "
-                >
-                    Adaugă club
                 </Link>
             </div>
 
