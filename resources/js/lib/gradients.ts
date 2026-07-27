@@ -13,3 +13,15 @@ export const GRADIENTS: Record<string, string> = {
 export function gradientStyle(key: string): string {
     return GRADIENTS[key] ?? GRADIENTS.g1;
 }
+
+/**
+ * Head gradient for a sport, built from its stored base colour (dark shade →
+ * base colour). Falls back to the placeholder palette for sports without one.
+ */
+export function sportGradient(color?: string | null): string {
+    if (!color) {
+        return GRADIENTS.g1;
+    }
+
+    return `linear-gradient(120deg, color-mix(in srgb, ${color} 55%, #0b1410), ${color})`;
+}

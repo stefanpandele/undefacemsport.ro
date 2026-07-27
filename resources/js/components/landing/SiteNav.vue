@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { login, register } from '@/routes';
-
-import clubApplication from '@/routes/club-application';
 import { trackEvent } from '@/lib/gtm';
+import { explore, login, register } from '@/routes';
+import clubApplication from '@/routes/club-application';
 
 const openMenu = ref<null | 'visitor' | 'club'>(null);
 const root = ref<HTMLElement | null>(null);
@@ -23,8 +22,8 @@ onMounted(() => document.addEventListener('click', handleOutside));
 onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
 const links = [
-    { label: 'Explorează', href: '/explorare' },
-    { label: 'Locații', href: '/explorare' },
+    { label: 'Explorează', href: explore.url() },
+    { label: 'Locații', href: explore.url() },
     { label: 'Prețuri', href: '#' },
 ];
 
@@ -50,14 +49,14 @@ const btnBase =
             </Link>
 
             <div class="hidden gap-[26px] min-[900px]:flex">
-                <a
+                <Link
                     v-for="link in links"
                     :key="link.label"
                     :href="link.href"
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"
                 >
                     {{ link.label }}
-                </a>
+                </Link>
                 <Link
                     :href="clubApplication.create.url()"
                     class="text-[14.5px] font-medium text-sage transition-colors hover:text-ink"

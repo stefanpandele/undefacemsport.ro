@@ -1,27 +1,40 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import WeekSchedule from '@/components/sports/WeekSchedule.vue';
 import { gradientStyle } from '@/lib/gradients';
+import clubs from '@/routes/clubs';
 import type { Coach, LocationClub } from '@/types/sports';
 
-defineProps<{ club: LocationClub }>();
+const props = defineProps<{ club: LocationClub }>();
 
 defineEmits<{ openCoach: [coach: Coach] }>();
 
-const miniGalleryKeys = ['g1', 'g2', 'g3'];
+const MINI_GALLERY_SIZE = 3;
+
+const miniGallery = computed(() => props.club.photos.slice(0, MINI_GALLERY_SIZE));
+const remainingPhotos = computed(() =>
+    Math.max(props.club.photos.length - MINI_GALLERY_SIZE, 0),
+);
 </script>
 
 <template>
     <div class="mb-4 rounded-[18px] border border-line bg-white p-5">
         <Link
-            :href="`/cluburi/${club.slug}`"
+            :href="clubs.show.url(club.slug)"
             class="group mb-3.5 flex cursor-pointer gap-3.5"
         >
             <div
-                class="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full border-[2.5px] border-white text-2xl shadow-[0_0_0_2px_var(--color-line)]"
-                :style="{ background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
+                class="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[2.5px] border-white text-2xl shadow-[0_0_0_2px_var(--color-line)]"
+                :style="club.coaches[0]?.photo ? {} : { background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
             >
-                🧑‍🏫
+                <img
+                    v-if="club.coaches[0]?.photo"
+                    :src="club.coaches[0].photo"
+                    :alt="club.coaches[0].name"
+                    class="h-full w-full object-cover"
+                />
+                <template v-else>🧑‍🏫</template>
             </div>
             <div>
                 <div class="font-archivo text-[17px] font-extrabold group-hover:text-grass-deep">
@@ -43,17 +56,18 @@ const miniGalleryKeys = ['g1', 'g2', 'g3'];
                     Poze club
                 </div>
                 <div class="flex gap-[7px]">
-                    <div
-                        v-for="g in miniGalleryKeys"
-                        :key="g"
-                        class="h-[58px] w-[58px] shrink-0 rounded-[10px]"
-                        :style="{ background: gradientStyle(g) }"
+                    <img
+                        v-for="(photo, i) in miniGallery"
+                        :key="i"
+                        :src="photo"
+                        alt=""
+                        class="h-[58px] w-[58px] shrink-0 rounded-[10px] object-cover"
                     />
                     <div
-                        v-if="club.photos > 3"
+                        v-if="remainingPhotos"
                         class="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[10px] bg-[#f2f5ef] font-jetbrains text-[11px] font-bold text-sage"
                     >
-                        +{{ club.photos - 3 }}
+                        +{{ remainingPhotos }}
                     </div>
                 </div>
             </div>
@@ -71,10 +85,16 @@ const miniGalleryKeys = ['g1', 'g2', 'g3'];
                     @click="$emit('openCoach', coach)"
                 >
                     <div
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm transition group-hover:shadow-[0_0_0_2px_var(--color-grass)]"
-                        :style="{ background: coach.gradient }"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm transition group-hover:shadow-[0_0_0_2px_var(--color-grass)]"
+                        :style="coach.photo ? {} : { background: coach.gradient }"
                     >
-                        🧑‍🏫
+                        <img
+                            v-if="coach.photo"
+                            :src="coach.photo"
+                            :alt="coach.name"
+                            class="h-full w-full object-cover"
+                        />
+                        <template v-else>🧑‍🏫</template>
                     </div>
                     <div>
                         <div class="flex items-center gap-1.5 text-xs font-semibold group-hover:text-grass-deep">
@@ -135,25 +155,33 @@ const miniGalleryKeys = ['g1', 'g2', 'g3'];
         >
             <div class="flex items-center gap-2.5">
                 <div
-                    class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-sm"
-                    :style="{ background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
+                    class="flex h-[30px] w-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full text-sm"
+                    :style="club.coaches[0]?.photo ? {} : { background: club.coaches[0]?.gradient ?? gradientStyle('g2') }"
                 >
-                    🧑‍🏫
+                    <img
+                        v-if="club.coaches[0]?.photo"
+                        :src="club.coaches[0].photo"
+                        :alt="club.contactName"
+                        class="h-full w-full object-cover"
+                    />
+                    <template v-else>🧑‍🏫</template>
                 </div>
                 <span class="text-[13.5px] text-sage">
-                    Contact: <b class="text-ink">{{ club.contactName }}</b> ·
-                    {{ club.contactPhone }}
+                    Contact: <b class="text-ink">{{ club.contactName }}</b>
+                    <template v-if="club.contactPhone"> · {{ club.contactPhone }}</template>
                 </span>
             </div>
-            <div class="flex gap-2">
+            <div v-if="club.contactPhone" class="flex gap-2">
                 <a
-                    href="#"
+                    :href="`https://wa.me/${club.contactPhone.replace(/\D/g, '')}`"
+                    target="_blank"
+                    rel="noopener"
                     class="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-[13.5px] font-semibold text-white"
                 >
                     WhatsApp
                 </a>
                 <a
-                    href="#"
+                    :href="`tel:${club.contactPhone}`"
                     class="inline-flex items-center gap-2 rounded-full border-[1.5px] border-line bg-white px-4 py-2.5 text-[13.5px] font-semibold"
                 >
                     Sună

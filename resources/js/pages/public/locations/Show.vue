@@ -9,18 +9,65 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { gradientStyle } from '@/lib/gradients';
+import { gradientStyle, sportGradient } from '@/lib/gradients';
+import clubApplication from '@/routes/club-application';
 import type { Coach, LocationDetail } from '@/types/sports';
 
-import clubApplication from '@/routes/club-application';
+const props = defineProps<{ location: LocationDetail; activeSport: string | null }>();
 
-const props = defineProps<{ location: LocationDetail }>();
+// Hero carousel: one slide per sport played here, since locations carry no
+// photos of their own yet.
+const slides = computed(() =>
+    props.location.sports.length
+        ? props.location.sports.map((sport) => sportGradient(sport.color))
+        : [gradientStyle('g2')],
+);
 
-// Hero carousel
 const activeSlide = ref(0);
 
-// Sport filter
-const activeSport = ref<string | null>(null);
+// Preselected server-side from ?sport= when arriving from the explore page.
+const activeSport = ref<string | null>(props.activeSport);
+
+// Distance is only known once the visitor shares their position.
+const myPosition = ref<{ lat: number; lng: number } | null>(null);
+const locating = ref(false);
+
+function locateMe() {
+    if (!navigator.geolocation) {
+        return;
+    }
+
+    locating.value = true;
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            myPosition.value = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+            };
+            locating.value = false;
+        },
+        () => (locating.value = false),
+        { timeout: 8000 },
+    );
+}
+
+const distance = computed(() => {
+    const { lat, lng } = props.location;
+
+    if (!myPosition.value || lat === null || lng === null) {
+        return null;
+    }
+
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat - myPosition.value.lat);
+    const dLng = toRad(lng - myPosition.value.lng);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(myPosition.value.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+    const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return `${km < 10 ? km.toFixed(1) : Math.round(km)} km de mine`;
+});
 
 const filteredClubs = computed(() =>
     activeSport.value
@@ -49,10 +96,10 @@ function openCoach(coach: Coach) {
             <div class="grid grid-cols-1 gap-3.5 pt-4 min-[900px]:grid-cols-[2fr_1fr]">
                 <div class="relative h-[220px] overflow-hidden rounded-[20px] min-[900px]:h-[320px]">
                     <div
-                        v-for="(g, i) in location.gallery"
-                        :key="g"
+                        v-for="(slide, i) in slides"
+                        :key="i"
                         class="absolute inset-0 transition-opacity duration-500"
-                        :style="{ background: gradientStyle(g), opacity: activeSlide === i ? 1 : 0 }"
+                        :style="{ background: slide, opacity: activeSlide === i ? 1 : 0 }"
                     />
                     <div
                         class="absolute inset-0 z-[2]"
@@ -66,10 +113,10 @@ function openCoach(coach: Coach) {
                             📍 {{ location.address.toUpperCase() }}
                         </div>
                     </div>
-                    <div class="absolute right-5 bottom-4 z-[4] flex gap-[7px]">
+                    <div v-if="slides.length > 1" class="absolute right-5 bottom-4 z-[4] flex gap-[7px]">
                         <button
-                            v-for="(g, i) in location.gallery"
-                            :key="g"
+                            v-for="(slide, i) in slides"
+                            :key="i"
                             type="button"
                             class="h-[7px] rounded-full transition-all"
                             :class="activeSlide === i ? 'w-5 bg-white' : 'w-[7px] bg-white/50'"
@@ -82,18 +129,23 @@ function openCoach(coach: Coach) {
                     style="background: linear-gradient(#eef2ea,#eef2ea), repeating-linear-gradient(0deg, transparent 0 30px, #dfe6da 30px 31px), repeating-linear-gradient(90deg, transparent 0 30px, #dfe6da 30px 31px)"
                 >
                     <div
+                        v-if="location.lat !== null && location.lng !== null"
                         class="absolute top-[44%] left-[44%] h-[26px] w-[26px] rotate-[-45deg] rounded-[50%_50%_50%_0] bg-clay"
                     />
                     <div
+                        v-if="distance"
                         class="absolute bottom-3 left-3 rounded-[9px] bg-ink px-2.5 py-[7px] font-jetbrains text-[11px] font-bold whitespace-nowrap text-white"
                     >
-                        📍 {{ location.distance }}
+                        📍 {{ distance }}
                     </div>
-                    <div
-                        class="absolute right-3 bottom-3 rounded-[10px] border border-line bg-white px-2.5 py-[7px] text-xs font-semibold"
+                    <button
+                        type="button"
+                        class="absolute right-3 bottom-3 rounded-[10px] border border-line bg-white px-2.5 py-[7px] text-xs font-semibold disabled:opacity-60"
+                        :disabled="locating"
+                        @click="locateMe"
                     >
-                        📍 Locația mea
-                    </div>
+                        📍 {{ locating ? 'Te caut…' : 'Locația mea' }}
+                    </button>
                 </div>
             </div>
 
@@ -111,6 +163,12 @@ function openCoach(coach: Coach) {
                                 <span class="h-1.5 w-1.5 rounded-full bg-grass" />
                                 {{ location.facilities.length }} TOTAL
                             </span>
+                        </div>
+                        <div
+                            v-if="!location.facilities.length"
+                            class="relative text-[13.5px] text-sage"
+                        >
+                            Nicio facilitate înregistrată încă pentru această locație.
                         </div>
                         <div class="relative grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-4">
                             <div
@@ -167,7 +225,7 @@ function openCoach(coach: Coach) {
                     >
                         <div
                             class="flex h-[66px] items-center justify-center text-[28px] text-white"
-                            :style="{ background: gradientStyle(sport.key === 'inot' ? 'g1' : sport.key === 'polo' ? 'g2' : 'g4') }"
+                            :style="{ background: sportGradient(sport.color) }"
                         >
                             {{ sport.icon }}
                         </div>
@@ -188,10 +246,15 @@ function openCoach(coach: Coach) {
                     v-if="!activeSport"
                     class="mt-4.5 rounded-2xl border-[1.5px] border-dashed border-line px-5 py-10 text-center text-sage"
                 >
-                    <div class="mb-2.5 text-[26px]">👆</div>
+                    <div class="mb-2.5 text-[26px]">{{ location.sports.length ? '👆' : '🏟️' }}</div>
                     <p class="mx-auto max-w-[36ch] text-sm">
-                        Alege un sport de mai sus ca să vezi cluburile și orarul disponibil
-                        pentru el, aici.
+                        <template v-if="location.sports.length">
+                            Alege un sport de mai sus ca să vezi cluburile și orarul disponibil
+                            pentru el, aici.
+                        </template>
+                        <template v-else>
+                            Niciun club nu ține încă lecții aici.
+                        </template>
                     </p>
                 </div>
             </section>
@@ -212,7 +275,7 @@ function openCoach(coach: Coach) {
                 <template v-if="filteredClubs.length">
                     <ClubBlock
                         v-for="club in filteredClubs"
-                        :key="club.slug"
+                        :key="club.key"
                         :club="club"
                         @open-coach="openCoach"
                     />
@@ -231,10 +294,16 @@ function openCoach(coach: Coach) {
             <DialogContent class="max-w-[320px] text-center">
                 <DialogHeader>
                     <div
-                        class="mx-auto mb-4 flex h-[140px] w-[140px] items-center justify-center rounded-full border-4 border-white text-[56px] shadow-[0_0_0_2px_var(--color-line)]"
-                        :style="{ background: activeCoach?.gradient }"
+                        class="mx-auto mb-4 flex h-[140px] w-[140px] items-center justify-center overflow-hidden rounded-full border-4 border-white text-[56px] shadow-[0_0_0_2px_var(--color-line)]"
+                        :style="activeCoach?.photo ? {} : { background: activeCoach?.gradient }"
                     >
-                        🧑‍🏫
+                        <img
+                            v-if="activeCoach?.photo"
+                            :src="activeCoach.photo"
+                            :alt="activeCoach.name"
+                            class="h-full w-full object-cover"
+                        />
+                        <template v-else>🧑‍🏫</template>
                     </div>
                     <DialogTitle class="font-archivo text-[19px]">
                         {{ activeCoach?.name }}

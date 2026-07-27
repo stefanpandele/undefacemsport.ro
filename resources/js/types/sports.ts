@@ -4,6 +4,7 @@ export type Coach = {
     role: string;
     solo: boolean;
     gradient: string;
+    photo?: string | null;
     bio: string;
 };
 
@@ -24,24 +25,26 @@ export type TrustChip = {
 };
 
 export type LocationClub = {
+    key: string;
     slug: string;
     sport: string;
     name: string;
     representative: string;
     about: string;
-    photos: number;
+    photos: string[];
     trustChips: TrustChip[];
     ages: string[];
     coaches: Coach[];
     schedule: ScheduleDay[];
     contactName: string;
-    contactPhone: string;
+    contactPhone: string | null;
 };
 
 export type SportOption = {
     key: string;
     label: string;
     icon: string;
+    color: string | null;
     clubCount: number;
 };
 
@@ -54,8 +57,9 @@ export type LocationDetail = {
     slug: string;
     name: string;
     address: string;
-    distance: string;
-    gallery: string[];
+    city: string;
+    lat: number | null;
+    lng: number | null;
     facilities: Facility[];
     sports: SportOption[];
     clubs: LocationClub[];

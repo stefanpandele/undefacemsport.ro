@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 import PublicTopBar from '@/components/sports/PublicTopBar.vue';
-import { gradientStyle } from '@/lib/gradients';
+import { sportGradient } from '@/lib/gradients';
+import { explore } from '@/routes';
+import locationRoutes from '@/routes/locations';
 
 type ExploreLocation = {
     slug: string;
     name: string;
     city: string;
-    distance: string;
-    photo: string;
+    lat: number | null;
+    lng: number | null;
     live: boolean;
     clubCount: number;
     facilityCount: number;
+    color: string | null;
     sports: { key: string; label: string }[];
 };
 
@@ -20,57 +23,161 @@ type ExploreSport = {
     key: string;
     label: string;
     icon: string;
-    head: string;
+    color: string | null;
     locationCount: number;
     clubCount: number;
     ages: string[];
 };
 
+type ExploreFilters = {
+    sport: string | null;
+    facility: number | null;
+    search: string | null;
+};
+
 const props = defineProps<{
-    city: string;
+    city: string | null;
+    cities: string[];
+    filters: ExploreFilters;
     locations: ExploreLocation[];
     sports: ExploreSport[];
+    facilities: { id: number; name: string }[];
 }>();
 
 const view = ref<'location' | 'sport'>('location');
-const sportFilter = ref<string | null>(null);
-const facilityChips = ['Toate', 'Nocturnă', 'Parcare', 'Copii', 'Bebeluși', 'Începători', 'Weekend'];
-const activeChip = ref('Toate');
-const pins = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
-const pinPos: Record<string, { top: string; left: string }> = {
-    p1: { top: '28%', left: '18%' },
-    p2: { top: '48%', left: '44%' },
-    p3: { top: '36%', left: '64%' },
-    p4: { top: '66%', left: '28%' },
-    p5: { top: '20%', left: '56%' },
-    p6: { top: '58%', left: '76%' },
-};
+const search = ref(props.filters.search ?? '');
 
-const filteredLocations = computed(() =>
-    sportFilter.value
-        ? props.locations.filter((l) => l.sports.some((s) => s.key === sportFilter.value))
-        : props.locations,
-);
+/**
+ * Push the filters into the URL so the list, the map and the counters all come
+ * back from the server in sync — and the page stays shareable.
+ */
+function applyFilters(changed: Partial<Record<string, string | number | null>>) {
+    const next = {
+        oras: props.city,
+        sport: props.filters.sport,
+        facilitate: props.filters.facility,
+        cauta: props.filters.search,
+        ...changed,
+    };
 
-const filterSportLabel = computed(
-    () => props.sports.find((s) => s.key === sportFilter.value)?.label ?? '',
-);
-const filterSportIcon = computed(
-    () => props.sports.find((s) => s.key === sportFilter.value)?.icon ?? '🏷️',
-);
-
-function filterBySport(key: string) {
-    sportFilter.value = key;
-    view.value = 'location';
+    router.get(explore.url(), Object.fromEntries(Object.entries(next).filter(([, v]) => v)), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
 }
 
-function clearFilter() {
-    sportFilter.value = null;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(search, (value) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => applyFilters({ cauta: value || null }), 350);
+});
+
+function filterBySport(key: string) {
+    view.value = 'location';
+    applyFilters({ sport: key });
+}
+
+const activeSport = computed(() => props.sports.find((s) => s.key === props.filters.sport) ?? null);
+
+// Distances are only known once the visitor shares their position.
+const myPosition = ref<{ lat: number; lng: number } | null>(null);
+const locating = ref(false);
+
+function locateMe() {
+    if (!navigator.geolocation) {
+        return;
+    }
+
+    locating.value = true;
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            myPosition.value = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+            };
+            locating.value = false;
+        },
+        () => (locating.value = false),
+        { timeout: 8000 },
+    );
+}
+
+function distanceKm(loc: ExploreLocation): number | null {
+    if (!myPosition.value || loc.lat === null || loc.lng === null) {
+        return null;
+    }
+
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = toRad(loc.lat - myPosition.value.lat);
+    const dLng = toRad(loc.lng - myPosition.value.lng);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(myPosition.value.lat)) *
+            Math.cos(toRad(loc.lat)) *
+            Math.sin(dLng / 2) ** 2;
+
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function distanceLabel(loc: ExploreLocation): string | null {
+    const km = distanceKm(loc);
+
+    return km === null ? null : `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+
+const visibleLocations = computed(() => {
+    if (!myPosition.value) {
+        return props.locations;
+    }
+
+    return [...props.locations].sort(
+        (a, b) => (distanceKm(a) ?? Infinity) - (distanceKm(b) ?? Infinity),
+    );
+});
+
+// Map band: the pins keep the real geography, normalised into the band.
+const mappable = computed(() =>
+    props.locations.filter((l) => l.lat !== null && l.lng !== null),
+);
+
+const activePin = ref<string | null>(null);
+
+const activePinLocation = computed(
+    () => props.locations.find((l) => l.slug === activePin.value) ?? null,
+);
+
+function pinStyle(loc: ExploreLocation) {
+    const lats = mappable.value.map((l) => l.lat as number);
+    const lngs = mappable.value.map((l) => l.lng as number);
+    const span = (values: number[]) => Math.max(...values) - Math.min(...values);
+    const place = (value: number, values: number[]) =>
+        span(values) === 0 ? 50 : 10 + ((value - Math.min(...values)) / span(values)) * 80;
+
+    return {
+        top: `${100 - place(loc.lat as number, lats)}%`,
+        left: `${place(loc.lng as number, lngs)}%`,
+    };
+}
+
+function locationColor(loc: ExploreLocation): string {
+    return sportGradient(loc.color);
+}
+
+/**
+ * Carry the sport filter over, so the location page opens on the same sport.
+ */
+function locationHref(loc: ExploreLocation): string {
+    return locationRoutes.show.url(
+        loc.slug,
+        props.filters.sport ? { query: { sport: props.filters.sport } } : undefined,
+    );
 }
 </script>
 
 <template>
-    <Head :title="`Explorează ${city} — Unde Facem Sport`" />
+    <Head :title="`Explorează ${city ?? 'România'} — Unde Facem Sport`" />
 
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
         <PublicTopBar />
@@ -79,35 +186,54 @@ function clearFilter() {
         <div class="sticky top-[60px] z-[60] border-b border-line bg-white py-3.5">
             <div class="mx-auto max-w-[1280px] px-5">
                 <div class="flex flex-wrap gap-2">
-                    <select class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm">
-                        <option value="">Sport</option>
+                    <select
+                        class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
+                        :value="filters.sport ?? ''"
+                        @change="applyFilters({ sport: ($event.target as HTMLSelectElement).value || null })"
+                    >
+                        <option value="">Toate sporturile</option>
                         <option v-for="s in sports" :key="s.key" :value="s.key">{{ s.label }}</option>
                     </select>
-                    <select class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm">
-                        <option selected>{{ city }}</option>
-                        <option>București</option>
-                        <option>Brașov</option>
+                    <select
+                        class="rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
+                        :value="city ?? ''"
+                        @change="applyFilters({ oras: ($event.target as HTMLSelectElement).value })"
+                    >
+                        <option v-for="c in cities" :key="c" :value="c">{{ c }}</option>
                     </select>
                     <input
+                        v-model="search"
                         type="text"
                         placeholder="Caută o locație…"
                         class="min-w-[160px] flex-1 rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
                     />
                 </div>
-                <div class="flex gap-2 overflow-x-auto pt-2.5">
+                <div v-if="facilities.length" class="flex gap-2 overflow-x-auto pt-2.5">
                     <button
-                        v-for="chip in facilityChips"
-                        :key="chip"
                         type="button"
                         class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
                         :class="
-                            activeChip === chip
+                            filters.facility
+                                ? 'border-line bg-white'
+                                : 'border-grass bg-[#eaf6ef] text-grass-deep'
+                        "
+                        @click="applyFilters({ facilitate: null })"
+                    >
+                        Toate
+                    </button>
+                    <button
+                        v-for="facility in facilities"
+                        :key="facility.id"
+                        type="button"
+                        class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
+                        :class="
+                            filters.facility === facility.id
                                 ? 'border-grass bg-[#eaf6ef] text-grass-deep'
                                 : 'border-line bg-white'
                         "
-                        @click="activeChip = chip"
+                        @click="applyFilters({ facilitate: facility.id })"
                     >
-                        {{ chip }}
+                        {{ facility.name }}
                     </button>
                 </div>
             </div>
@@ -118,24 +244,46 @@ function clearFilter() {
             class="relative h-[220px] min-[900px]:h-[340px]"
             style="background: linear-gradient(#eef2ea,#eef2ea), repeating-linear-gradient(0deg, transparent 0 38px, #dfe6da 38px 39px), repeating-linear-gradient(90deg, transparent 0 38px, #dfe6da 38px 39px)"
         >
-            <div
-                v-for="pin in pins"
-                :key="pin"
-                class="absolute rotate-[-45deg] rounded-[50%_50%_50%_0] shadow-[0_4px_10px_rgba(0,0,0,0.25)]"
-                :class="pin === 'p2' ? 'h-[30px] w-[30px] bg-clay' : 'h-6 w-6 bg-grass-deep'"
-                :style="pinPos[pin]"
+            <button
+                v-for="loc in mappable"
+                :key="loc.slug"
+                type="button"
+                :aria-label="loc.name"
+                class="absolute rotate-[-45deg] rounded-[50%_50%_50%_0] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition-all"
+                :class="activePin === loc.slug ? 'h-[30px] w-[30px] bg-clay' : 'h-6 w-6 bg-grass-deep'"
+                :style="pinStyle(loc)"
+                @click="activePin = activePin === loc.slug ? null : loc.slug"
             />
             <div
-                class="absolute top-[40%] left-[34%] z-[2] w-[180px] rounded-xl border border-line bg-white px-3 py-2.5 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
+                v-if="activePinLocation"
+                class="absolute top-[38%] left-[34%] z-[2] w-[190px] rounded-xl border border-line bg-white px-3 py-2.5 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)]"
             >
-                <div class="font-archivo text-[13.5px] font-extrabold">Sala Polivalentă Cluj</div>
-                <div class="mt-1 font-jetbrains text-[10.5px] text-grass-deep">LUN 18:00–20:00</div>
+                <Link
+                    :href="locationHref(activePinLocation)"
+                    class="font-archivo text-[13.5px] font-extrabold hover:text-grass-deep"
+                >
+                    {{ activePinLocation.name }}
+                </Link>
+                <div class="mt-1 font-jetbrains text-[10.5px] text-grass-deep">
+                    {{ activePinLocation.clubCount }}
+                    {{ activePinLocation.clubCount === 1 ? 'CLUB' : 'CLUBURI' }}
+                    <template v-if="activePinLocation.live"> · ACUM ACTIV</template>
+                </div>
             </div>
             <div
-                class="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)]"
+                v-if="!mappable.length"
+                class="absolute inset-0 flex items-center justify-center text-[13.5px] text-sage"
             >
-                📍 Locația mea
+                Nicio locație cu coordonate pe hartă.
             </div>
+            <button
+                type="button"
+                class="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-3 py-2 text-[12.5px] font-semibold shadow-[0_8px_20px_-10px_rgba(0,0,0,0.3)] disabled:opacity-60"
+                :disabled="locating"
+                @click="locateMe"
+            >
+                📍 {{ locating ? 'Te caut…' : myPosition ? 'Sortat după distanță' : 'Locația mea' }}
+            </button>
         </div>
 
         <div class="mx-auto max-w-[1280px] px-5">
@@ -162,16 +310,16 @@ function clearFilter() {
             </div>
 
             <!-- Filter banner -->
-            <div v-if="sportFilter && view === 'location'" class="mt-4.5 flex items-center justify-center gap-2.5">
+            <div v-if="activeSport && view === 'location'" class="mt-4.5 flex items-center justify-center gap-2.5">
                 <div
                     class="inline-flex items-center gap-2 rounded-full bg-ink py-2 pr-2 pl-4 text-[13px] font-semibold text-white"
                 >
-                    <span class="text-[15px]">{{ filterSportIcon }}</span>
-                    <span>Filtrat după: <b>{{ filterSportLabel }}</b></span>
+                    <span class="text-[15px]">{{ activeSport.icon }}</span>
+                    <span>Filtrat după: <b>{{ activeSport.label }}</b></span>
                     <button
                         type="button"
                         class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white/15 hover:bg-white/30"
-                        @click="clearFilter"
+                        @click="applyFilters({ sport: null })"
                     >
                         ✕
                     </button>
@@ -181,22 +329,25 @@ function clearFilter() {
             <!-- Locations view -->
             <div v-show="view === 'location'">
                 <div class="my-5 flex items-center justify-between">
-                    <h1 class="font-archivo text-[19px] font-extrabold">Locații în {{ city }}</h1>
+                    <h1 class="font-archivo text-[19px] font-extrabold">Locații în {{ city ?? 'România' }}</h1>
                     <span class="text-[13.5px] text-sage">
-                        {{ filteredLocations.length }}
-                        {{ filteredLocations.length === 1 ? 'rezultat' : 'rezultate' }}
+                        {{ locations.length }}
+                        {{ locations.length === 1 ? 'rezultat' : 'rezultate' }}
                     </span>
+                </div>
+                <div v-if="!locations.length" class="pb-15 text-[14.5px] text-sage">
+                    Nicio locație pentru filtrele alese.
                 </div>
                 <div class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3">
                     <Link
-                        v-for="loc in filteredLocations"
+                        v-for="loc in visibleLocations"
                         :key="loc.slug"
-                        :href="`/locatii/${loc.slug}`"
+                        :href="locationHref(loc)"
                         class="overflow-hidden rounded-[18px] border border-line bg-white transition hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
                     >
                         <div
                             class="relative flex h-[130px] items-end p-3"
-                            :style="{ background: gradientStyle(loc.photo) }"
+                            :style="{ background: locationColor(loc) }"
                         >
                             <span
                                 v-if="loc.live"
@@ -206,9 +357,10 @@ function clearFilter() {
                                 ACUM ACTIV
                             </span>
                             <span
+                                v-if="distanceLabel(loc)"
                                 class="absolute top-2.5 right-2.5 rounded-md bg-white/95 px-2 py-1 font-jetbrains text-[10px] font-bold"
                             >
-                                {{ loc.distance }}
+                                {{ distanceLabel(loc) }}
                             </span>
                             <div
                                 class="absolute inset-0"
@@ -216,7 +368,7 @@ function clearFilter() {
                             />
                             <div class="relative text-white">
                                 <div class="font-archivo text-[16.5px] font-extrabold">{{ loc.name }}</div>
-                                <div class="font-jetbrains text-[10.5px] font-semibold opacity-90">
+                                <div class="font-jetbrains text-[10.5px] font-semibold uppercase opacity-90">
                                     📍 {{ loc.city }}
                                 </div>
                             </div>
@@ -228,7 +380,7 @@ function clearFilter() {
                                     :key="sport.key"
                                     class="rounded-[7px] px-2.5 py-[3px] text-[11.5px] font-semibold transition"
                                     :class="
-                                        sportFilter === sport.key
+                                        filters.sport === sport.key
                                             ? 'bg-clay text-white'
                                             : 'bg-[#eaf6ef] text-grass-deep'
                                     "
@@ -252,8 +404,13 @@ function clearFilter() {
             <!-- Sports view -->
             <div v-show="view === 'sport'">
                 <div class="my-5 flex items-center justify-between">
-                    <h1 class="font-archivo text-[19px] font-extrabold">Sporturi în {{ city }}</h1>
-                    <span class="text-[13.5px] text-sage">{{ sports.length }} sporturi</span>
+                    <h1 class="font-archivo text-[19px] font-extrabold">Sporturi în {{ city ?? 'România' }}</h1>
+                    <span class="text-[13.5px] text-sage">
+                        {{ sports.length }} {{ sports.length === 1 ? 'sport' : 'sporturi' }}
+                    </span>
+                </div>
+                <div v-if="!sports.length" class="pb-15 text-[14.5px] text-sage">
+                    Niciun sport înregistrat aici încă.
                 </div>
                 <div class="grid grid-cols-1 gap-4 pb-15 sm:grid-cols-2 lg:grid-cols-3">
                     <button
@@ -265,7 +422,7 @@ function clearFilter() {
                     >
                         <div
                             class="flex h-24 items-center gap-3 px-4.5 text-white"
-                            :style="{ background: gradientStyle(sport.head) }"
+                            :style="{ background: sportGradient(sport.color) }"
                         >
                             <span class="text-[30px]">{{ sport.icon }}</span>
                             <span class="font-archivo text-[19px] font-extrabold">{{ sport.label }}</span>
@@ -281,7 +438,7 @@ function clearFilter() {
                                     <div class="text-[10.5px] text-sage">cluburi</div>
                                 </div>
                             </div>
-                            <div class="mb-3.5 flex flex-wrap gap-1.5">
+                            <div v-if="sport.ages.length" class="mb-3.5 flex flex-wrap gap-1.5">
                                 <span
                                     v-for="age in sport.ages"
                                     :key="age"
