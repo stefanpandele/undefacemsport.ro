@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $address
  * @property string|null $county
  * @property string|null $city
+ * @property string|null $description
  * @property string|null $logo_path
  * @property string|null $cover_path
  * @property Plan $plan
@@ -46,6 +47,7 @@ class Club extends Model
         'address',
         'county',
         'city',
+        'description',
         'logo_path',
         'cover_path',
     ];
@@ -193,7 +195,7 @@ class Club extends Model
     public function sports(): BelongsToMany
     {
         return $this->belongsToMany(Sport::class)
-            ->withPivot(['cover_path', 'description', 'sort_order'])
+            ->withPivot(['offers_private_sessions', 'sort_order'])
             ->withTimestamps();
     }
 
@@ -203,6 +205,22 @@ class Club extends Model
     public function clubSports(): HasMany
     {
         return $this->hasMany(ClubSport::class);
+    }
+
+    /**
+     * @return HasMany<Coach, $this>
+     */
+    public function coaches(): HasMany
+    {
+        return $this->hasMany(Coach::class);
+    }
+
+    /**
+     * @return HasMany<ScheduleSlot, $this>
+     */
+    public function scheduleSlots(): HasMany
+    {
+        return $this->hasMany(ScheduleSlot::class);
     }
 
     /**

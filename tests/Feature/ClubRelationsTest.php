@@ -6,16 +6,16 @@ use App\Models\Club;
 use App\Models\Image;
 use App\Models\Sport;
 
-test('a club offers sports with a per-sport cover on the pivot', function () {
+test('a club offers sports with per-sport flags on the pivot', function () {
     $club = Club::factory()->create();
     $sport = Sport::factory()->create();
 
-    $club->sports()->attach($sport, ['cover_path' => 'clubs/1/inot-cover.jpg']);
+    $club->sports()->attach($sport, ['offers_private_sessions' => true]);
 
     $attached = $club->sports()->first();
 
     expect($attached->is($sport))->toBeTrue()
-        ->and($attached->pivot->cover_path)->toBe('clubs/1/inot-cover.jpg');
+        ->and((bool) $attached->pivot->offers_private_sessions)->toBeTrue();
 });
 
 test('a club has polymorphic gallery images', function () {

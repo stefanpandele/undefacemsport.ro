@@ -2,14 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\ClubSport;
-use App\Models\Sport;
+use App\Models\Facility;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ClubSport>
+ * @extends Factory<Facility>
  */
-class ClubSportFactory extends Factory
+class FacilityFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -17,8 +16,8 @@ class ClubSportFactory extends Factory
     public function definition(): array
     {
         return [
-            'sport_id' => Sport::factory(),
-            'offers_private_sessions' => false,
+            'name' => fake()->unique()->words(2, true),
+            'icon' => fake()->randomElement(['🅿️', '🚿', '💡', '📶']),
             'sort_order' => 0,
         ];
     }

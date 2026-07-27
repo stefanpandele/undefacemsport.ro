@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A club's presence at a shared location, plus the sports it teaches there.
@@ -48,5 +49,13 @@ class ClubLocation extends Model
     public function sports(): BelongsToMany
     {
         return $this->belongsToMany(Sport::class, 'club_location_sport')->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<ClubLocationSport, $this>
+     */
+    public function clubLocationSports(): HasMany
+    {
+        return $this->hasMany(ClubLocationSport::class);
     }
 }

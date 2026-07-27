@@ -21,6 +21,8 @@ class SportFactory extends Factory
         return [
             'name' => Str::title($name),
             'slug' => Str::slug($name),
+            'icon' => fake()->randomElement(['⚽', '🏀', '🏐', '🎾', '🏊']),
+            'color' => fake()->hexColor(),
         ];
     }
 }

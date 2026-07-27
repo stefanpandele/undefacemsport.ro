@@ -11,6 +11,27 @@ test('sports are seeded with unique slugs', function () {
         ->and(Sport::pluck('slug')->duplicates())->toBeEmpty();
 });
 
+test('every seeded sport has an icon and a colour for the public pages', function () {
+    $this->seed(SportSeeder::class);
+
+    $incomplete = Sport::query()
+        ->whereNull('icon')
+        ->orWhereNull('color')
+        ->pluck('slug');
+
+    expect($incomplete)->toBeEmpty('Sports without icon/colour: '.$incomplete->implode(', '))
+        ->and(Sport::where('slug', 'inot')->value('icon'))->toBe('🏊');
+});
+
+test('re-running the sport seeder refreshes the icon and colour', function () {
+    Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot', 'icon' => null, 'color' => null]);
+
+    $this->seed(SportSeeder::class);
+
+    expect(Sport::where('slug', 'inot')->value('icon'))->toBe('🏊')
+        ->and(Sport::where('slug', 'inot')->value('color'))->toBe('#1D7FB8');
+});
+
 test('the sport seeder is idempotent', function () {
     $this->seed(SportSeeder::class);
     $count = Sport::count();

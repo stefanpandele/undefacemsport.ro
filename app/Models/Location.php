@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * A physical place, shared across clubs: many clubs can operate here, each with
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property int $id
  * @property string $name
+ * @property string $slug
  * @property string|null $county
  * @property string|null $city
  * @property string|null $address
@@ -26,10 +28,47 @@ class Location extends Model
     use HasFactory;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'county', 'city', 'address', 'latitude', 'longitude', 'location'];
+    protected $fillable = ['name', 'slug', 'county', 'city', 'address', 'latitude', 'longitude', 'location'];
 
     /** @var list<string> */
     protected $appends = ['location'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $location): void {
+            $location->slug ??= static::uniqueSlug($location->name, $location->city);
+        });
+    }
+
+    /**
+     * A URL key for the location, disambiguated by city when two places share
+     * a name, then by a counter.
+     */
+    public static function uniqueSlug(string $name, ?string $city = null): string
+    {
+        $base = Str::slug($name);
+
+        $candidates = filled($city) ? [$base, $base.'-'.Str::slug($city)] : [$base];
+
+        foreach ($candidates as $candidate) {
+            if (! static::query()->where('slug', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        $suffix = 2;
+
+        while (static::query()->where('slug', $base.'-'.$suffix)->exists()) {
+            $suffix++;
+        }
+
+        return $base.'-'.$suffix;
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 
     /**
      * @return array<string, string>
@@ -115,5 +154,15 @@ class Location extends Model
     public function clubs(): BelongsToMany
     {
         return $this->belongsToMany(Club::class);
+    }
+
+    /**
+     * Amenities offered at this physical location (shared across clubs).
+     *
+     * @return BelongsToMany<Facility, $this>
+     */
+    public function facilities(): BelongsToMany
+    {
+        return $this->belongsToMany(Facility::class);
     }
 }

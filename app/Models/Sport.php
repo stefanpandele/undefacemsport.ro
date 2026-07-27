@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Lang;
  * @property int $id
  * @property string $name
  * @property string $slug
+ * @property string|null $icon
+ * @property string|null $color
  * @property-read string $translated_name
  */
 class Sport extends Model
@@ -21,7 +23,7 @@ class Sport extends Model
     use HasFactory;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'slug'];
+    protected $fillable = ['name', 'slug', 'icon', 'color'];
 
     /**
      * The sport's name in the current locale (from lang/{locale}/sports.php,
