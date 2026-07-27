@@ -115,11 +115,14 @@ class LocationController extends Controller
      */
     private function clubBlocks(Location $location): array
     {
+        $occupancy = $this->occupancy($location);
+
         return $location->clubLocations
             ->flatMap(fn (ClubLocation $clubLocation) => $clubLocation->clubLocationSports
                 ->map(fn (ClubLocationSport $clubLocationSport): array => $this->clubBlock(
                     $clubLocation->club,
                     $clubLocationSport,
+                    $occupancy,
                 )))
             ->sortBy('name')
             ->values()
@@ -127,9 +130,52 @@ class LocationController extends Controller
     }
 
     /**
+     * Who trains in this hall, indexed by sport, weekday and interval. Built
+     * once for the whole location and then narrowed per club block, so a page
+     * with many clubs still walks the slots a single time.
+     *
+     * @return array<int, array<int, array<string, array<int, string>>>> sport => day => interval => club id => club name
+     */
+    private function occupancy(Location $location): array
+    {
+        $map = [];
+
+        foreach ($location->clubLocations as $clubLocation) {
+            $club = $clubLocation->club;
+
+            foreach ($clubLocation->clubLocationSports as $clubLocationSport) {
+                foreach ($clubLocationSport->scheduleSlots as $slot) {
+                    $map[$clubLocationSport->sport_id][$slot->day_of_week->value][$this->interval($slot)][$club->getKey()] = $club->name;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The occupancy of this hall for one club's sport, with that club itself
+     * removed — what is left is "who else is here".
+     *
+     * @param  array<int, array<int, array<string, array<int, string>>>>  $occupancy
+     * @return array<int, array<string, list<string>>>
+     */
+    private function otherClubs(array $occupancy, Club $club, int $sportId): array
+    {
+        return collect($occupancy[$sportId] ?? [])
+            ->map(fn (array $byInterval): array => collect($byInterval)
+                ->map(fn (array $clubs): array => collect($clubs)->except($club->getKey())->values()->all())
+                ->reject(fn (array $clubs): bool => $clubs === [])
+                ->all())
+            ->reject(fn (array $byInterval): bool => $byInterval === [])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, array<int, string>>>>  $occupancy
      * @return array<string, mixed>
      */
-    private function clubBlock(Club $club, ClubLocationSport $clubLocationSport): array
+    private function clubBlock(Club $club, ClubLocationSport $clubLocationSport, array $occupancy = []): array
     {
         $sport = $clubLocationSport->sport;
         $clubSport = $club->clubSports->firstWhere('sport_id', $sport->getKey());
@@ -151,7 +197,10 @@ class LocationController extends Controller
                 ? $clubSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all()
                 : [],
             'coaches' => $this->presentCoaches($coaches),
-            'schedule' => $this->presentWeek($clubLocationSport->scheduleSlots),
+            'schedule' => $this->presentWeek(
+                $clubLocationSport->scheduleSlots,
+                $this->otherClubs($occupancy, $club, $sport->getKey()),
+            ),
             'contactName' => $primary?->name ?? $club->name,
             'contactPhone' => $club->contacts->firstWhere('type', ContactType::Phone)?->value,
         ];

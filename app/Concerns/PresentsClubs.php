@@ -83,26 +83,60 @@ trait PresentsClubs
     /**
      * Lay slots out on a Monday–Sunday grid.
      *
+     * When `$occupancy` is given (the location page), the grid also carries who
+     * else trains in the same hall: every slot lists the other clubs sharing its
+     * interval, and intervals only other clubs use are added as anonymous slots
+     * so a visitor sees how busy the venue really is.
+     *
      * @param  Collection<int, ScheduleSlot>  $slots
-     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string}>}>
+     * @param  array<int, array<string, list<string>>>  $occupancy  day value => interval => other club names
+     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string, foreign: bool, otherClubs: list<string>}>}>
      */
-    protected function presentWeek(Collection $slots): array
+    protected function presentWeek(Collection $slots, array $occupancy = []): array
     {
         $byDay = $slots->groupBy(fn (ScheduleSlot $slot): int => $slot->day_of_week->value);
 
         return collect(Weekday::cases())
-            ->map(fn (Weekday $day): array => [
-                'day' => $day->short(),
-                'slots' => ($byDay->get($day->value) ?? collect())
-                    ->sortBy('start_time')
+            ->map(function (Weekday $day) use ($byDay, $occupancy): array {
+                $others = $occupancy[$day->value] ?? [];
+
+                $own = ($byDay->get($day->value) ?? collect())
                     ->map(fn (ScheduleSlot $slot): array => [
-                        'time' => substr((string) $slot->start_time, 0, 5).'–'.substr((string) $slot->end_time, 0, 5),
+                        'time' => $this->interval($slot),
                         'group' => $slot->ageGroup?->name ?? '',
                         'coach' => (string) $slot->coach_id,
+                        'foreign' => false,
+                        'otherClubs' => $others[$this->interval($slot)] ?? [],
                     ])
-                    ->values()
-                    ->all(),
-            ])
+                    ->values();
+
+                // Intervals this club does not train in, but the hall is taken.
+                $foreign = collect($others)
+                    ->except($own->pluck('time')->all())
+                    ->map(fn (array $clubs, string $time): array => [
+                        'time' => $time,
+                        'group' => '',
+                        'coach' => '',
+                        'foreign' => true,
+                        'otherClubs' => $clubs,
+                    ])
+                    ->values();
+
+                return [
+                    'day' => $day->short(),
+                    // Zero-padded 24h times, so a plain string sort is chronological.
+                    'slots' => $own->concat($foreign)->sortBy('time')->values()->all(),
+                ];
+            })
             ->all();
+    }
+
+    /**
+     * A slot's interval as shown to visitors, e.g. "17:00–18:30". Doubles as the
+     * key clubs are matched on when working out who shares a hall.
+     */
+    protected function interval(ScheduleSlot $slot): string
+    {
+        return substr((string) $slot->start_time, 0, 5).'–'.substr((string) $slot->end_time, 0, 5);
     }
 }

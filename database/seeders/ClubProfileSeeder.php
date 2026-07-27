@@ -96,23 +96,36 @@ class ClubProfileSeeder extends Seeder
         $ageGroups = AgeGroup::query()->get();
         $venuesByCity = Location::query()->get()->groupBy('city');
 
-        if ($sports->isEmpty() || $venuesByCity->isEmpty()) {
+        if ($sports->isEmpty() || $ageGroups->isEmpty() || $venuesByCity->isEmpty()) {
             return;
         }
 
         $cities = $venuesByCity->keys();
 
+        // Each city runs on a handful of sports rather than all twenty, and one
+        // of them is the city's anchor: every club here teaches it, at the same
+        // anchor venue. That is what makes clubs actually share a hall, which
+        // the location page's occupancy view exists to show.
+        $pools = $cities->mapWithKeys(fn (string $city): array => [
+            $city => $sports->shuffle()->take(min(6, $sports->count()))->values(),
+        ]);
+
         Club::query()
             ->doesntHave('clubSports')
             ->get()
-            ->each(function (Club $club, int $index) use ($sports, $ageGroups, $venuesByCity, $cities): void {
+            ->each(function (Club $club, int $index) use ($ageGroups, $venuesByCity, $cities, $pools): void {
                 // Round-robin over cities so every city gets clubs, instead of
                 // the random draw clustering them all in one place.
                 $city = $cities[$index % $cities->count()];
+                $venues = $venuesByCity->get($city);
+                $pool = $pools->get($city);
 
-                $clubSports = $this->addSports($club, $sports, $ageGroups);
+                $anchorSport = $pool->first();
+                $anchorVenue = $venues->first();
+
+                $clubSports = $this->addSports($club, $pool, $anchorSport, $ageGroups);
                 $coaches = $this->addCoaches($club, $clubSports);
-                $clubLocations = $this->addLocations($club, $venuesByCity->get($city), $clubSports);
+                $clubLocations = $this->addLocations($club, $venues, $clubSports, $anchorVenue, $anchorSport);
 
                 $this->addSchedule($club, $clubLocations, $coaches, $ageGroups);
                 $this->addContacts($club);
@@ -121,20 +134,22 @@ class ClubProfileSeeder extends Seeder
                     'description' => 'Club sportiv din '.$city.', cu antrenamente pentru copii, juniori și adulți.',
                 ]);
             });
+
+        $this->shareHalls($ageGroups);
     }
 
     /**
-     * @param  Collection<int, Sport>  $sports
+     * @param  Collection<int, Sport>  $pool  the city's sports
      * @param  Collection<int, AgeGroup>  $ageGroups
      * @return Collection<int, ClubSport>
      */
-    private function addSports(Club $club, Collection $sports, Collection $ageGroups): Collection
+    private function addSports(Club $club, Collection $pool, Sport $anchor, Collection $ageGroups): Collection
     {
         // Premium is unlimited; cap it so the demo stays readable.
         $limit = min($club->planLimit('sports') ?? 5, 5);
 
-        return $sports
-            ->shuffle()
+        return collect([$anchor])
+            ->concat($pool->reject(fn (Sport $sport): bool => $sport->is($anchor))->shuffle())
             ->take(fake()->numberBetween(1, $limit))
             ->values()
             ->map(function (Sport $sport, int $order) use ($club, $ageGroups): ClubSport {
@@ -198,20 +213,26 @@ class ClubProfileSeeder extends Seeder
      * @param  Collection<int, ClubSport>  $clubSports
      * @return Collection<int, ClubLocation>
      */
-    private function addLocations(Club $club, Collection $venues, Collection $clubSports): Collection
+    private function addLocations(Club $club, Collection $venues, Collection $clubSports, Location $anchorVenue, Sport $anchorSport): Collection
     {
         $limit = min($club->planLimit('locations') ?? 3, 3, $venues->count());
 
-        return $venues
-            ->shuffle()
+        // The anchor venue is always taken, so every club in the city ends up
+        // in the same hall for the anchor sport.
+        return collect([$anchorVenue])
+            ->concat($venues->reject(fn (Location $venue): bool => $venue->is($anchorVenue))->shuffle())
             ->take(max(1, $limit))
-            ->map(function (Location $venue) use ($club, $clubSports): ClubLocation {
+            ->map(function (Location $venue) use ($club, $clubSports, $anchorVenue, $anchorSport): ClubLocation {
                 // A club rarely teaches every sport at every venue.
                 $sportIds = $clubSports
                     ->shuffle()
                     ->take(fake()->numberBetween(1, $clubSports->count()))
                     ->pluck('sport_id')
                     ->all();
+
+                if ($venue->is($anchorVenue)) {
+                    $sportIds = array_values(array_unique([$anchorSport->getKey(), ...$sportIds]));
+                }
 
                 return $club->syncLocation([
                     'county' => $venue->county,
@@ -265,6 +286,62 @@ class ClubProfileSeeder extends Seeder
                     }
                 }
             });
+    }
+
+    /**
+     * Make the shared-hall case explicit instead of hoping the random draw
+     * produces it. Wherever two clubs teach the same sport at the same venue:
+     *
+     *  - they all get one identical interval, which renders as the
+     *    "+X cluburi" badge on each club's own slot;
+     *  - one of them gets a second interval nobody else has, which the other
+     *    clubs see as the anonymous "hall is taken" card.
+     *
+     * Keyed by (club_location_sport, day, start), so re-running is a no-op.
+     *
+     * @param  Collection<int, AgeGroup>  $ageGroups
+     */
+    private function shareHalls(Collection $ageGroups): void
+    {
+        ClubLocationSport::query()
+            ->with('clubLocation.club.coaches')
+            ->get()
+            ->groupBy(fn (ClubLocationSport $clubLocationSport): string => $clubLocationSport->clubLocation->location_id.'-'.$clubLocationSport->sport_id)
+            ->filter(fn (Collection $sharing): bool => $sharing->count() > 1)
+            ->each(function (Collection $sharing) use ($ageGroups): void {
+                foreach ($sharing as $clubLocationSport) {
+                    $this->slotAt($clubLocationSport, Weekday::Wednesday, '18:00', '19:30', $ageGroups);
+                }
+
+                // One club alone in the hall later that evening.
+                $this->slotAt($sharing->first(), Weekday::Wednesday, '20:00', '21:30', $ageGroups);
+            });
+    }
+
+    /**
+     * @param  Collection<int, AgeGroup>  $ageGroups
+     */
+    private function slotAt(ClubLocationSport $clubLocationSport, Weekday $day, string $start, string $end, Collection $ageGroups): void
+    {
+        $club = $clubLocationSport->clubLocation->club;
+
+        $coach = $club->coaches->first(
+            fn (Coach $candidate): bool => $candidate->sports->contains('id', $clubLocationSport->sport_id),
+        ) ?? $club->coaches->first();
+
+        ScheduleSlot::updateOrCreate(
+            [
+                'club_location_sport_id' => $clubLocationSport->getKey(),
+                'day_of_week' => $day,
+                'start_time' => $start,
+            ],
+            [
+                'club_id' => $club->getKey(),
+                'end_time' => $end,
+                'age_group_id' => $ageGroups->random()->getKey(),
+                'coach_id' => $coach?->getKey(),
+            ],
+        );
     }
 
     private function addContacts(Club $club): void

@@ -12,6 +12,10 @@ export type ScheduleSlot = {
     time: string;
     group: string;
     coach: string;
+    /** A slot no club on this block runs — another club has the hall then. */
+    foreign: boolean;
+    /** Other clubs training in the same hall, same sport, same interval. */
+    otherClubs: string[];
 };
 
 export type ScheduleDay = {

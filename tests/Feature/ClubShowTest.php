@@ -76,6 +76,10 @@ test('the public club page renders real sports, coaches and schedule', function 
             ->has('club.locationsBySport.inot.0.schedule.0.slots', 1)
             ->where('club.locationsBySport.inot.0.schedule.0.slots.0.time', '17:00–18:00')
             ->where('club.locationsBySport.inot.0.schedule.0.slots.0.coach', (string) $coach->id)
+            // Hall occupancy is a location-page concern; the club's own profile
+            // never shows who else trains there, but shares the slot shape.
+            ->where('club.locationsBySport.inot.0.schedule.0.slots.0.foreign', false)
+            ->where('club.locationsBySport.inot.0.schedule.0.slots.0.otherClubs', [])
         );
 });
 

@@ -150,6 +150,73 @@ test('arriving with a sport filter opens the page on that sport', function () {
         ->assertInertia(fn ($page) => $page->where('activeSport', null));
 });
 
+test('clubs sharing an interval in the same hall are counted on each other slots', function () {
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Aqua Masters');
+
+    $slug = Location::query()->where('name', 'Bazinul Olimpic')->value('slug');
+
+    // Blocks are sorted by club name: 0 = Aqua Masters, 1 = Club Aqua Junior.
+    $this->get("/locatii/{$slug}")
+        ->assertInertia(fn ($page) => $page
+            ->where('location.clubs.0.schedule.0.slots.0.time', '17:00–18:00')
+            ->where('location.clubs.0.schedule.0.slots.0.foreign', false)
+            ->where('location.clubs.0.schedule.0.slots.0.otherClubs', ['Club Aqua Junior'])
+            ->where('location.clubs.1.schedule.0.slots.0.otherClubs', ['Aqua Masters'])
+        );
+});
+
+test('an interval only another club trains in shows as an anonymous busy slot', function () {
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
+    $theirs = swimmingClubAt('Bazinul Olimpic', $sport, 'Aqua Masters');
+
+    // Aqua Masters also has the pool on Monday evening; Aqua Junior does not.
+    ScheduleSlot::factory()->create([
+        'club_id' => $theirs->clubLocation->club_id,
+        'club_location_sport_id' => $theirs->id,
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '19:00',
+        'end_time' => '20:30',
+    ]);
+
+    $slug = Location::query()->where('name', 'Bazinul Olimpic')->value('slug');
+
+    $this->get("/locatii/{$slug}")
+        ->assertInertia(fn ($page) => $page
+            // Aqua Junior sees its own session, then the hall taken at 19:00.
+            ->has('location.clubs.1.schedule.0.slots', 2)
+            ->where('location.clubs.1.schedule.0.slots.0.foreign', false)
+            ->where('location.clubs.1.schedule.0.slots.1.time', '19:00–20:30')
+            ->where('location.clubs.1.schedule.0.slots.1.foreign', true)
+            ->where('location.clubs.1.schedule.0.slots.1.group', '')
+            ->where('location.clubs.1.schedule.0.slots.1.otherClubs', ['Aqua Masters'])
+            // Aqua Masters owns both intervals, so neither is foreign for it.
+            ->where('location.clubs.0.schedule.0.slots.1.foreign', false)
+            ->where('location.clubs.0.schedule.0.slots.1.otherClubs', [])
+        );
+});
+
+test('a club on a different sport in the same hall is not counted', function () {
+    $swimming = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $polo = Sport::factory()->create(['slug' => 'polo', 'name' => 'Polo']);
+
+    // Both train Monday 17:00–18:00 in the same pool, on different sports.
+    swimmingClubAt('Bazinul Olimpic', $swimming, 'Club Aqua Junior');
+    swimmingClubAt('Bazinul Olimpic', $polo, 'Club Polo Brașov');
+
+    $slug = Location::query()->where('name', 'Bazinul Olimpic')->value('slug');
+
+    $this->get("/locatii/{$slug}")
+        ->assertInertia(fn ($page) => $page
+            ->has('location.clubs', 2)
+            ->where('location.clubs.0.schedule.0.slots.0.otherClubs', [])
+            ->where('location.clubs.1.schedule.0.slots.0.otherClubs', [])
+            ->has('location.clubs.0.schedule.0.slots', 1)
+        );
+});
+
 test('the location page 404s for an unknown slug', function () {
     $this->get('/locatii/necunoscut')->assertNotFound();
 });

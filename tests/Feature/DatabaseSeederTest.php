@@ -4,6 +4,7 @@ use App\Models\Club;
 use App\Models\Location;
 use App\Models\ScheduleSlot;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
@@ -75,6 +76,23 @@ test('seeding gives clubs a public profile to show', function () {
         });
 
     expect(ScheduleSlot::count())->toBeGreaterThan(50);
+});
+
+test('seeding puts clubs in the same hall on the same sport and interval', function () {
+    $this->seed();
+
+    // Two clubs teaching one sport at one venue is what the location page's
+    // occupancy badge and anonymous "hall is taken" card are built on.
+    $shared = DB::table('schedule_slots')
+        ->join('club_location_sport', 'club_location_sport.id', '=', 'schedule_slots.club_location_sport_id')
+        ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
+        ->select('club_location.location_id', 'club_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
+        ->selectRaw('count(distinct club_location.club_id) as clubs')
+        ->groupBy('club_location.location_id', 'club_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
+        ->having('clubs', '>', 1)
+        ->get();
+
+    expect($shared)->not->toBeEmpty();
 });
 
 test('seeded clubs stay within their plan limits', function () {
