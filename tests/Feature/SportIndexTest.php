@@ -101,7 +101,38 @@ test('the homepage shows the seven biggest sports', function () {
 test('the homepage copes with no sports at all', function () {
     $this->get('/')
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('popularSports', 0));
+        ->assertInertia(fn ($page) => $page
+            ->has('popularSports', 0)
+            ->has('sports', 0)
+            ->has('cities', 0)
+            ->where('stats.locations', 0)
+        );
+});
+
+test('the homepage headline numbers are counted, not claimed', function () {
+    $swimming = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal']);
+    Sport::factory()->create(['slug' => 'polo', 'name' => 'Polo']); // taught nowhere
+
+    $club = Club::factory()->create();
+    sportTaughtAt('Cluj-Napoca', 'Bazinul A', $swimming, $club);
+    sportTaughtAt('Cluj-Napoca', 'Stadionul B', $football, $club);
+    sportTaughtAt('Brașov', 'Sala C', $swimming);
+
+    // A club with no location at all is not an active club.
+    Club::factory()->create();
+
+    $this->get('/')
+        ->assertInertia(fn ($page) => $page
+            ->where('stats.locations', 3)
+            ->where('stats.clubs', 2)
+            ->where('stats.cities', 2)
+            ->where('stats.sports', 2)
+            // The hero search must not offer a sport that leads nowhere.
+            ->has('sports', 2)
+            ->has('cities', 2)
+            ->where('cities.0.name', 'Brașov')
+        );
 });
 
 test('picking a sport narrows the city picker to cities that have it', function () {

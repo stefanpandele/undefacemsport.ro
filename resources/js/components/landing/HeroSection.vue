@@ -1,17 +1,118 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import AutocompleteField from '@/components/sports/AutocompleteField.vue';
+import type { AutocompleteOption } from '@/components/sports/AutocompleteField.vue';
+import { explore } from '@/routes';
 
-defineEmits<{ share: [] }>();
+const props = defineProps<{
+    sports: AutocompleteOption[];
+    cities: { name: string; lat: number | null; lng: number | null }[];
+    stats: { locations: number; clubs: number; cities: number; sports: number };
+}>();
+
+const emit = defineEmits<{ share: [] }>();
 
 const radii = ['2 km', '5 km', '10 km', '20 km'];
 const activeRadius = ref('5 km');
 
-const stats = [
-    { n: '340+', l: 'Locații' },
-    { n: '1.100+', l: 'Cluburi active' },
-    { n: '18', l: 'Orașe' },
-    { n: '9', l: 'Sporturi' },
-];
+const stats = computed(() => [
+    { n: props.stats.locations, l: 'Locații' },
+    { n: props.stats.clubs, l: 'Cluburi active' },
+    { n: props.stats.cities, l: 'Orașe' },
+    { n: props.stats.sports, l: 'Sporturi' },
+]);
+
+const cityOptions = computed<AutocompleteOption[]>(() =>
+    props.cities.map((c) => ({ value: c.name, label: c.name })),
+);
+
+const sport = ref<string | null>(null);
+const city = ref<string | null>(null);
+const cityField = ref<InstanceType<typeof AutocompleteField> | null>(null);
+
+/** Whatever is filled goes into the URL; explore asks for the rest. */
+function search() {
+    const params: Record<string, string> = {};
+
+    if (city.value) {
+        params.oras = city.value;
+    }
+
+    if (sport.value) {
+        params.sport = sport.value;
+    }
+
+    router.get(explore.url(), params);
+}
+
+// Sharing a position only ever picks the city — nothing finer is stored or
+// sent anywhere. Declining costs nothing: the fields above still work.
+const locating = ref(false);
+const locateFailed = ref(false);
+
+function shareLocation() {
+    emit('share');
+
+    if (!navigator.geolocation) {
+        locateFailed.value = true;
+
+        return;
+    }
+
+    locating.value = true;
+    locateFailed.value = false;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            locating.value = false;
+
+            const nearest = nearestCity(
+                position.coords.latitude,
+                position.coords.longitude,
+            );
+
+            if (nearest) {
+                router.get(explore.url(), { oras: nearest });
+            } else {
+                locateFailed.value = true;
+            }
+        },
+        () => {
+            locating.value = false;
+            locateFailed.value = true;
+        },
+        { timeout: 8000 },
+    );
+}
+
+function nearestCity(lat: number, lng: number): string | null {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+    const withDistance = props.cities
+        .filter((c) => c.lat !== null && c.lng !== null)
+        .map((c) => {
+            const dLat = toRad((c.lat as number) - lat);
+            const dLng = toRad((c.lng as number) - lng);
+            const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat)) *
+                    Math.cos(toRad(c.lat as number)) *
+                    Math.sin(dLng / 2) ** 2;
+
+            return {
+                name: c.name,
+                km: 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)),
+            };
+        })
+        .sort((a, b) => a.km - b.km);
+
+    return withDistance[0]?.name ?? null;
+}
+
+function focusCity() {
+    cityField.value?.focus();
+}
 </script>
 
 <template>
@@ -49,26 +150,29 @@ const stats = [
                 <div
                     class="flex flex-col gap-2 rounded-[14px] border border-line bg-white p-2 shadow-[0_20px_40px_-30px_rgba(11,20,16,0.35)] sm:flex-row"
                 >
-                    <select
-                        class="flex-1 rounded-[10px] border-none bg-[#f7f8f6] px-3.5 py-3 text-[14.5px]"
-                    >
-                        <option>Ce sport?</option>
-                        <option>Fotbal</option>
-                        <option>Baschet</option>
-                        <option>Înot</option>
-                        <option>Tenis de masă</option>
-                    </select>
-                    <select
-                        class="flex-1 rounded-[10px] border-none bg-[#f7f8f6] px-3.5 py-3 text-[14.5px]"
-                    >
-                        <option>În ce oraș?</option>
-                        <option>București</option>
-                        <option>Cluj-Napoca</option>
-                        <option>Brașov</option>
-                        <option>Timișoara</option>
-                    </select>
+                    <AutocompleteField
+                        v-model="sport"
+                        class="flex-1"
+                        :options="sports"
+                        placeholder="Ce sport?"
+                        field-label="Sport"
+                        clear-label="Toate sporturile"
+                        variant="inset"
+                    />
+                    <AutocompleteField
+                        ref="cityField"
+                        v-model="city"
+                        class="flex-1"
+                        :options="cityOptions"
+                        placeholder="În ce oraș?"
+                        field-label="Oraș"
+                        clear-label="Toate orașele"
+                        variant="inset"
+                    />
                     <button
-                        class="inline-flex items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-3 text-[14.5px] font-semibold whitespace-nowrap text-white transition hover:bg-[#e6501c]"
+                        type="button"
+                        class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-3 text-[14.5px] font-semibold whitespace-nowrap text-white transition hover:bg-[#e6501c]"
+                        @click="search"
                     >
                         Caută
                     </button>
@@ -159,16 +263,25 @@ const stats = [
                     </div>
                     <button
                         type="button"
-                        class="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-3 text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c]"
-                        @click="$emit('share')"
+                        class="mb-3 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-clay px-[22px] py-3 text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c] disabled:opacity-70"
+                        :disabled="locating"
+                        @click="shareLocation"
                     >
-                        📍 Distribuie locația
+                        📍
+                        {{ locating ? 'Te caut…' : 'Distribuie locația' }}
                     </button>
+                    <p v-if="locateFailed" class="mb-2 text-[12.5px] text-clay">
+                        N-am putut afla unde ești — alege orașul mai sus.
+                    </p>
                     <div class="text-[13px] text-sage">
                         sau
-                        <a href="#" class="font-semibold text-grass-deep">
+                        <button
+                            type="button"
+                            class="cursor-pointer font-semibold text-grass-deep hover:underline"
+                            @click="focusCity"
+                        >
                             alege orașul manual →
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>

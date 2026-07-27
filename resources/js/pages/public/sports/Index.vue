@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import AutocompleteField from '@/components/sports/AutocompleteField.vue';
+import type { AutocompleteOption } from '@/components/sports/AutocompleteField.vue';
 import PublicTopBar from '@/components/sports/PublicTopBar.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
@@ -28,43 +30,18 @@ function normalize(value: string): string {
     return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-// County combobox. A native <datalist> would do the job, but its dropdown is
-// drawn by the browser and cannot be made to match anything around it.
-const countyQuery = ref(props.filters.county ?? '');
-const countyOpen = ref(false);
-const countyBox = ref<HTMLElement | null>(null);
-
-const matchingCounties = computed(() => {
-    const needle = normalize(countyQuery.value.trim());
-
-    return needle
-        ? props.counties.filter((c) => normalize(c).includes(needle))
-        : props.counties;
-});
+const countyOptions = computed<AutocompleteOption[]>(() =>
+    props.counties.map((name) => ({ value: name, label: name })),
+);
 
 /** The county changes the counts, so it has to come back from the server. */
 function applyCounty(value: string | null) {
-    countyQuery.value = value ?? '';
-    countyOpen.value = false;
-
     router.get(sportRoutes.index.url(), value ? { judet: value } : {}, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
     });
 }
-
-function handleOutside(event: MouseEvent): void {
-    if (countyBox.value && !countyBox.value.contains(event.target as Node)) {
-        countyOpen.value = false;
-        // Half-typed text that matched nothing would otherwise linger and look
-        // like a filter that is on.
-        countyQuery.value = props.filters.county ?? '';
-    }
-}
-
-onMounted(() => document.addEventListener('click', handleOutside));
-onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
 const matching = computed(() => {
     const needle = normalize(query.value.trim());
@@ -105,71 +82,15 @@ const matching = computed(() => {
                 >
                     <!-- County first: it changes what the numbers mean, while
                          the search below only narrows what is already shown. -->
-                    <div ref="countyBox" class="relative sm:w-[46%]">
-                        <input
-                            v-model="countyQuery"
-                            type="text"
-                            placeholder="Toată țara"
-                            aria-label="Județ"
-                            autocomplete="off"
-                            class="w-full rounded-[14px] border bg-white py-3.5 pr-10 pl-4.5 text-left text-[15px] shadow-[0_20px_40px_-30px_rgba(11,20,16,0.35)] outline-none"
-                            :class="
-                                filters.county
-                                    ? 'border-grass font-semibold'
-                                    : 'border-line'
-                            "
-                            @focus="countyOpen = true"
-                            @input="countyOpen = true"
-                        />
-                        <button
-                            v-if="filters.county"
-                            type="button"
-                            aria-label="Renunță la județ"
-                            class="absolute top-1/2 right-3.5 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-[#eaf6ef] text-[12px] text-grass-deep hover:bg-[#d8ebe0]"
-                            @click="applyCounty(null)"
-                        >
-                            ✕
-                        </button>
-                        <span
-                            v-else
-                            class="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[11px] text-sage"
-                        >
-                            ▾
-                        </span>
-
-                        <div
-                            v-if="countyOpen"
-                            class="absolute top-full right-0 left-0 z-20 mt-1.5 max-h-[260px] overflow-y-auto rounded-[14px] border border-line bg-white py-1.5 text-left shadow-[0_24px_44px_-20px_rgba(11,20,16,0.35)]"
-                        >
-                            <button
-                                type="button"
-                                class="block w-full cursor-pointer px-4 py-2 text-left text-[14px] text-sage hover:bg-[#f2f5ef]"
-                                @click="applyCounty(null)"
-                            >
-                                Toată țara
-                            </button>
-                            <button
-                                v-for="name in matchingCounties"
-                                :key="name"
-                                type="button"
-                                class="block w-full cursor-pointer px-4 py-2 text-left text-[14px] hover:bg-[#eaf6ef]"
-                                :class="
-                                    filters.county === name
-                                        ? 'font-semibold text-grass-deep'
-                                        : ''
-                                "
-                                @click="applyCounty(name)"
-                            >
-                                {{ name }}
-                            </button>
-                            <div
-                                v-if="!matchingCounties.length"
-                                class="px-4 py-2 text-[13.5px] text-sage"
-                            >
-                                Niciun județ care să semene.
-                            </div>
-                        </div>
-                    </div>
+                    <AutocompleteField
+                        class="sm:w-[46%]"
+                        :model-value="filters.county"
+                        :options="countyOptions"
+                        placeholder="Toată țara"
+                        field-label="Județ"
+                        clear-label="Toată țara"
+                        @update:model-value="applyCounty"
+                    />
                     <input
                         v-model="query"
                         type="search"

@@ -10,7 +10,12 @@ import type { PopularSport } from '@/components/landing/PopularSports.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import SiteNav from '@/components/landing/SiteNav.vue';
 
-defineProps<{ popularSports: PopularSport[] }>();
+defineProps<{
+    popularSports: PopularSport[];
+    sports: { value: string; label: string }[];
+    cities: { name: string; lat: number | null; lng: number | null }[];
+    stats: { locations: number; clubs: number; cities: number; sports: number };
+}>();
 
 // Shared state: sharing location in the hero reveals the "city numbers" section.
 const locationShared = ref(false);
@@ -25,7 +30,12 @@ function shareLocation() {
 
     <div class="min-h-screen bg-paper font-inter text-ink antialiased">
         <SiteNav />
-        <HeroSection @share="shareLocation" />
+        <HeroSection
+            :sports="sports"
+            :cities="cities"
+            :stats="stats"
+            @share="shareLocation"
+        />
         <PopularSports :sports="popularSports" />
         <CityNumbers :location-shared="locationShared" @share="shareLocation" />
         <HowItWorks />
