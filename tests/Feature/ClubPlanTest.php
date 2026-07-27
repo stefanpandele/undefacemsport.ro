@@ -7,10 +7,25 @@ test('a free club is limited and lacks paid features', function () {
     $club = Club::factory()->create();
 
     expect($club->plan)->toBe(Plan::Free)
-        ->and($club->planAllows('gallery'))->toBeFalse()
+        ->and($club->planAllows('sport_covers'))->toBeFalse()
         ->and($club->planLimit('sports'))->toBe(1)
         ->and($club->withinPlanLimit('sports', 0))->toBeTrue()
         ->and($club->withinPlanLimit('sports', 1))->toBeFalse();
+});
+
+test('every plan may show the same number of gallery photos', function () {
+    // How good a club's listing looks is not for sale: two clubs compared side
+    // by side in the same hall must be able to show the same many photos.
+    $limits = collect(Plan::cases())->map(
+        fn (Plan $plan): ?int => Club::factory()->create(['plan' => $plan])->planLimit('gallery_images'),
+    );
+
+    expect($limits->unique())->toHaveCount(1)
+        ->and($limits->first())->toBe(20);
+});
+
+test('a free club may use the gallery', function () {
+    expect(Club::factory()->create()->planAllows('gallery'))->toBeTrue();
 });
 
 test('a pro club unlocks features and higher limits', function () {

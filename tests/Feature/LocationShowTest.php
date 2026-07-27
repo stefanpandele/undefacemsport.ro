@@ -212,6 +212,27 @@ test('an interval only another club trains in shows as an anonymous busy slot', 
         );
 });
 
+test('the clubs sharing an interval are not always listed in the same order', function () {
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+
+    // Three clubs on one interval, so a stable order would repeat every time.
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Aqua Masters');
+    swimmingClubAt('Bazinul Olimpic', $sport, 'Delfinul Brașov');
+
+    $slug = Location::query()->where('name', 'Bazinul Olimpic')->value('slug');
+
+    $orders = collect(range(1, 25))->map(function () use ($slug): string {
+        $clubs = $this->get("/locatii/{$slug}")
+            ->viewData('page')['props']['location']['clubs'][0]['schedule'][0]['slots'][0]['otherClubs'];
+
+        return collect($clubs)->pluck('name')->implode('|');
+    });
+
+    // Whoever registered first must not hold the top spot for everyone.
+    expect($orders->unique())->toHaveCount(2);
+});
+
 test('a club on a different sport in the same hall is not counted', function () {
     $swimming = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
     $polo = Sport::factory()->create(['slug' => 'polo', 'name' => 'Polo']);

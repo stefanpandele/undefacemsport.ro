@@ -85,6 +85,8 @@ class ClubSportResource extends Resource
                             ->required(),
                     ])
                     ->orderColumn('sort_order')
+                    // The same cap on every plan — see config/plans.php.
+                    ->maxItems(fn (?Component $livewire): ?int => static::galleryLimit($livewire))
                     ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => $data + ['disk' => 's3', 'collection' => 'gallery'])
                     ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => $data + ['disk' => 's3', 'collection' => 'gallery'])
                     ->addActionLabel('Adaugă poză')
@@ -137,6 +139,20 @@ class ClubSportResource extends Resource
         return $club instanceof Club
             && $club->canAddSport()
             && parent::canCreate();
+    }
+
+    /**
+     * How many gallery photos the club may attach to one sport, or null for no
+     * cap. Identical across plans by design — visitors compare clubs on the
+     * same page, so presentation quality is not a paid tier.
+     */
+    protected static function galleryLimit(?Component $livewire = null): ?int
+    {
+        $club = static::resolveClub($livewire);
+
+        return $club instanceof Club
+            ? $club->planLimit('gallery_images')
+            : null;
     }
 
     /**

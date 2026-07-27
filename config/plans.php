@@ -15,12 +15,20 @@ return [
     |
     */
 
+    /*
+    | `gallery_images` is deliberately the same on every plan. How well a club
+    | can present itself to a visitor is not for sale: two clubs side by side in
+    | the same hall must be able to show the same number of photos. Plans differ
+    | on how much a club may list (sports, locations), never on how good the
+    | listing looks.
+    */
+
     Plan::Free->value => [
-        'features' => [],
+        'features' => ['gallery'],
         'limits' => [
             'sports' => 1,
             'locations' => 1,
-            'gallery_images' => 0,
+            'gallery_images' => 20,
         ],
     ],
 
@@ -38,7 +46,7 @@ return [
         'limits' => [
             'sports' => null,
             'locations' => null,
-            'gallery_images' => null,
+            'gallery_images' => 20,
         ],
     ],
 

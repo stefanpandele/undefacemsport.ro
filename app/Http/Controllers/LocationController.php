@@ -174,6 +174,10 @@ class LocationController extends Controller
      * The occupancy of this hall for one club's sport, with that club itself
      * removed — what is left is "who else is here".
      *
+     * Shuffled on every request: the map is built in club id order, so keeping
+     * it would put whoever registered first permanently at the top of every
+     * list. No club should get a standing advantage from being early.
+     *
      * @param  array<int, array<int, array<string, array<int, array{name: string, key: string}>>>>  $occupancy
      * @return array<int, array<string, list<array{name: string, key: string}>>>
      */
@@ -181,7 +185,7 @@ class LocationController extends Controller
     {
         return collect($occupancy[$sportId] ?? [])
             ->map(fn (array $byInterval): array => collect($byInterval)
-                ->map(fn (array $clubs): array => array_values(collect($clubs)->except($club->getKey())->all()))
+                ->map(fn (array $clubs): array => array_values(collect($clubs)->except($club->getKey())->shuffle()->all()))
                 ->reject(fn (array $clubs): bool => $clubs === [])
                 ->all())
             ->reject(fn (array $byInterval): bool => $byInterval === [])
