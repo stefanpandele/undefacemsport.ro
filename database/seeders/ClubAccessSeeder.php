@@ -111,7 +111,7 @@ class ClubAccessSeeder extends Seeder
         $clubLocation = $club->syncLocation(
             [
                 'county' => 'București',
-                'city' => 'București',
+                'city' => 'Sectorul 1',
                 'address' => 'Str. Studioului 12',
                 'name' => 'Studioul Demo',
                 // Without coordinates the location has no pin on the explore map.
