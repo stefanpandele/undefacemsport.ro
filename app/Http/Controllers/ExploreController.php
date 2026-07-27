@@ -29,7 +29,11 @@ class ExploreController extends Controller
         $cities = $this->cities();
         $city = $this->resolveCity($request->string('oras')->trim()->toString(), $cities);
         $sport = $request->string('sport')->trim()->toString() ?: null;
-        $facility = $request->integer('facilitate') ?: null;
+        $facilities = array_values($request->collect('facilitati')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->all());
         $search = $request->string('cauta')->trim()->toString() ?: null;
 
         return Inertia::render('public/explore/Index', [
@@ -37,10 +41,10 @@ class ExploreController extends Controller
             'cities' => $cities,
             'filters' => [
                 'sport' => $sport,
-                'facility' => $facility,
+                'facilities' => $facilities,
                 'search' => $search,
             ],
-            'locations' => $city === null ? [] : $this->locations($city, $sport, $facility, $search),
+            'locations' => $city === null ? [] : $this->locations($city, $sport, $facilities, $search),
             'sports' => $city === null ? [] : $this->sports($city),
             'facilities' => $city === null ? [] : $this->facilities($city),
         ]);
@@ -125,9 +129,14 @@ class ExploreController extends Controller
     }
 
     /**
+     * Locations matching the filters. Amenities narrow the list cumulatively:
+     * picking parking AND showers leaves only places that have both, which is
+     * what someone ticking a second box expects.
+     *
+     * @param  list<int>  $facilityIds
      * @return array<int, array<string, mixed>>
      */
-    private function locations(?string $city, ?string $sport, ?int $facility, ?string $search): array
+    private function locations(?string $city, ?string $sport, array $facilityIds, ?string $search): array
     {
         $locations = Location::query()
             ->when($city, fn (Builder $query) => $query->where('city', $city))
@@ -136,10 +145,14 @@ class ExploreController extends Controller
                 'clubLocations.sports',
                 fn (BuilderContract $sports) => $sports->where('sports.slug', $sport),
             ))
-            ->when($facility, fn (Builder $query) => $query->whereHas(
-                'facilities',
-                fn (BuilderContract $facilities) => $facilities->whereKey($facility),
-            ))
+            ->when($facilityIds !== [], function (Builder $query) use ($facilityIds): void {
+                foreach ($facilityIds as $facilityId) {
+                    $query->whereHas(
+                        'facilities',
+                        fn (BuilderContract $facilities) => $facilities->whereKey($facilityId),
+                    );
+                }
+            })
             ->withCount([
                 'clubLocations as club_count' => fn (Builder $query) => $query->when(
                     $sport,
@@ -286,12 +299,17 @@ class ExploreController extends Controller
                 $city,
                 fn (BuilderContract $locations) => $locations->where('city', $city),
             ))
+            // Curated order first (see FacilitySeeder); name only breaks ties,
+            // so equal-weight amenities still come out in a stable order.
             ->orderBy('sort_order')
+            ->orderBy('name')
             ->get()
             ->map(fn (Facility $facility): array => [
                 'id' => $facility->getKey(),
                 'name' => $facility->name,
+                'icon' => $facility->icon,
             ])
+            ->values()
             ->all();
     }
 }

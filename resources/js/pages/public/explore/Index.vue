@@ -42,7 +42,7 @@ type ExploreCity = {
 
 type ExploreFilters = {
     sport: string | null;
-    facility: number | null;
+    facilities: number[];
     search: string | null;
 };
 
@@ -52,7 +52,7 @@ const props = defineProps<{
     filters: ExploreFilters;
     locations: ExploreLocation[];
     sports: ExploreSport[];
-    facilities: { id: number; name: string }[];
+    facilities: { id: number; name: string; icon: string | null }[];
 }>();
 
 const view = ref<'location' | 'sport'>('location');
@@ -83,25 +83,42 @@ function chooseCity(name: string) {
  * back from the server in sync — and the page stays shareable.
  */
 function applyFilters(
-    changed: Partial<Record<string, string | number | null>>,
+    changed: Partial<Record<string, string | number | number[] | null>>,
 ) {
     const next = {
         oras: props.city,
         sport: props.filters.sport,
-        facilitate: props.filters.facility,
+        facilitati: props.filters.facilities,
         cauta: props.filters.search,
         ...changed,
     };
 
     router.get(
         explore.url(),
-        Object.fromEntries(Object.entries(next).filter(([, v]) => v)),
+        Object.fromEntries(
+            // An empty array is truthy, so it needs its own emptiness check or
+            // a cleared amenity filter would stay in the URL forever.
+            Object.entries(next).filter(([, v]) =>
+                Array.isArray(v) ? v.length > 0 : v,
+            ),
+        ),
         {
             preserveState: true,
             preserveScroll: true,
             replace: true,
         },
     );
+}
+
+/** Amenities are cumulative: each tick narrows the list further. */
+function toggleFacility(id: number) {
+    const selected = props.filters.facilities;
+
+    applyFilters({
+        facilitati: selected.includes(id)
+            ? selected.filter((f) => f !== id)
+            : [...selected, id],
+    });
 }
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -468,36 +485,46 @@ function locationHref(loc: ExploreLocation): string {
                             class="min-w-[160px] flex-1 rounded-[10px] border border-line bg-[#f7f8f6] px-3.5 py-2.5 text-sm"
                         />
                     </div>
-                    <div
-                        v-if="facilities.length"
-                        class="flex gap-2 overflow-x-auto pt-2.5"
-                    >
-                        <button
-                            type="button"
-                            class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
-                            :class="
-                                filters.facility
-                                    ? 'border-line bg-white'
-                                    : 'border-grass bg-[#eaf6ef] text-grass-deep'
-                            "
-                            @click="applyFilters({ facilitate: null })"
-                        >
-                            Toate
-                        </button>
-                        <button
-                            v-for="facility in facilities"
-                            :key="facility.id"
-                            type="button"
-                            class="rounded-full border-[1.5px] px-3.5 py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition"
-                            :class="
-                                filters.facility === facility.id
-                                    ? 'border-grass bg-[#eaf6ef] text-grass-deep'
-                                    : 'border-line bg-white'
-                            "
-                            @click="applyFilters({ facilitate: facility.id })"
-                        >
-                            {{ facility.name }}
-                        </button>
+                    <!-- Amenities. Wrapped, never a scrolling strip: options
+                         hidden off the right edge are options nobody uses. -->
+                    <div v-if="facilities.length" class="pt-3">
+                        <div class="mb-2 flex items-center gap-2.5">
+                            <span
+                                class="font-jetbrains text-[10.5px] font-bold tracking-[0.1em] text-sage uppercase"
+                            >
+                                Facilități locație
+                            </span>
+                            <button
+                                v-if="filters.facilities.length"
+                                type="button"
+                                class="cursor-pointer font-jetbrains text-[10.5px] font-bold text-clay uppercase transition hover:underline"
+                                @click="applyFilters({ facilitati: [] })"
+                            >
+                                Șterge ({{ filters.facilities.length }})
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                v-for="facility in facilities"
+                                :key="facility.id"
+                                type="button"
+                                class="cursor-pointer rounded-full border-[1.5px] px-3 py-[6px] text-[12.5px] font-semibold transition"
+                                :class="
+                                    filters.facilities.includes(facility.id)
+                                        ? 'border-grass bg-[#eaf6ef] text-grass-deep'
+                                        : 'border-line bg-white hover:border-grass'
+                                "
+                                :aria-pressed="
+                                    filters.facilities.includes(facility.id)
+                                "
+                                @click="toggleFacility(facility.id)"
+                            >
+                                <span v-if="facility.icon" class="mr-1">
+                                    {{ facility.icon }}
+                                </span>
+                                {{ facility.name }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

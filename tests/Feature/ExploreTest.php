@@ -147,7 +147,7 @@ test('the list can be filtered by sport, facility and name', function () {
             ->where('filters.sport', 'inot')
         );
 
-    $this->get('/explorare?oras=Cluj-Napoca&facilitate='.$parking->id)
+    $this->get('/explorare?oras=Cluj-Napoca&facilitati[]='.$parking->id)
         ->assertInertia(fn ($page) => $page->has('locations', 1)->where('locations.0.name', 'Bazinul Universitar'));
 
     $this->get('/explorare?oras=Cluj-Napoca&cauta=Stadion')
@@ -155,6 +155,55 @@ test('the list can be filtered by sport, facility and name', function () {
 
     $this->get('/explorare?oras=Cluj-Napoca&cauta=nimic')
         ->assertInertia(fn ($page) => $page->has('locations', 0));
+});
+
+test('picking several amenities narrows the list to places that have them all', function () {
+    $sport = Sport::factory()->create();
+
+    $both = trainingAt('Cluj-Napoca', 'Sala Completă', $sport);
+    $onlyParking = trainingAt('Cluj-Napoca', 'Sala cu Parcare', $sport);
+    trainingAt('Cluj-Napoca', 'Sala Goală', $sport);
+
+    $parking = Facility::factory()->create(['name' => 'Parcare', 'sort_order' => 0]);
+    $showers = Facility::factory()->create(['name' => 'Dușuri', 'sort_order' => 1]);
+
+    $both->facilities()->attach([$parking->id, $showers->id]);
+    $onlyParking->facilities()->attach($parking);
+
+    // One amenity: both places that have it.
+    $this->get('/explorare?oras=Cluj-Napoca&facilitati[]='.$parking->id)
+        ->assertInertia(fn ($page) => $page
+            ->has('locations', 2)
+            ->where('filters.facilities', [$parking->id])
+        );
+
+    // Two amenities: only the place that has both, not either.
+    $this->get("/explorare?oras=Cluj-Napoca&facilitati[]={$parking->id}&facilitati[]={$showers->id}")
+        ->assertInertia(fn ($page) => $page
+            ->has('locations', 1)
+            ->where('locations.0.name', 'Sala Completă')
+            ->where('filters.facilities', [$parking->id, $showers->id])
+        );
+});
+
+test('the amenity filters follow their curated sort order', function () {
+    $sport = Sport::factory()->create();
+    $location = trainingAt('Cluj-Napoca', 'Sala A', $sport);
+
+    // Alphabetically this is Dușuri, Parcare, Vestiare — the curated order wins.
+    $location->facilities()->attach([
+        Facility::factory()->create(['name' => 'Vestiare', 'icon' => '🚿', 'sort_order' => 1])->id,
+        Facility::factory()->create(['name' => 'Parcare', 'icon' => '🅿️', 'sort_order' => 0])->id,
+        Facility::factory()->create(['name' => 'Dușuri', 'icon' => '🚻', 'sort_order' => 2])->id,
+    ]);
+
+    $this->get('/explorare?oras=Cluj-Napoca')
+        ->assertInertia(fn ($page) => $page
+            ->where('facilities.0.name', 'Parcare')
+            ->where('facilities.0.icon', '🅿️')
+            ->where('facilities.1.name', 'Vestiare')
+            ->where('facilities.2.name', 'Dușuri')
+        );
 });
 
 test('a location training right now is marked as live', function () {
