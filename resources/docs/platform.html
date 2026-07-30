@@ -1,0 +1,1131 @@
+<title>Unde Facem Sport — ce este construit</title>
+
+<style>
+{{ fonts }}
+
+
+:root {
+    --paper: #f4f6f1;
+    --ink: #0b1410;
+    --sage: #5b6a60;
+    --grass: #15b877;
+    --grass-deep: #0c7a4e;
+    --clay: #ff5a2c;
+    --line: #dce3d6;
+    --card: #ffffff;
+    --raised: #eef2ea;
+    --shadow: 0 1px 2px rgba(11, 20, 16, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --paper: #0a120d;
+        --ink: #e8efe7;
+        --sage: #93a498;
+        --grass: #2fd18f;
+        --grass-deep: #7fe3ba;
+        --clay: #ff8154;
+        --line: #22332a;
+        --card: #0f1a14;
+        --raised: #14231b;
+        --shadow: none;
+    }
+}
+
+:root[data-theme='dark'] {
+    --paper: #0a120d;
+    --ink: #e8efe7;
+    --sage: #93a498;
+    --grass: #2fd18f;
+    --grass-deep: #7fe3ba;
+    --clay: #ff8154;
+    --line: #22332a;
+    --card: #0f1a14;
+    --raised: #14231b;
+    --shadow: none;
+}
+
+:root[data-theme='light'] {
+    --paper: #f4f6f1;
+    --ink: #0b1410;
+    --sage: #5b6a60;
+    --grass: #15b877;
+    --grass-deep: #0c7a4e;
+    --clay: #ff5a2c;
+    --line: #dce3d6;
+    --card: #ffffff;
+    --raised: #eef2ea;
+    --shadow: 0 1px 2px rgba(11, 20, 16, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+    max-width: 1180px;
+    margin-inline: auto;
+    padding: 56px 24px 96px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+}
+
+@media (min-width: 1000px) {
+    .shell {
+        grid-template-columns: 210px minmax(0, 1fr);
+        gap: 64px;
+        align-items: start;
+    }
+}
+
+/* ---------- index rail ---------- */
+
+nav.rail { display: none; }
+
+@media (min-width: 1000px) {
+    nav.rail {
+        display: block;
+        position: sticky;
+        top: 40px;
+        border-left: 2px solid var(--line);
+        padding-left: 18px;
+    }
+}
+
+nav.rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+nav.rail a {
+    color: var(--sage);
+    text-decoration: none;
+    font-size: 13.5px;
+    line-height: 1.35;
+    display: block;
+    transition: color 0.15s;
+}
+
+nav.rail a:hover,
+nav.rail a:focus-visible { color: var(--grass-deep); }
+
+/* The section being read. The marker sits exactly on the rail's own border, so
+   the line the eye already follows is what lights up. */
+nav.rail li { position: relative; }
+
+nav.rail a.is-current {
+    color: var(--grass-deep);
+    font-weight: 600;
+}
+
+nav.rail a.is-current::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: -1px;
+    bottom: -1px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--grass);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+}
+
+/* ---------- type ---------- */
+
+.eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grass-deep);
+    margin: 0 0 10px;
+}
+
+h1 {
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(30px, 5.4vw, 46px);
+    line-height: 1.03;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+}
+
+h2 {
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(21px, 3vw, 27px);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 14px;
+}
+
+h3 {
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 16.5px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin: 0 0 7px;
+}
+
+p { margin: 0 0 14px; max-width: 68ch; }
+p:last-child { margin-bottom: 0; }
+
+.lede {
+    font-size: 18.5px;
+    line-height: 1.55;
+    color: var(--sage);
+    max-width: 62ch;
+}
+
+strong { font-weight: 600; }
+
+code, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 0.86em;
+}
+
+code {
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 5px;
+    white-space: nowrap;
+}
+
+section { margin-bottom: 68px; scroll-margin-top: 32px; }
+section:last-of-type { margin-bottom: 0; }
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0 0 34px;
+}
+
+/* ---------- cards & grids ---------- */
+
+.grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: 1fr;
+    margin: 22px 0;
+}
+
+@media (min-width: 660px) {
+    .grid.two { grid-template-columns: repeat(2, 1fr); }
+    .grid.three { grid-template-columns: repeat(3, 1fr); }
+}
+
+.card {
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+}
+
+.card p { font-size: 14.5px; color: var(--sage); margin-bottom: 0; }
+.card p + p { margin-top: 9px; }
+
+.card .tag {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--grass-deep);
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* a stated product rule */
+.rule {
+    border-left: 3px solid var(--grass);
+    background: var(--raised);
+    border-radius: 0 12px 12px 0;
+    padding: 15px 20px;
+    margin: 20px 0;
+}
+
+.rule p { font-size: 15px; margin-bottom: 0; }
+.rule p + p { margin-top: 8px; }
+.rule .what { font-weight: 600; color: var(--ink); }
+
+/* ---------- tables ---------- */
+
+.scroller {
+    overflow-x: auto;
+    margin: 22px 0;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    min-width: 520px;
+}
+
+th, td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+thead th {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--sage);
+    background: var(--raised);
+    white-space: nowrap;
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td strong { font-weight: 600; }
+
+/* ---------- lists ---------- */
+
+ul.plain {
+    list-style: none;
+    margin: 16px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    max-width: 68ch;
+}
+
+ul.plain li {
+    padding-left: 20px;
+    position: relative;
+    font-size: 15px;
+    color: var(--sage);
+}
+
+ul.plain li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--grass);
+}
+
+ul.plain li strong { color: var(--ink); }
+
+/* ---------- route line ---------- */
+
+.route {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.route .path {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 13.5px;
+    color: var(--grass-deep);
+}
+
+/* ---------- gaps section ---------- */
+
+.gap-item {
+    border-left: 3px solid var(--clay);
+    padding: 3px 0 3px 16px;
+    margin-bottom: 16px;
+}
+
+.gap-item p { font-size: 14.5px; color: var(--sage); margin: 0; }
+.gap-item .what { font-weight: 600; color: var(--ink); display: block; margin-bottom: 2px; }
+
+/* ---------- stat strip ---------- */
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 26px 0 0;
+}
+
+@media (min-width: 700px) {
+    .stats { grid-template-columns: repeat(4, 1fr); }
+}
+
+.stat { background: var(--card); padding: 16px 18px; }
+
+.stat .n {
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+}
+
+.stat .l {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sage);
+    margin-top: 6px;
+    display: block;
+}
+
+a { color: var(--grass-deep); }
+
+:focus-visible {
+    outline: 2px solid var(--grass);
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="shell">
+
+<nav class="rail" aria-label="Cuprins">
+    <ol>
+        <li><a href="#idee">Ideea</a></li>
+        <li><a href="#organizatii">Trei feluri de organizații</a></li>
+        <li><a href="#oferte">Trei feluri de oferte</a></li>
+        <li><a href="#axa">Axa: cum intri</a></li>
+        <li><a href="#public">Partea publică</a></li>
+        <li><a href="#locatii">Locațiile ca bun comun</a></li>
+        <li><a href="#cont">Panoul organizației</a></li>
+        <li><a href="#admin">Panoul de administrare</a></li>
+        <li><a href="#conturi">Conturi și acces</a></li>
+        <li><a href="#planuri">Planuri</a></li>
+        <li><a href="#reguli">Reguli peste tot</a></li>
+        <li><a href="#taxonomii">Taxonomii</a></li>
+        <li><a href="#lipseste">Ce nu există încă</a></li>
+        <li><a href="#tehnic">Fundația tehnică</a></li>
+    </ol>
+</nav>
+
+<main>
+
+<p class="eyebrow">undefacemsport.ro</p>
+<h1>Unde poți face sportul pe care îl cauți, în orașul tău</h1>
+<p class="lede">
+    Un catalog public al sportului din România. Vizitatorul întreabă „unde pot face
+    X lângă mine", iar răspunsul nu e o listă de cluburi — e o listă de moduri de a
+    ajunge pe teren.
+</p>
+
+<div class="stats">
+    <div class="stat"><span class="n">{{ types.count }}</span><span class="l">tipuri de organizații</span></div>
+    <div class="stat"><span class="n">3</span><span class="l">feluri de oferte</span></div>
+    <div class="stat"><span class="n">{{ pages.count }}</span><span class="l">pagini publice</span></div>
+    <div class="stat"><span class="n">{{ tests.count }}</span><span class="l">teste automate</span></div>
+</div>
+
+<section id="idee" style="margin-top:68px">
+<hr>
+<p class="eyebrow">Punctul de plecare</p>
+<h2>Cine face sport nu caută un club — caută un loc și o oră</h2>
+
+<p>
+    Platforma a pornit ca un catalog de cluburi sportive. S-a dovedit prea îngust.
+    Cine vrea să joace baschet duminică dimineața nu vrea neapărat să se înscrie
+    undeva: poate vrea un coș liber într-un parc. Cine s-a accidentat la fotbal nu
+    caută un club, ci un fizioterapeut care lucrează cu fotbaliști. Iar terenul de
+    padel al unui SRL nu are niciun antrenor și niciun sportiv legitimat, dar e
+    exact ce caută cineva vineri seara.
+</p>
+
+<p>
+    De aici vine forma actuală: platforma nu clasifică <em>furnizori</em>, ci
+    <strong>moduri de a ajunge să faci sport</strong>. Un club, o bază sportivă și
+    un cabinet de recuperare stau pe același model de date pentru că un vizitator
+    le poate dori pe toate trei în aceeași săptămână.
+</p>
+</section>
+
+<section id="organizatii">
+<hr>
+<p class="eyebrow">Titularul de cont</p>
+<h2>Trei feluri de organizații</h2>
+
+<p>
+    Orice entitate care își administrează prezența pe platformă este o
+    <code>Organization</code>, cu un <code>type</code>. Tipul decide
+    <strong>numai</strong> adresa publică și forma paginii.
+</p>
+
+<div class="scroller">
+<table>
+<thead>
+<tr><th>Tip</th><th>Cine e</th><th>Pagina publică</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td><strong>Club</strong><br><span class="mono" style="color:var(--sage)">club</span></td>
+    <td>Club sportiv, asociație, studio. Predă: grupe, antrenori, program recurent.</td>
+    <td><code>/cluburi/{slug}</code></td>
+</tr>
+<tr>
+    <td><strong>Bază sportivă</strong><br><span class="mono" style="color:var(--sage)">venue</span></td>
+    <td>Operatorul unui spațiu: SRL cu terenuri de padel, hotel cu bazin, sală închiriabilă. Nu predă — dă acces.</td>
+    <td>Prin pagina locației</td>
+</tr>
+<tr>
+    <td><strong>Cabinet</strong><br><span class="mono" style="color:var(--sage)">practice</span></td>
+    <td>Clinică, medic sportiv, fizioterapeut, nutriționist. Un PFA solo e propria organizație.</td>
+    <td><code>/specialisti/{slug}</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="rule">
+    <p><span class="what">Tipul e identitate, nu permisiune.</span></p>
+    <p>
+        Un club care își deține sala poate publica spații de închiriat. O bază
+        sportivă care angajează un antrenor poate publica un program. Ofertele se
+        adună; tipul spune doar cum arată pagina de start a organizației.
+    </p>
+</div>
+</section>
+
+<section id="oferte">
+<hr>
+<p class="eyebrow">Ce se poate publica</p>
+<h2>Trei feluri de oferte</h2>
+
+<p>
+    Diferența dintre ele nu e cine le vinde, ci <strong>cum se cumpără</strong>: pe
+    lună, pe oră, sau pe programare.
+</p>
+
+<div class="grid three">
+    <div class="card">
+        <span class="tag">Program organizat</span>
+        <h3>Antrenamente pe grupe</h3>
+        <p>
+            Sportul pe care clubul îl predă la o locație, cu grupe de vârstă, nivel,
+            antrenori și orar săptămânal.
+        </p>
+        <p class="mono" style="font-size:12px">organization_sport → schedule_slots</p>
+    </div>
+    <div class="card">
+        <span class="tag">Acces la spațiu</span>
+        <h3>Bazin, teren, sală</h3>
+        <p>
+            Un spațiu fizic cu program și preț. Poate fi acces liber (intri și
+            plătești bilet) sau închiriere exclusivă (iei tot terenul, pe oră).
+        </p>
+        <p class="mono" style="font-size:12px">spaces → schedule_slots</p>
+    </div>
+    <div class="card">
+        <span class="tag">Serviciu</span>
+        <h3>Consultație, ședință</h3>
+        <p>
+            Se cumpără pe programare, are durată și preț. Practicianul bifează
+            pentru ce sporturi îl oferă.
+        </p>
+        <p class="mono" style="font-size:12px">services → service_sport</p>
+    </div>
+</div>
+
+<h3 style="margin-top:30px">Spațiul poate exista fără operator</h3>
+<p>
+    Coșul de baschet dintr-un parc e un spațiu real, cu program și preț zero, pe
+    care nu-l administrează nimeni. De aceea legătura spațiului către organizație e
+    opțională: adminul îl poate introduce singur, iar dacă mâine o firmă începe
+    să-l închirieze, se completează doar o coloană — spațiul nu se recreează și nu
+    dispare când operatorul pleacă.
+</p>
+</section>
+
+<section id="axa">
+<hr>
+<p class="eyebrow">Cum se prezintă totul</p>
+<h2>O singură întrebare: cum intri?</h2>
+
+<p>
+    Fiecare listă publică e organizată pe aceleași {{ ways.count }} moduri, indiferent de sport
+    sau de oraș. Nu „pe cine sun", ci „ce fel de acces cumpăr".
+</p>
+
+<div class="scroller">
+<table>
+<thead>
+<tr><th>Mod</th><th>Ce înseamnă</th><th>Exemplu</th></tr>
+</thead>
+<tbody>
+<tr>
+    <td><strong>Program organizat</strong><br><span class="mono" style="color:var(--sage)">organizat</span></td>
+    <td>Te înscrii, mergi recurent, ai antrenor și grupă.</td>
+    <td>Înot copii, marți și joi, 17:00</td>
+</tr>
+<tr>
+    <td><strong>Acces liber</strong><br><span class="mono" style="color:var(--sage)">liber</span></td>
+    <td>Vii când vrei, în programul afișat. Cu bilet sau gratuit.</td>
+    <td>Bazin agrement, 25 lei intrarea</td>
+</tr>
+<tr>
+    <td><strong>Închiriere exclusivă</strong><br><span class="mono" style="color:var(--sage)">inchiriere</span></td>
+    <td>Iei tot spațiul, pe interval, cu grupul tău.</td>
+    <td>Teren de padel, 180 lei/oră</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="rule">
+    <p><span class="what">Selectorul apare doar când există mai mult de un mod.</span></p>
+    <p>
+        O alegere cu o singură opțiune nu e o alegere. Într-un parc unde există doar
+        acces liber, vizitatorul vede direct programul.
+    </p>
+</div>
+</section>
+
+<section id="public">
+<hr>
+<p class="eyebrow">Ce vede vizitatorul</p>
+<h2>Partea publică, pagină cu pagină</h2>
+
+<div class="grid two">
+    <div class="card">
+        <div class="route"><span class="path">/</span></div>
+        <h3>Acasă</h3>
+        <p>
+            Căutare cu autocomplete pe sport și oraș, sporturile populare calculate
+            din date reale, cifre reale (locații, cluburi, orașe, sporturi) și hartă.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/explorare</span></div>
+        <h3>Explorare</h3>
+        <p>
+            Catalogul de locații pe hartă și listă. Filtre: text liber, sport, oraș
+            și <strong>mod de acces</strong>.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/sporturi</span></div>
+        <h3>Indexul de sporturi</h3>
+        <p>
+            Fiecare sport cu acoperirea lui — câte locații, cluburi și orașe. Filtrul
+            de județ vine primul și schimbă cifrele, nu doar lista.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/sporturi/{sport}/{oraș?}</span></div>
+        <h3>Un sport într-un oraș</h3>
+        <p>
+            Întâi alegi orașul, apoi vezi modurile de a juca, cu filtru pe nivel. Sub
+            ele, secțiunea de recuperare: cabinetele care au bifat acest sport.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/locatii/{slug}</span></div>
+        <h3>O locație</h3>
+        <p>
+            Pe sport, toate modurile de a intra la acea adresă: blocurile cluburilor,
+            spațiile cu program și preț, apoi vederea zilei pe intervale. La final,
+            serviciile extra oferite acolo.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/cluburi/{slug}</span></div>
+        <h3>Un club</h3>
+        <p>
+            Sporturi predate, grupe de vârstă și niveluri, antrenori cu bio, orar
+            săptămânal, locații, galerie, contact.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/specialisti/{slug}</span></div>
+        <h3>Un cabinet</h3>
+        <p>
+            Servicii cu durată și preț, filtrabile pe specialitate, fiecare cu
+            sporturile pentru care e oferit. Echipa și locațiile.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/preturi</span></div>
+        <h3>Prețuri</h3>
+        <p>
+            Planurile, generate din aceeași configurație pe care aplicația o și
+            aplică — pagina nu poate promite altceva decât ce impune codul.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/club-application</span></div>
+        <h3>Cerere de cont</h3>
+        <p>
+            Formularul public de înregistrare, cu verificarea firmei după CUI la ANAF
+            (denumire, adresă, plătitor de TVA) și protecție anti-bot.
+        </p>
+    </div>
+</div>
+</section>
+
+<section id="locatii">
+<hr>
+<p class="eyebrow">Partea cea mai delicată</p>
+<h2>Locațiile sunt un bun comun, nu proprietatea cuiva</h2>
+
+<p>
+    O adresă e folosită de mai multe organizații simultan. La Hotel Ramada pot
+    exista un club de înot, un club de polo și bazinul de agrement al hotelului.
+    Locația e o entitate partajată, iar organizațiile se atașează la ea. Asta
+    ridică patru probleme, toate rezolvate.
+</p>
+
+<ul class="plain">
+    <li>
+        <strong>Duplicate la introducere.</strong> Când un club scrie o adresă care
+        există deja, i se pune pinul pe hartă și i se spune că locul e cunoscut, cu
+        formularul precompletat. Potrivirea se face pe identificatorul Google al
+        locului sau pe adresă exactă, plus o căutare în rază de 200 m.
+    </li>
+    <li>
+        <strong>Duplicate scăpate.</strong> Adminul are o unealtă de contopire: tot
+        ce ține de locația greșită se mută pe cea păstrată — prezențe, sporturi,
+        orare, spații, facilități — iar adresa veche rămâne o redirectare
+        permanentă, ca linkurile deja distribuite să nu moară.
+    </li>
+    <li>
+        <strong>Cine poate edita.</strong> O organizație poate revendica o locație.
+        Revendicarea aprobată dă dreptul de a-i schimba numele și datele; ceilalți
+        se atașează fără să poată rescrie locul altcuiva. La schimbarea numelui,
+        adresa veche redirectează.
+    </li>
+    <li>
+        <strong>Greșeli semnalate.</strong> Oricine ține de o locație poate propune
+        o corecție de nume, adresă, oraș sau județ, care intră într-o coadă de
+        moderare în admin.
+    </li>
+</ul>
+</section>
+
+<section id="cont">
+<hr>
+<p class="eyebrow">/cont</p>
+<h2>Panoul organizației</h2>
+
+<p>
+    Panou multi-tenant cu {{ account.resources }} resurse: un utilizator poate ține de mai multe
+    organizații și comută între ele. Ce vede depinde de tipul organizației și de planul plătit.
+</p>
+
+<div class="scroller">
+<table>
+<thead>
+<tr><th>Resursă</th><th>Ce face</th><th>Cine o vede</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Locații</strong></td><td>Unde își desfășoară activitatea, cu geocodare și detectarea duplicatelor.</td><td>Toți</td></tr>
+<tr><td><strong>Sporturi</strong></td><td>Ce predă, cu grupe de vârstă, niveluri, beneficii, galerie.</td><td>Cluburi</td></tr>
+<tr><td><strong>Persoane</strong></td><td>Cele {{ professions.count }} profesii — antrenor, medic, fizioterapeut, nutriționist — cu bio, foto și sporturi.</td><td>Cluburi</td></tr>
+<tr><td><strong>Orar</strong></td><td>Intervale săptămânale pe sport, locație, grupă și nivel.</td><td>Cluburi</td></tr>
+<tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli: mod de acces, preț pe unitate, program, preț pe interval.</td><td>Toți</td></tr>
+<tr><td><strong>Servicii</strong></td><td>Consultații și ședințe: durată, preț, persoană, filială și sporturile vizate.</td><td>Toți</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>
+    Limitele planului se aplică la creare, nu la afișare: când ai atins numărul de
+    sporturi din plan, butonul de adăugare dispare, dar ce ai publicat rămâne
+    întreg.
+</p>
+</section>
+
+<section id="admin">
+<hr>
+<p class="eyebrow">/admin</p>
+<h2>Panoul de administrare</h2>
+
+<p>
+    {{ admin.resources }} resurse pentru personalul platformei: aprobări, catalogul de locuri și
+    cozile de moderare.
+</p>
+
+<div class="grid two">
+    <div class="card">
+        <span class="tag">Cereri de cont</span>
+        <h3>Aprobare organizații</h3>
+        <p>
+            Cererile venite din formularul public, cu datele firmei de la ANAF. La
+            aprobare se creează organizația și contul.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Organizații</span>
+        <h3>Toate conturile</h3>
+        <p>Tip, plan, membri, locații, stare.</p>
+    </div>
+    <div class="card">
+        <span class="tag">Locații</span>
+        <h3>Catalogul de locuri</h3>
+        <p>
+            Introducere directă, editare și contopirea duplicatelor cu previzualizare
+            înainte de execuție.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Revendicări</span>
+        <h3>Cine deține un loc</h3>
+        <p>Coadă de aprobare pentru cererile de proprietate asupra unei locații.</p>
+    </div>
+    <div class="card">
+        <span class="tag">Corecții</span>
+        <h3>Greșeli semnalate</h3>
+        <p>Propunerile de modificare a datelor unei locații, cu valoarea veche și cea propusă.</p>
+    </div>
+    <div class="card">
+        <span class="tag">Spații</span>
+        <h3>Spații publice și verificare</h3>
+        <p>
+            Introducerea spațiilor fără operator și coada de reverificare a celor
+            vechi, cu ștampilă de „am verificat".
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Facilități</span>
+        <h3>Taxonomia de dotări</h3>
+        <p>Vestiare, parcare, tribună. Cele propuse de cluburi intră în moderare.</p>
+    </div>
+</div>
+</section>
+
+<section id="conturi">
+<hr>
+<p class="eyebrow">Autentificare</p>
+<h2>Conturi și acces</h2>
+
+<ul class="plain">
+    <li><strong>Înregistrare, resetare parolă, verificare e-mail</strong> — fluxurile standard.</li>
+    <li><strong>Autentificare în doi pași</strong> — cu coduri de recuperare.</li>
+    <li><strong>Passkeys</strong> — autentificare fără parolă.</li>
+    <li><strong>Super admin</strong> — listă de adrese permise, prin variabilă de mediu.</li>
+    <li><strong>Administrator</strong> — un indicator pe cont, pentru personalul platformei.</li>
+    <li><strong>Roluri și permisiuni</strong> — RBAC în panoul de admin, pentru administratori cu drepturi limitate.</li>
+    <li><strong>Apartenență la organizații</strong> — un utilizator poate ține de mai multe și comută între ele în panou.</li>
+</ul>
+</section>
+
+<section id="planuri">
+<hr>
+<p class="eyebrow">Monetizare</p>
+<h2>Planuri</h2>
+
+<div class="scroller">
+<table>
+<thead>
+<tr><th>Plan</th><th class="num">Preț</th><th class="num">Sporturi</th><th class="num">Locații</th><th class="num">Spații</th><th class="num">Servicii</th><th class="num">Poze</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Free</strong></td><td class="num">{{ plans.free.price }} lei</td><td class="num">{{ plans.free.sports }}</td><td class="num">{{ plans.free.locations }}</td><td class="num">{{ plans.free.spaces }}</td><td class="num">{{ plans.free.services }}</td><td class="num">{{ plans.free.gallery_images }}</td></tr>
+<tr><td><strong>Pro</strong></td><td class="num">{{ plans.pro.price }} lei</td><td class="num">{{ plans.pro.sports }}</td><td class="num">{{ plans.pro.locations }}</td><td class="num">{{ plans.pro.spaces }}</td><td class="num">{{ plans.pro.services }}</td><td class="num">{{ plans.pro.gallery_images }}</td></tr>
+<tr><td><strong>Premium</strong></td><td class="num">{{ plans.premium.price }} lei</td><td class="num">{{ plans.premium.sports }}</td><td class="num">{{ plans.premium.locations }}</td><td class="num">{{ plans.premium.spaces }}</td><td class="num">{{ plans.premium.services }}</td><td class="num">{{ plans.premium.gallery_images }}</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="rule">
+    <p><span class="what">Planul limitează cât publici, niciodată cât de bine arăți.</span></p>
+    <p>
+        Numărul de poze din galerie e același pe toate planurile. Un club pe Free nu
+        are o pagină mai urâtă și nici date publice mai puțin adevărate — are doar
+        mai puține sporturi și locații.
+    </p>
+</div>
+
+<p>
+    Spațiile fără operator nu consumă cotă. Dacă o organizație contribuie cu un
+    teren public, fapta bună nu i se scade din plan.
+</p>
+</section>
+
+<section id="reguli">
+<hr>
+<p class="eyebrow">Invariante</p>
+<h2>Reguli care se aplică peste tot</h2>
+
+<p>Fiecare e păzită de cel puțin un test care cade dacă se mișcă.</p>
+
+<div class="grid two">
+    <div class="card">
+        <span class="tag">Preț</span>
+        <h3>Zero și necunoscut nu sunt același lucru</h3>
+        <p>
+            Preț <code>0</code> înseamnă gratuit. Preț lipsă înseamnă că nu știm —
+            iar pagina spune asta, în loc să promită ceva.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Preț</span>
+        <h3>Prețul nu se moștenește între moduri</h3>
+        <p>
+            25 lei intrarea la agrement nu are nicio legătură cu 180 lei ora de
+            închiriere. Un preț afișat pe alt mod decât cel pentru care a fost pus e
+            o minciună.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Separare</span>
+        <h3>Ofertele nu se amestecă</h3>
+        <p>
+            Cardul clubului spune doar ce oferă clubul. Programul bazei sportive n-are
+            ce căuta acolo, chiar dacă e aceeași adresă și același bazin.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Descoperire</span>
+        <h3>Extra-urile nu intră în căutare</h3>
+        <p>
+            Masajul unui studio de pilates apare pe pagina locului, ca extensie
+            plătită a activității. Nu apare niciodată ca sport și nu apare în
+            explorare.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Dotări</span>
+        <h3>Facilitate ≠ spațiu ≠ serviciu</h3>
+        <p>
+            Facilitatea vine odată cu prezența acolo (vestiar, parcare). Spațiul și
+            serviciul se plătesc separat. Sauna a fost mutată din facilități în
+            servicii exact din acest motiv.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Recuperare</span>
+        <h3>Sportul e o afirmație, nu o deducție</h3>
+        <p>
+            Practicianul bifează pentru ce sporturi lucrează. Nu se presupune că
+            orice fizioterapeut tratează fotbaliști.
+        </p>
+    </div>
+</div>
+</section>
+
+<section id="taxonomii">
+<hr>
+<p class="eyebrow">Vocabularul comun</p>
+<h2>Taxonomii</h2>
+
+<div class="scroller">
+<table>
+<thead>
+<tr><th>Taxonomie</th><th class="num">Intrări</th><th>Ce descrie</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Sporturi</strong></td><td class="num">{{ sports.count }}</td><td>Cu emoji și culoare de prezentare, folosite peste tot în interfață.</td></tr>
+<tr><td><strong>Specialități</strong></td><td class="num">{{ specialties.count }}</td><td>Fizioterapie, kinetoterapie, medicină sportivă, nutriție, masaj, recuperare, psihologie, podologie. Taxonomie separată de sporturi.</td></tr>
+<tr><td><strong>Grupe de vârstă</strong></td><td class="num">{{ ageGroups.count }}</td><td>De la 0–2 ani la seniori, plus grupele adaptate pentru persoane cu dizabilități. Pentru cine e grupa.</td></tr>
+<tr><td><strong>Niveluri</strong></td><td class="num">{{ levels.count }}</td><td>Inițiere, grupă de copii, amatori, avansați, performanță. Cât de departe a ajuns grupa — axă separată de vârstă.</td></tr>
+<tr><td><strong>Facilități</strong></td><td class="num">{{ facilities.count }}</td><td>Parcare, vestiare, dușuri, acces pentru persoane cu dizabilități, tribună și altele.</td></tr>
+<tr><td><strong>Județe și localități</strong></td><td class="num">{{ counties.count }}</td><td>Toate județele, cu localitățile aferente, pentru adrese și filtre.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>
+    Specialitățile medicale sunt o taxonomie separată de sporturi, deliberat.
+    Fizioterapia nu e un sport, iar tabela de sporturi cară logică de produs —
+    sporturi populare, acoperire, filtre, grupe de vârstă, niveluri — pe care
+    specialitățile ar polua-o.
+</p>
+</section>
+
+<section id="lipseste">
+<hr>
+<p class="eyebrow">Onest</p>
+<h2>Ce nu există încă</h2>
+
+<div class="gap-item">
+    <p><span class="what">Motor de rezervări.</span> Platforma arată program, preț și contact. Rezervarea efectivă se face în afara ei — e un produs în sine.</p>
+</div>
+<div class="gap-item">
+    <p><span class="what">Răsfoirea recuperării medicale.</span> Cabinetele se găsesc doar prin pagina unui sport într-un oraș. Nu există încă index propriu cu alegere de județ și sport.</p>
+</div>
+<div class="gap-item">
+    <p><span class="what">Index de cabinete.</span> Există pagina unui cabinet, nu și lista lor.</p>
+</div>
+<div class="gap-item">
+    <p><span class="what">Filtru pe tip de organizație în explorare.</span> Se filtrează după mod de acces, nu după cine e în spate.</p>
+</div>
+<div class="gap-item">
+    <p><span class="what">Teste de browser.</span> Nimic nu execută template-urile Vue. O redenumire a lăsat recent două pagini publice complet goale cu toată suita verde; există acum un test care fixează cheile de payload, dar nu înlocuiește randarea reală.</p>
+</div>
+<div class="gap-item">
+    <p><span class="what">Inconsecvențe cunoscute.</span> Sporturile, orarul și persoanele sunt încă restricționate la cluburi, deși ofertele ar trebui să fie aditive. Eticheta tipului „club" spune „Club sportiv", ceea ce e greșit pentru un studio de pilates.</p>
+</div>
+</section>
+
+<section id="tehnic">
+<hr>
+<p class="eyebrow">Sub capotă</p>
+<h2>Fundația tehnică</h2>
+
+<div class="grid two">
+    <div class="card">
+        <span class="tag">Stivă</span>
+        <h3>Laravel 13 · Vue 3 · Filament 5</h3>
+        <p>
+            PHP 8.5, Inertia v3, Livewire v4, Tailwind v4, Wayfinder pentru rute
+            tipizate. Două panouri Filament: administrare și organizație.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Calitate</span>
+        <h3>{{ tests.count }} teste, {{ tests.files }} de fișiere</h3>
+        <p>
+            Pest, plus PHPStan la zero erori, Pint, ESLint și vue-tsc. Un test
+            măsoară lungimea fiecărui index, fiindcă suita rulează pe SQLite iar baza
+            reală e MariaDB.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Date de test</span>
+        <h3>Fixtură de dezvoltare</h3>
+        <p>
+            {{ seed.clubs }} de cluburi pe cele trei planuri, {{ seed.venues }} baze sportive și
+            {{ seed.practices }} cabinete, plus organizațiile de prezentare — cu locații partajate,
+            spații administrate și publice, orare și servicii. Seedarea e idempotentă.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Integrări</span>
+        <h3>ANAF, Google Maps, GA4</h3>
+        <p>
+            Verificarea firmei după CUI, geocodare și hărți, analiză prin Google Tag
+            Manager. Găzduire pe Laravel Cloud, în spatele Cloudflare.
+        </p>
+    </div>
+</div>
+</section>
+
+</main>
+</div>
+
+<script>
+/**
+ * Marks the section being read in the index rail.
+ *
+ * The current section is the last one whose top has passed a line near the top
+ * of the viewport, rather than whichever section is merely visible: two are on
+ * screen most of the time, and the one you are reading is the upper one.
+ * Positions are measured on every pass instead of cached, so a late-loading
+ * typeface or a resize cannot leave the marker pointing at the wrong heading.
+ */
+(function () {
+    var links = Array.prototype.slice.call(
+        document.querySelectorAll('nav.rail a[href^="#"]')
+    );
+
+    var sections = links.map(function (link) {
+        return document.getElementById(link.getAttribute('href').slice(1));
+    });
+
+    if (!links.length || sections.indexOf(null) !== -1) {
+        return;
+    }
+
+    var current = -1;
+
+    function update() {
+        var line = window.innerHeight * 0.28;
+        var index = 0;
+
+        sections.forEach(function (section, i) {
+            if (section.getBoundingClientRect().top <= line) {
+                index = i;
+            }
+        });
+
+        // The last section is often shorter than the fold, so it would never
+        // reach the line on its own. Hitting the bottom means you are in it.
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+            index = sections.length - 1;
+        }
+
+        if (index === current) {
+            return;
+        }
+
+        current = index;
+
+        links.forEach(function (link, i) {
+            link.classList.toggle('is-current', i === index);
+
+            if (i === index) {
+                link.setAttribute('aria-current', 'true');
+            } else {
+                link.removeAttribute('aria-current');
+            }
+        });
+    }
+
+    var queued = false;
+
+    function schedule() {
+        if (queued) {
+            return;
+        }
+
+        queued = true;
+        window.requestAnimationFrame(function () {
+            queued = false;
+            update();
+        });
+    }
+
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    window.addEventListener('load', schedule);
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(schedule);
+    }
+
+    update();
+})();
+</script>
