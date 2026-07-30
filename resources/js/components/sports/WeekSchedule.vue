@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { Coach, ScheduleDay, ScheduleSlot } from '@/types/sports';
+import type { Person, ScheduleDay, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{
     schedule: ScheduleDay[];
-    coaches: Coach[];
+    people: Person[];
 }>();
 
 defineEmits<{
-    openCoach: [coach: Coach];
+    openCoach: [coach: Person];
     openHall: [slot: ScheduleSlot];
 }>();
 
-function coachByKey(key: string): Coach | undefined {
-    return props.coaches.find((c) => c.key === key);
+function coachByKey(key: string): Person | undefined {
+    return props.people.find((c) => c.key === key);
 }
 
-function shortName(coach: Coach): string {
+function shortName(coach: Person): string {
     const [first, last] = coach.name.split(' ');
 
     return `${first} ${last?.[0] ?? ''}.`;

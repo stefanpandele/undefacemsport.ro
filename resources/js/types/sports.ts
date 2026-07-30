@@ -1,4 +1,4 @@
-export type Coach = {
+export type Person = {
     key: string;
     name: string;
     role: string;
@@ -46,7 +46,7 @@ export type LocationClub = {
     ages: string[];
     /** How far along the groups are — a separate axis from who they are for. */
     levels: string[];
-    coaches: Coach[];
+    people: Person[];
     schedule: ScheduleDay[];
     contactName: string;
     contactPhone: string | null;

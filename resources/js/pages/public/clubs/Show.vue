@@ -10,9 +10,9 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { gradientStyle, sportGradient } from '@/lib/gradients';
-import type { Coach, ScheduleDay } from '@/types/sports';
+import type { Person, ScheduleDay } from '@/types/sports';
 
-type ClubCoach = Coach & { sportIcon: string; sportLabel: string };
+type ClubPerson = Person & { sportIcon: string; sportLabel: string };
 
 type SportDetail = {
     icon: string;
@@ -65,7 +65,7 @@ type ClubProfile = {
     socials: { label: string; url: string }[];
     sports: ClubSport[];
     sportDetails: Record<string, SportDetail>;
-    coaches: ClubCoach[];
+    people: ClubPerson[];
     locationsBySport: Record<string, ClubLocation[]>;
     extras: ClubExtra[];
 };
@@ -123,12 +123,12 @@ const highlightGroups = computed<HighlightGroup[]>(() => {
     ].filter((group) => group.items.length > 0);
 });
 
-// Coach modal
-const activeCoach = ref<ClubCoach | null>(null);
+// Person modal
+const activeCoach = ref<ClubPerson | null>(null);
 const coachOpen = ref(false);
 
-function openCoach(coach: Coach) {
-    const full = props.club.coaches.find((c) => c.key === coach.key);
+function openCoach(coach: Person) {
+    const full = props.club.people.find((c) => c.key === coach.key);
     activeCoach.value = full ?? { ...coach, sportIcon: '', sportLabel: '' };
     coachOpen.value = true;
 }
@@ -149,18 +149,18 @@ function openCoach(coach: Coach) {
                     <div
                         class="flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-white text-4xl shadow-[0_0_0_2px_var(--color-line)]"
                         :style="
-                            club.coaches[0]?.photo
+                            club.people[0]?.photo
                                 ? {}
                                 : {
                                       background:
-                                          club.coaches[0]?.gradient ??
+                                          club.people[0]?.gradient ??
                                           gradientStyle('g6'),
                                   }
                         "
                     >
                         <img
-                            v-if="club.coaches[0]?.photo"
-                            :src="club.coaches[0].photo"
+                            v-if="club.people[0]?.photo"
+                            :src="club.people[0].photo"
                             :alt="club.representative"
                             class="h-full w-full object-cover"
                         />
@@ -333,7 +333,7 @@ function openCoach(coach: Coach) {
                     class="grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-3 sm:grid-cols-2"
                 >
                     <div
-                        v-for="coach in club.coaches"
+                        v-for="coach in club.people"
                         :key="coach.key"
                         class="rounded-2xl border border-line bg-white p-4.5 text-center transition hover:-translate-y-[3px] hover:shadow-[0_20px_36px_-22px_rgba(11,20,16,0.35)]"
                     >
@@ -430,7 +430,7 @@ function openCoach(coach: Coach) {
                     </div>
                     <WeekSchedule
                         :schedule="loc.schedule"
-                        :coaches="club.coaches"
+                        :people="club.people"
                         @open-coach="openCoach"
                     />
                 </div>
@@ -452,9 +452,13 @@ function openCoach(coach: Coach) {
                         :key="extra.key"
                         class="flex items-start gap-3 rounded-2xl border-[1.5px] border-line bg-white px-4 py-3.5"
                     >
-                        <span class="text-[22px] leading-none">{{ extra.icon }}</span>
+                        <span class="text-[22px] leading-none">{{
+                            extra.icon
+                        }}</span>
                         <div class="min-w-0">
-                            <div class="font-archivo text-[15px] font-extrabold">
+                            <div
+                                class="font-archivo text-[15px] font-extrabold"
+                            >
                                 {{ extra.name }}
                             </div>
                             <div
@@ -508,7 +512,7 @@ function openCoach(coach: Coach) {
             </a>
         </div>
 
-        <!-- Coach modal -->
+        <!-- Person modal -->
         <Dialog v-model:open="coachOpen">
             <DialogContent class="max-w-[320px] text-center">
                 <DialogHeader>

@@ -4,12 +4,12 @@ import { computed } from 'vue';
 import WeekSchedule from '@/components/sports/WeekSchedule.vue';
 import { gradientStyle } from '@/lib/gradients';
 import clubs from '@/routes/clubs';
-import type { Coach, LocationClub, ScheduleSlot } from '@/types/sports';
+import type { Person, LocationClub, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{ club: LocationClub }>();
 
 defineEmits<{
-    openCoach: [coach: Coach];
+    openCoach: [coach: Person];
     openHall: [slot: ScheduleSlot];
 }>();
 
@@ -37,19 +37,19 @@ const remainingPhotos = computed(() =>
             <div
                 class="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[2.5px] border-white text-2xl shadow-[0_0_0_2px_var(--color-line)]"
                 :style="
-                    club.coaches[0]?.photo
+                    club.people[0]?.photo
                         ? {}
                         : {
                               background:
-                                  club.coaches[0]?.gradient ??
+                                  club.people[0]?.gradient ??
                                   gradientStyle('g2'),
                           }
                 "
             >
                 <img
-                    v-if="club.coaches[0]?.photo"
-                    :src="club.coaches[0].photo"
-                    :alt="club.coaches[0].name"
+                    v-if="club.people[0]?.photo"
+                    :src="club.people[0].photo"
+                    :alt="club.people[0].name"
                     class="h-full w-full object-cover"
                 />
                 <template v-else>🧑‍🏫</template>
@@ -69,7 +69,7 @@ const remainingPhotos = computed(() =>
             </div>
         </Link>
 
-        <!-- Media: photos + coaches -->
+        <!-- Media: photos + people -->
         <div class="mb-3.5 flex flex-wrap gap-4">
             <div class="min-w-[190px] flex-1">
                 <div
@@ -100,7 +100,7 @@ const remainingPhotos = computed(() =>
                     Antrenori
                 </div>
                 <button
-                    v-for="coach in club.coaches"
+                    v-for="coach in club.people"
                     :key="coach.key"
                     type="button"
                     class="group flex w-full items-center gap-2 py-[5px] text-left transition hover:translate-x-0.5"
@@ -184,7 +184,7 @@ const remainingPhotos = computed(() =>
         <div class="mb-4">
             <WeekSchedule
                 :schedule="club.schedule"
-                :coaches="club.coaches"
+                :people="club.people"
                 @open-coach="$emit('openCoach', $event)"
                 @open-hall="$emit('openHall', $event)"
             />
@@ -198,18 +198,18 @@ const remainingPhotos = computed(() =>
                 <div
                     class="flex h-[30px] w-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full text-sm"
                     :style="
-                        club.coaches[0]?.photo
+                        club.people[0]?.photo
                             ? {}
                             : {
                                   background:
-                                      club.coaches[0]?.gradient ??
+                                      club.people[0]?.gradient ??
                                       gradientStyle('g2'),
                               }
                     "
                 >
                     <img
-                        v-if="club.coaches[0]?.photo"
-                        :src="club.coaches[0].photo"
+                        v-if="club.people[0]?.photo"
+                        :src="club.people[0].photo"
                         :alt="club.contactName"
                         class="h-full w-full object-cover"
                     />

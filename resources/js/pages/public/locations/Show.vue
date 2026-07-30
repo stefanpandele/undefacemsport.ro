@@ -13,7 +13,7 @@ import {
 import { gradientStyle, sportGradient } from '@/lib/gradients';
 import clubApplication from '@/routes/club-application';
 import type {
-    Coach,
+    Person,
     LocationDetail,
     ScheduleSlot,
     WayIn,
@@ -96,7 +96,10 @@ watch(activeSport, () => {
 });
 
 const activeWay = computed<WayIn | null>(
-    () => ways.value.find((way) => way.key === chosenWay.value) ?? ways.value[0] ?? null,
+    () =>
+        ways.value.find((way) => way.key === chosenWay.value) ??
+        ways.value[0] ??
+        null,
 );
 
 const filteredClubs = computed(() =>
@@ -105,11 +108,11 @@ const filteredClubs = computed(() =>
         : [],
 );
 
-// Coach modal
-const activeCoach = ref<Coach | null>(null);
+// Person modal
+const activeCoach = ref<Person | null>(null);
 const coachOpen = ref(false);
 
-function openCoach(coach: Coach) {
+function openCoach(coach: Person) {
     activeCoach.value = coach;
     coachOpen.value = true;
 }
@@ -410,7 +413,9 @@ function goToClub(key: string) {
                             <span class="font-archivo text-base font-extrabold">
                                 {{ way.verb }}
                             </span>
-                            <span class="text-[13px] text-sage">{{ way.how }}</span>
+                            <span class="text-[13px] text-sage">{{
+                                way.how
+                            }}</span>
                             <span
                                 v-if="way.price"
                                 class="mt-0.5 font-jetbrains text-[13px] font-semibold"
@@ -436,7 +441,9 @@ function goToClub(key: string) {
                         >
                             <span class="h-1.5 w-1.5 rounded-full bg-grass" />
                             {{ filteredClubs.length }}
-                            {{ filteredClubs.length === 1 ? 'CLUB' : 'CLUBURI' }}
+                            {{
+                                filteredClubs.length === 1 ? 'CLUB' : 'CLUBURI'
+                            }}
                         </span>
                     </h2>
 
@@ -460,14 +467,18 @@ function goToClub(key: string) {
                             <header
                                 class="flex flex-wrap items-baseline justify-between gap-2.5"
                             >
-                                <h3 class="font-archivo text-base font-extrabold">
+                                <h3
+                                    class="font-archivo text-base font-extrabold"
+                                >
                                     {{ space.name }}
                                 </h3>
                                 <span
                                     v-if="space.openNow"
                                     class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1 font-jetbrains text-[11px] font-bold text-grass-deep"
                                 >
-                                    <span class="h-1.5 w-1.5 rounded-full bg-grass" />
+                                    <span
+                                        class="h-1.5 w-1.5 rounded-full bg-grass"
+                                    />
                                     <template v-if="space.closesAt">
                                         DESCHIS PÂNĂ LA {{ space.closesAt }}
                                     </template>
@@ -541,9 +552,18 @@ function goToClub(key: string) {
                                 <dl
                                     class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-jetbrains text-[12px]"
                                 >
-                                    <template v-for="row in space.week" :key="row.day">
+                                    <template
+                                        v-for="row in space.week"
+                                        :key="row.day"
+                                    >
                                         <dt class="text-sage">{{ row.day }}</dt>
-                                        <dd :class="row.hours === 'închis' ? 'text-clay' : ''">
+                                        <dd
+                                            :class="
+                                                row.hours === 'închis'
+                                                    ? 'text-clay'
+                                                    : ''
+                                            "
+                                        >
                                             {{ row.hours }}
                                         </dd>
                                     </template>
@@ -622,9 +642,13 @@ function goToClub(key: string) {
                         :key="extra.key"
                         class="flex items-start gap-3 rounded-2xl border-[1.5px] border-line bg-white px-4 py-3.5"
                     >
-                        <span class="text-[22px] leading-none">{{ extra.icon }}</span>
+                        <span class="text-[22px] leading-none">{{
+                            extra.icon
+                        }}</span>
                         <div class="min-w-0">
-                            <div class="font-archivo text-[15px] font-extrabold">
+                            <div
+                                class="font-archivo text-[15px] font-extrabold"
+                            >
                                 {{ extra.name }}
                             </div>
                             <div
@@ -632,7 +656,10 @@ function goToClub(key: string) {
                                 class="mt-0.5 font-jetbrains text-[13px] font-semibold"
                             >
                                 {{ extra.detail }}
-                                <span v-if="extra.meta" class="font-normal text-sage">
+                                <span
+                                    v-if="extra.meta"
+                                    class="font-normal text-sage"
+                                >
                                     · {{ extra.meta }}
                                 </span>
                             </div>
@@ -710,7 +737,11 @@ function goToClub(key: string) {
                                     location.day.from"
                                     :key="hour"
                                 >
-                                    {{ String(location.day.from + hour - 1).padStart(2, '0') }}
+                                    {{
+                                        String(
+                                            location.day.from + hour - 1,
+                                        ).padStart(2, '0')
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -719,7 +750,7 @@ function goToClub(key: string) {
             </section>
         </div>
 
-        <!-- Coach modal -->
+        <!-- Person modal -->
         <Dialog v-model:open="coachOpen">
             <DialogContent class="max-w-[320px] text-center">
                 <DialogHeader>
