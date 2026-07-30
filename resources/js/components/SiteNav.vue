@@ -152,7 +152,7 @@ const btnBase =
                     </button>
                     <div v-if="openMenu === 'club'" :class="menuPanel">
                         <!-- Club login = panou Filament, deci <a> normal (nu Inertia) -->
-                        <a href="/club/login" :class="menuItem">Login</a>
+                        <a href="/cont/login" :class="menuItem">Login</a>
                         <!-- Club register = formularul nostru Inertia cu aprobare -->
                         <Link
                             :href="clubApplication.create.url()"
@@ -218,7 +218,7 @@ const btnBase =
                     <div class="mt-4 mb-2 border-t border-line" />
                     <div :class="sectionLabel">Club</div>
                     <!-- Club login = panou Filament, deci <a> normal -->
-                    <a href="/club/login" :class="sheetItem">
+                    <a href="/cont/login" :class="sheetItem">
                         <span :class="sheetIcon">🔑</span>
                         Login
                     </a>

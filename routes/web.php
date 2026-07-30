@@ -35,12 +35,6 @@ Route::get('company-lookup', AnafLookupController::class)
     ->middleware('throttle:20,1')
     ->name('anaf.lookup');
 
-// The tenant panel used to live at /club, before it started serving venues and
-// practices too. Keeps every bookmark and shared link working.
-Route::permanentRedirect('club/{rest?}', 'cont/{rest?}')
-    ->where('rest', '.*')
-    ->name('club-panel.legacy');
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard')
         ->middleware(RedirectToHomeArea::class.':user');

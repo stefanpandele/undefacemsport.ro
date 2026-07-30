@@ -17,12 +17,15 @@ test('a consumer hitting the organization panel is redirected home', function ()
         ->assertRedirect($consumer->homeUrl());
 });
 
-test('the old /club panel URLs still lead somewhere', function () {
-    // The panel moved to /cont once it started serving venues and practices too.
-    // Bookmarks and links shared before that must not die.
-    $this->get('/club')->assertStatus(301)->assertRedirect('/cont');
-    $this->get('/club/some-tenant/locations')->assertStatus(301)->assertRedirect('/cont/some-tenant/locations');
-});
+test('the panel answers at /cont and nowhere else', function (string $legacy) {
+    // The panel lives at /cont since it started serving venues and practices too.
+    // A catch-all under /club used to redirect here, but it redirected to a
+    // relative path: the browser resolved `cont/login` against /club/, landed on
+    // /club/cont/login, matched the same catch-all, and grew one `cont` per hop
+    // until the URL bar was a wall of them. There is nothing left to redirect —
+    // /club must simply not resolve.
+    $this->get($legacy)->assertNotFound();
+})->with(['/club', '/club/login', '/club/some-tenant/locations']);
 
 test('an admin hitting the consumer dashboard is redirected home', function () {
     $admin = User::factory()->create(['is_admin' => true]);

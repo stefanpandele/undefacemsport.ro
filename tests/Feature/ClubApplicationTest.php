@@ -66,7 +66,8 @@ beforeEach(function () {
 
 it('shows the club application form', function () {
     $this->get(route('club-application.create'))
-        ->assertOk();
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('public/OrganizationApplication/Create'));
 });
 
 it('stores a pending club application with company details resolved from anaf', function () {

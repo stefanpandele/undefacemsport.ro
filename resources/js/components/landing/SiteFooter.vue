@@ -17,7 +17,7 @@ const columns = [
         links: [
             { label: 'Adaugă club', href: clubApplication.create.url() },
             { label: 'Prețuri', href: '#' },
-            { label: 'Intră în cont', href: '/club/login' },
+            { label: 'Intră în cont', href: '/cont/login' },
         ],
     },
     {
