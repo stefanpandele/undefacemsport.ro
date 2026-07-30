@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Something you can actually use at a location: a pool, a pitch, a court, a gym,
@@ -217,17 +218,48 @@ class Space extends Model
     }
 
     /**
-     * The lowest price anyone pays here — the base price, undercut by any cheaper
-     * interval. This is why the chooser reads "de la 35 lei" instead of quoting
-     * an afternoon rate that is wrong all morning.
+     * Every way into this space, the space's own first.
+     *
+     * Usually one. A municipal sports hall is the exception that earns the list:
+     * open-gym on Friday evenings, booked whole by the hour the rest of the week.
+     * One hall, two ways in — so the page offers two, from one record.
+     *
+     * @return SupportCollection<int, SpaceAccessMode>
      */
-    public function priceFrom(): ?float
+    public function accessModes(): SupportCollection
     {
-        $prices = $this->accessSlots
-            ->pluck('price')
-            ->push($this->price)
-            ->filter(fn (mixed $price): bool => $price !== null)
-            ->map(fn (mixed $price): float => (float) $price);
+        return collect($this->accessSlots->all())
+            ->map(fn (ScheduleSlot $slot): ?SpaceAccessMode => $slot->accessMode())
+            ->filter()
+            ->prepend($this->access_mode)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * The intervals you can get in through a given way, or all of them.
+     *
+     * @return Collection<int, ScheduleSlot>
+     */
+    public function slotsFor(?SpaceAccessMode $mode = null): Collection
+    {
+        if ($mode === null) {
+            return $this->accessSlots;
+        }
+
+        return $this->accessSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $slot->accessMode() === $mode)
+            ->values();
+    }
+
+    /**
+     * The lowest price anyone pays to get in this way — the base price, undercut
+     * by any cheaper interval. This is why the chooser reads "de la 35 lei"
+     * instead of quoting an afternoon rate that is wrong all morning.
+     */
+    public function priceFrom(?SpaceAccessMode $mode = null): ?float
+    {
+        $prices = $this->pricesFor($mode);
 
         return $prices->isEmpty() ? null : (float) $prices->min();
     }
@@ -235,9 +267,9 @@ class Space extends Model
     /**
      * The price as a visitor reads it, or null when nobody has said.
      */
-    public function priceFromLabel(): ?string
+    public function priceFromLabel(?SpaceAccessMode $mode = null): ?string
     {
-        $from = $this->priceFrom();
+        $from = $this->priceFrom($mode);
 
         if ($from === null) {
             return null;
@@ -247,23 +279,54 @@ class Space extends Model
             return 'Gratuit';
         }
 
-        $unit = $this->price_unit ?? $this->access_mode->defaultPriceUnit();
-        $label = $unit->format($from);
+        $label = $this->priceUnitFor($mode)->format($from);
 
         // "de la" only earns its place when the price actually varies.
-        return $this->hasVaryingPrice() ? 'de la '.$label : $label;
+        return $this->hasVaryingPrice($mode) ? 'de la '.$label : $label;
     }
 
-    public function hasVaryingPrice(): bool
+    public function hasVaryingPrice(?SpaceAccessMode $mode = null): bool
     {
-        $distinct = $this->accessSlots
-            ->pluck('price')
-            ->push($this->price)
-            ->filter(fn (mixed $price): bool => $price !== null)
-            ->map(fn (mixed $price): float => (float) $price)
-            ->unique();
+        return $this->pricesFor($mode)->unique()->count() > 1;
+    }
 
-        return $distinct->count() > 1;
+    /**
+     * Every price on offer for a given way in. The base price only joins the list
+     * when it is priced the same way — an hourly rate is not a candidate for the
+     * cheapest entry ticket.
+     *
+     * @return SupportCollection<int, float>
+     */
+    private function pricesFor(?SpaceAccessMode $mode): SupportCollection
+    {
+        $prices = collect($this->slotsFor($mode)->all())
+            ->map(fn (ScheduleSlot $slot): ?float => $slot->effectivePrice())
+            ->filter(fn (?float $price): bool => $price !== null);
+
+        if (($mode === null || $mode === $this->access_mode) && $this->price !== null) {
+            $prices->push((float) $this->price);
+        }
+
+        return $prices->values();
+    }
+
+    /**
+     * What the price for this way in is measured in: whatever its intervals say,
+     * else the space's own unit, else what the mode implies.
+     */
+    private function priceUnitFor(?SpaceAccessMode $mode): PriceUnit
+    {
+        $fromSlot = $this->slotsFor($mode)
+            ->map(fn (ScheduleSlot $slot): ?PriceUnit => $slot->effectivePriceUnit())
+            ->filter()
+            ->first();
+
+        if ($fromSlot instanceof PriceUnit) {
+            return $fromSlot;
+        }
+
+        return $this->price_unit
+            ?? ($mode ?? $this->access_mode)->defaultPriceUnit();
     }
 
     /**
@@ -272,16 +335,16 @@ class Space extends Model
      *
      * @return array<int, list<array{start: string, end: string, price: float|null}>>
      */
-    public function hoursByDay(): array
+    public function hoursByDay(?SpaceAccessMode $mode = null): array
     {
-        return $this->accessSlots
+        return $this->slotsFor($mode)
             ->sortBy([['day_of_week', 'asc'], ['start_time', 'asc']])
             ->groupBy(fn (ScheduleSlot $slot): int => $slot->day_of_week->value)
             ->map(fn (Collection $slots): array => array_values($slots
                 ->map(fn (ScheduleSlot $slot): array => [
                     'start' => substr((string) $slot->start_time, 0, 5),
                     'end' => substr((string) $slot->end_time, 0, 5),
-                    'price' => $slot->price === null ? null : (float) $slot->price,
+                    'price' => $slot->effectivePrice(),
                 ])
                 ->all()))
             ->all();
@@ -291,13 +354,13 @@ class Space extends Model
      * Whether the space is open at a given moment. Uses the same weekday-plus-
      * time-range comparison as `ExploreController::liveLocationIds()`.
      */
-    public function openAt(?CarbonInterface $moment = null): bool
+    public function openAt(?CarbonInterface $moment = null, ?SpaceAccessMode $mode = null): bool
     {
         $moment ??= Carbon::now();
         $day = Weekday::fromDate($moment)->value;
         $time = $moment->format('H:i:s');
 
-        return $this->accessSlots->contains(
+        return $this->slotsFor($mode)->contains(
             fn (ScheduleSlot $slot): bool => $slot->day_of_week->value === $day
                 && $slot->start_time <= $time
                 && $slot->end_time >= $time,
@@ -307,13 +370,13 @@ class Space extends Model
     /**
      * When the space closes today, if it is open now.
      */
-    public function closesAt(?CarbonInterface $moment = null): ?string
+    public function closesAt(?CarbonInterface $moment = null, ?SpaceAccessMode $mode = null): ?string
     {
         $moment ??= Carbon::now();
         $day = Weekday::fromDate($moment)->value;
         $time = $moment->format('H:i:s');
 
-        $slot = $this->accessSlots
+        $slot = $this->slotsFor($mode)
             ->filter(fn (ScheduleSlot $slot): bool => $slot->day_of_week->value === $day
                 && $slot->start_time <= $time
                 && $slot->end_time >= $time)

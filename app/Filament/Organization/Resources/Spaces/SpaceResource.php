@@ -137,7 +137,7 @@ class SpaceResource extends Resource
                     ->label('Nocturnă'),
                 Repeater::make('accessSlots')
                     ->label('Program')
-                    ->helperText('Câte un interval pe zi. O zi fără interval înseamnă închis.')
+                    ->helperText('Câte un interval pe zi. O zi fără interval înseamnă închis. Un interval poate avea alt mod de acces decât spațiul — o sală închiriată pe oră care ține open-gym vinerea seara.')
                     ->relationship()
                     ->schema([
                         Select::make('day_of_week')
@@ -152,14 +152,23 @@ class SpaceResource extends Resource
                             ->label('Până la')
                             ->seconds(false)
                             ->required(),
+                        Select::make('access_mode')
+                            ->label('Cum se intră')
+                            ->helperText('Gol = ca spațiul.')
+                            ->options(SpaceAccessMode::options())
+                            ->placeholder('Ca spațiul'),
                         TextInput::make('price')
                             ->label('Preț pe interval')
                             ->helperText('Gol = prețul de bază.')
                             ->numeric()
                             ->minValue(0)
                             ->step('0.01'),
+                        Select::make('price_unit')
+                            ->label('Pe')
+                            ->options(PriceUnit::options())
+                            ->placeholder('Ca spațiul'),
                     ])
-                    ->columns(4)
+                    ->columns(3)
                     ->addActionLabel('Adaugă interval')
                     // The relationship's `where kind` never reaches an insert, and
                     // the model defaults a slot to `training`, so both have to be

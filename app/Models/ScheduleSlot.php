@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\PriceUnit;
 use App\Enums\ScheduleSlotKind;
+use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use Database\Factories\ScheduleSlotFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,8 +31,11 @@ use LogicException;
  * @property string $start_time
  * @property string $end_time
  * @property string|null $price
+ * @property SpaceAccessMode|null $access_mode
+ * @property PriceUnit|null $price_unit
  * @property int|null $age_group_id
  * @property int|null $person_id
+ * @property-read Space|null $space  a training slot need not happen in a known space
  */
 class ScheduleSlot extends Model
 {
@@ -47,6 +52,8 @@ class ScheduleSlot extends Model
         'start_time',
         'end_time',
         'price',
+        'access_mode',
+        'price_unit',
         'age_group_id',
         'person_id',
     ];
@@ -68,7 +75,68 @@ class ScheduleSlot extends Model
             'kind' => ScheduleSlotKind::class,
             'day_of_week' => Weekday::class,
             'price' => 'decimal:2',
+            'access_mode' => SpaceAccessMode::class,
+            'price_unit' => PriceUnit::class,
         ];
+    }
+
+    /**
+     * How you get in during this interval — its own answer, or the space's.
+     */
+    public function accessMode(): ?SpaceAccessMode
+    {
+        return $this->access_mode ?? $this->space?->access_mode;
+    }
+
+    /**
+     * What this interval costs.
+     *
+     * A price is only inherited from the space when the way in is the same. An
+     * open-gym evening in a hall that is otherwise booked by the hour must not
+     * quietly borrow the hourly rate — 25 lei a head and 180 lei an hour are not
+     * the same number wearing a different label.
+     */
+    public function effectivePrice(): ?float
+    {
+        if ($this->price !== null) {
+            return (float) $this->price;
+        }
+
+        $space = $this->space;
+
+        if ($space === null) {
+            return null;
+        }
+
+        if ($this->access_mode !== null && $this->access_mode !== $space->access_mode) {
+            return null;
+        }
+
+        return $space->price === null ? null : (float) $space->price;
+    }
+
+    /**
+     * The unit that price is in: its own, the space's when the way in matches,
+     * else whatever the mode implies.
+     */
+    public function effectivePriceUnit(): ?PriceUnit
+    {
+        if ($this->price_unit !== null) {
+            return $this->price_unit;
+        }
+
+        $mode = $this->accessMode();
+        $space = $this->space;
+
+        if ($space === null) {
+            return $mode?->defaultPriceUnit();
+        }
+
+        if ($this->access_mode === null || $this->access_mode === $space->access_mode) {
+            return $space->price_unit ?? $mode?->defaultPriceUnit();
+        }
+
+        return $mode?->defaultPriceUnit();
     }
 
     /**

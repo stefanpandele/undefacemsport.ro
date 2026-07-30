@@ -35,6 +35,13 @@ return new class extends Migration
             // Overrides the space's base price for this interval — pools charge
             // less in the morning, more at the weekend.
             $table->decimal('price', 8, 2)->nullable();
+            // A space is one physical thing, but the way in can change with the
+            // hour: a sports hall runs open-gym on Friday evenings and is booked
+            // whole by the hour the rest of the week. Null means "whatever the
+            // space says". The unit follows the mode, because an entry and an
+            // hour are not priced the same way.
+            $table->string('access_mode')->nullable();
+            $table->string('price_unit')->nullable();
             $table->foreignId('age_group_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('person_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();

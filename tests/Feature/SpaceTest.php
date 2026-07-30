@@ -116,6 +116,91 @@ test('the price unit falls back to what the access mode implies', function () {
 
 /*
 |--------------------------------------------------------------------------
+| One space, two ways in
+|--------------------------------------------------------------------------
+*/
+
+test('a hall booked by the hour can also run open-gym evenings', function () {
+    // One physical hall, two ways in. Two rows for the same thing would show up
+    // twice on the page, which is why the mode can sit on the interval.
+    $hall = Space::factory()->rental(180)->create(['name' => 'Sala mare']);
+
+    slot($hall, Weekday::Monday, '08:00', '22:00', null);
+    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', 25);
+    $openGym->forceFill([
+        'access_mode' => SpaceAccessMode::OpenAccess,
+        'price_unit' => PriceUnit::Entry,
+    ])->save();
+
+    $hall->load('accessSlots');
+
+    expect($hall->accessModes()->all())->toBe([
+        SpaceAccessMode::ExclusiveRental,
+        SpaceAccessMode::OpenAccess,
+    ])
+        ->and($hall->slotsFor(SpaceAccessMode::OpenAccess))->toHaveCount(1)
+        ->and($hall->slotsFor(SpaceAccessMode::ExclusiveRental))->toHaveCount(1);
+});
+
+test('each way in is priced in its own unit, never borrowing the other', function () {
+    $hall = Space::factory()->rental(180)->create();
+
+    slot($hall, Weekday::Monday, '08:00', '22:00', null);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
+        'access_mode' => SpaceAccessMode::OpenAccess,
+        'price_unit' => PriceUnit::Entry,
+    ])->save();
+
+    $hall->load('accessSlots');
+
+    expect($hall->priceFromLabel(SpaceAccessMode::ExclusiveRental))->toBe('180 lei / oră')
+        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBe('25 lei / intrare');
+});
+
+test('an interval on another way in does not inherit the base price', function () {
+    // 180 lei an hour must never be quoted as the price of an open-gym ticket.
+    $hall = Space::factory()->rental(180)->create();
+
+    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', null);
+    $openGym->forceFill(['access_mode' => SpaceAccessMode::OpenAccess])->save();
+
+    $hall->load('accessSlots');
+
+    expect($openGym->refresh()->effectivePrice())->toBeNull()
+        ->and($hall->priceFrom(SpaceAccessMode::OpenAccess))->toBeNull()
+        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBeNull();
+});
+
+test('an interval without its own mode simply follows the space', function () {
+    $space = Space::factory()->create();
+    $plain = slot($space, Weekday::Monday, '07:00', '22:00', null);
+
+    expect($plain->accessMode())->toBe(SpaceAccessMode::OpenAccess)
+        ->and($plain->effectivePrice())->toBe(45.0)
+        ->and($space->load('accessSlots')->accessModes()->all())->toBe([SpaceAccessMode::OpenAccess]);
+});
+
+test('opening hours can be asked for one way in at a time', function () {
+    $hall = Space::factory()->rental(180)->create();
+
+    slot($hall, Weekday::Monday, '08:00', '22:00', null);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
+        'access_mode' => SpaceAccessMode::OpenAccess,
+    ])->save();
+
+    $hall->load('accessSlots');
+
+    $friday = Carbon::parse('2026-08-07')->setTime(20, 30); // a Friday
+
+    expect($hall->hoursByDay(SpaceAccessMode::OpenAccess))->toHaveCount(1)
+        ->and($hall->hoursByDay(SpaceAccessMode::ExclusiveRental))->toHaveCount(1)
+        ->and($hall->hoursByDay())->toHaveCount(2)
+        ->and($hall->openAt($friday, SpaceAccessMode::OpenAccess))->toBeTrue()
+        ->and($hall->openAt($friday, SpaceAccessMode::ExclusiveRental))->toBeFalse();
+});
+
+/*
+|--------------------------------------------------------------------------
 | Opening hours
 |--------------------------------------------------------------------------
 */

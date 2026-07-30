@@ -25,7 +25,7 @@ class SpaceSeeder extends Seeder
      *
      * `sport` is a slug or null — a sauna is not a sport.
      *
-     * @var list<array{name: string, sport: string|null, mode: string, price: int, unit: string, morning_price: int|null, capacity: int|null, indoor: bool, days: list<int>|null, start: string, end: string}>
+     * @var list<array{name: string, sport: string|null, mode: string, price: int, unit: string, morning_price: int|null, capacity: int|null, indoor: bool, days: list<int>|null, start: string, end: string, open_gym?: array{days: list<int>, start: string, end: string, price: int}}>
      */
     private const VENUE_SPACES = [
         [
@@ -59,10 +59,13 @@ class SpaceSeeder extends Seeder
             'indoor' => false, 'days' => null, 'start' => '08:00', 'end' => '23:00',
         ],
         [
-            'name' => 'Open-gym baschet', 'sport' => 'baschet', 'mode' => 'open_access',
-            'price' => 25, 'unit' => 'entry', 'morning_price' => null, 'capacity' => 10,
-            'indoor' => true, 'days' => [Weekday::Friday->value, Weekday::Sunday->value],
-            'start' => '20:00', 'end' => '22:00',
+            // One hall, two ways in: booked whole by the hour most of the week,
+            // open-gym on Friday and Sunday evenings. The exception that the
+            // per-interval access mode exists for.
+            'name' => 'Sala mare de baschet', 'sport' => 'baschet', 'mode' => 'exclusive_rental',
+            'price' => 180, 'unit' => 'hour', 'morning_price' => null, 'capacity' => 12,
+            'indoor' => true, 'days' => null, 'start' => '08:00', 'end' => '22:00',
+            'open_gym' => ['days' => [Weekday::Friday->value, Weekday::Sunday->value], 'start' => '20:00', 'end' => '22:00', 'price' => 25],
         ],
     ];
 
@@ -173,6 +176,38 @@ class SpaceSeeder extends Seeder
             }
 
             $this->slot($space, $organizationId, $day, $blueprint['start'], $blueprint['end'], null);
+        }
+
+        if (isset($blueprint['open_gym'])) {
+            $this->addOpenGym($space, $organizationId, $blueprint['open_gym']);
+        }
+    }
+
+    /**
+     * A second way into the same hall: the evenings it is open per person rather
+     * than booked whole. Overrides both the mode and the unit, because 25 lei a
+     * head and 180 lei an hour are not the same number in different clothes.
+     *
+     * @param  array{days: list<int>, start: string, end: string, price: int}  $openGym
+     */
+    private function addOpenGym(Space $space, ?int $organizationId, array $openGym): void
+    {
+        foreach ($openGym['days'] as $day) {
+            ScheduleSlot::updateOrCreate(
+                [
+                    'kind' => ScheduleSlotKind::Access,
+                    'space_id' => $space->getKey(),
+                    'day_of_week' => Weekday::from($day),
+                    'start_time' => $openGym['start'],
+                ],
+                [
+                    'organization_id' => $organizationId,
+                    'end_time' => $openGym['end'],
+                    'price' => $openGym['price'],
+                    'access_mode' => SpaceAccessMode::OpenAccess,
+                    'price_unit' => PriceUnit::Entry,
+                ],
+            );
         }
     }
 
