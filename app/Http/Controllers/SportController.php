@@ -6,6 +6,7 @@ use App\Enums\FacilityStatus;
 use App\Enums\LocationWay;
 use App\Enums\OrganizationType;
 use App\Enums\ScheduleSlotKind;
+use App\Models\Level;
 use App\Models\Location;
 use App\Models\Space;
 use App\Models\Sport;
@@ -51,12 +52,17 @@ class SportController extends Controller
      * the way in rather than by who owns the place, the same axis the location
      * page uses.
      */
-    public function show(string $slug, ?string $city = null): Response
+    public function show(Request $request, string $slug, ?string $city = null): Response
     {
         $sport = Sport::query()->where('slug', $slug)->firstOrFail();
 
         $cities = $this->citiesFor($sport);
         $city = $this->resolveCity($city, $cities);
+
+        // "Înot de inițiere pentru copii" is the commonest real search on a page
+        // like this. Unknown values are ignored rather than emptying the list.
+        $levels = $city === null ? [] : $this->levelsInCity($sport, $city);
+        $level = collect($levels)->firstWhere('slug', Str::slug($request->string('nivel')->trim()->toString()));
 
         return Inertia::render('public/sports/Show', [
             'sport' => [
@@ -67,8 +73,35 @@ class SportController extends Controller
             ],
             'city' => $city,
             'cities' => $cities,
-            'ways' => $city === null ? [] : $this->waysInCity($sport, $city),
+            'levels' => $levels,
+            'filters' => ['level' => $level['slug'] ?? null],
+            'ways' => $city === null ? [] : $this->waysInCity($sport, $city, $level['id'] ?? null),
         ]);
+    }
+
+    /**
+     * The levels actually taught for this sport in this city, in order. Offering
+     * a level nobody teaches here would be offering a dead end.
+     *
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    private function levelsInCity(Sport $sport, string $city): array
+    {
+        return array_values(Level::query()
+            ->whereHas('organizationSports', fn (BuilderContract $sports) => $sports
+                ->where('sport_id', $sport->getKey())
+                ->whereHas('organization', fn (BuilderContract $organizations) => $organizations
+                    ->where('type', OrganizationType::Club)
+                    ->whereHas('organizationLocations.location', fn (BuilderContract $locations) => $locations
+                        ->where('city', $city))))
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (Level $level): array => [
+                'id' => $level->getKey(),
+                'name' => $level->name,
+                'slug' => Str::slug($level->name),
+            ])
+            ->all());
     }
 
     /**
@@ -134,11 +167,15 @@ class SportController extends Controller
      *
      * @return list<array{key: string, label: string, description: string, locations: list<array<string, mixed>>}>
      */
-    private function waysInCity(Sport $sport, string $city): array
+    private function waysInCity(Sport $sport, string $city, ?int $levelId = null): array
     {
         return array_values(collect(LocationWay::cases())
-            ->map(function (LocationWay $way) use ($sport, $city): array {
-                $locations = $this->locationsQuery($sport, $way)
+            // A level is a property of an organised programme. Filtering by one
+            // and still listing rentable courts would answer a question nobody
+            // asked, so the other two ways drop out entirely.
+            ->filter(fn (LocationWay $way): bool => $levelId === null || $way === LocationWay::Organised)
+            ->map(function (LocationWay $way) use ($sport, $city, $levelId): array {
+                $locations = $this->locationsQuery($sport, $way, $levelId)
                     ->where('locations.city', $city)
                     ->select('locations.*')
                     ->distinct()
@@ -163,7 +200,7 @@ class SportController extends Controller
      *
      * @return Builder<Location>
      */
-    private function locationsQuery(Sport $sport, LocationWay $way): Builder
+    private function locationsQuery(Sport $sport, LocationWay $way, ?int $levelId = null): Builder
     {
         $mode = $way->accessMode();
 
@@ -172,7 +209,13 @@ class SportController extends Controller
                 'organizationLocations',
                 fn (BuilderContract $presences) => $presences
                     ->whereHas('organization', fn (BuilderContract $organizations) => $organizations
-                        ->where('type', OrganizationType::Club))
+                        ->where('type', OrganizationType::Club)
+                        ->when($levelId, fn (BuilderContract $clubs) => $clubs->whereHas(
+                            'organizationSports',
+                            fn (BuilderContract $sports) => $sports
+                                ->where('sport_id', $sport->getKey())
+                                ->whereHas('levels', fn (BuilderContract $levels) => $levels->whereKey($levelId)),
+                        )))
                     ->whereHas('sports', fn (BuilderContract $sports) => $sports->whereKey($sport->getKey())),
             );
         }

@@ -37,6 +37,14 @@ class OrganizationSeeder extends Seeder
     private const VENUE_TARGET = 10;
 
     /**
+     * Practices: clinics and lone practitioners. Created here rather than
+     * alongside their services, so OrganizationUserSeeder — which runs next —
+     * gives them members on the first pass. Created later, they would gain
+     * members only on a second seeding, which is a re-run that changes data.
+     */
+    private const PRACTICE_TARGET = 8;
+
+    /**
      * Top the demo clubs up to the target mix. They start ownerless;
      * OrganizationUserSeeder attaches a master and members to them.
      *
@@ -71,6 +79,14 @@ class OrganizationSeeder extends Seeder
 
         if ($missingVenues > 0) {
             Organization::factory()->venue()->count($missingVenues)->create(['plan' => Plan::Pro]);
+        }
+
+        $missingPractices = self::PRACTICE_TARGET - Organization::query()
+            ->where('type', OrganizationType::Practice)
+            ->count();
+
+        if ($missingPractices > 0) {
+            Organization::factory()->practice()->count($missingPractices)->create(['plan' => Plan::Pro]);
         }
     }
 }

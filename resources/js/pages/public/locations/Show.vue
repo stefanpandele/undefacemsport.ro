@@ -606,6 +606,50 @@ function goToClub(key: string) {
                 </div>
             </div>
 
+            <!-- Paid things that are not a sport. Outside the sport sections
+                 because they answer a different question: not "where do I play"
+                 but "what else can I get here". -->
+            <section v-if="location.extras.length" class="pb-15">
+                <h2 class="mb-1 font-archivo text-[19px] font-extrabold">
+                    Și, la fața locului
+                </h2>
+                <p class="mb-3.5 text-[13px] text-sage">
+                    Se plătesc separat de sport.
+                </p>
+                <div class="grid gap-2.5 sm:grid-cols-2">
+                    <div
+                        v-for="extra in location.extras"
+                        :key="extra.key"
+                        class="flex items-start gap-3 rounded-2xl border-[1.5px] border-line bg-white px-4 py-3.5"
+                    >
+                        <span class="text-[22px] leading-none">{{ extra.icon }}</span>
+                        <div class="min-w-0">
+                            <div class="font-archivo text-[15px] font-extrabold">
+                                {{ extra.name }}
+                            </div>
+                            <div
+                                v-if="extra.detail"
+                                class="mt-0.5 font-jetbrains text-[13px] font-semibold"
+                            >
+                                {{ extra.detail }}
+                                <span v-if="extra.meta" class="font-normal text-sage">
+                                    · {{ extra.meta }}
+                                </span>
+                            </div>
+                            <div v-else class="mt-0.5 text-[13px] text-sage">
+                                Preț nespecificat
+                            </div>
+                            <div
+                                v-if="extra.by"
+                                class="mt-0.5 font-jetbrains text-[11px] text-sage"
+                            >
+                                {{ extra.by }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Today at this location. A view of the place, not of anybody's
                  offer — which is why it sits outside the sport sections. -->
             <section v-if="location.day" class="pb-15">

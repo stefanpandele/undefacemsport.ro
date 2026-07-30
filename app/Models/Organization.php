@@ -152,6 +152,15 @@ class Organization extends Model
     }
 
     /**
+     * Whether the organization can add another service under its plan's
+     * `services` limit.
+     */
+    public function canAddService(): bool
+    {
+        return $this->withinPlanLimit('services', $this->services()->count());
+    }
+
+    /**
      * The club's presence at a location with exactly this address, if any —
      * optionally excluding a OrganizationLocation being edited.
      */
@@ -216,7 +225,9 @@ class Organization extends Model
     private function resolveLocation(array $attributes, ?int $knownLocationId): Location
     {
         if ($knownLocationId !== null) {
-            return Location::query()->findOrFail($knownLocationId);
+            $known = Location::query()->findOrFail($knownLocationId);
+
+            return $this->applyPenTo($known, $attributes);
         }
 
         $placeId = $attributes['google_place_id'] ?? null;
@@ -236,7 +247,7 @@ class Organization extends Model
                 $existing->update(['google_place_id' => $placeId]);
             }
 
-            return $existing;
+            return $this->applyPenTo($existing, $attributes);
         }
 
         return Location::create([
@@ -248,6 +259,48 @@ class Organization extends Model
             'longitude' => $attributes['longitude'] ?? null,
             'google_place_id' => $placeId,
         ]);
+    }
+
+    /**
+     * Write the place's own fields, but only when this organization is the one
+     * that holds the pen on it.
+     *
+     * For everybody else the canonical record is read-only: another club must not
+     * be able to rename a place a dozen clubs rely on, which is what the
+     * correction flow exists for. Once a claim is approved, the same save path
+     * quietly becomes an edit.
+     *
+     * @param  array{county: string, city: string, address: string, name: string, latitude?: float|string|null, longitude?: float|string|null, google_place_id?: string|null}  $attributes
+     */
+    private function applyPenTo(Location $location, array $attributes): Location
+    {
+        if (! $location->isClaimedBy($this)) {
+            return $location;
+        }
+
+        $location->fill([
+            'name' => $attributes['name'],
+            'county' => $attributes['county'],
+            'city' => $attributes['city'],
+            'address' => $attributes['address'],
+        ]);
+
+        // Renaming has to renew the slug, or the public URL keeps advertising a
+        // name the place no longer has. The old one is kept as a redirect, exactly
+        // as a merge does — an indexed URL is not the editor's to break.
+        if ($location->isDirty('name')) {
+            $previous = $location->slug;
+            $location->slug = Location::uniqueSlug($attributes['name'], $attributes['city']);
+
+            LocationRedirect::updateOrCreate(
+                ['slug' => $previous],
+                ['location_id' => $location->getKey()],
+            );
+        }
+
+        $location->save();
+
+        return $location;
     }
 
     /**
@@ -321,6 +374,16 @@ class Organization extends Model
     public function organizationLocations(): HasMany
     {
         return $this->hasMany(OrganizationLocation::class);
+    }
+
+    /**
+     * What a practice sells: consultations, sessions, assessments.
+     *
+     * @return HasMany<Service, $this>
+     */
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class)->orderBy('sort_order');
     }
 
     /**

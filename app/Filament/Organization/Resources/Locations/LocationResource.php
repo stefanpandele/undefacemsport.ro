@@ -12,6 +12,7 @@ use App\Models\County;
 use App\Models\Facility;
 use App\Models\Locality;
 use App\Models\Location;
+use App\Models\LocationClaim;
 use App\Models\LocationCorrection;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -266,7 +267,10 @@ class LocationResource extends Resource
             TextInput::make('name')
                 ->label('Nume locație')
                 ->required()
-                ->readOnly(fn ($get): bool => (bool) $get('name_locked')),
+                // Locked to the canonical name, unless this organization is the
+                // one that holds the pen on the place.
+                ->readOnly(fn ($get, ?Component $livewire): bool => (bool) $get('name_locked')
+                    && ! static::holdsThePen($get('known_location_id'), $livewire)),
             Select::make('sports')
                 ->label('Sporturi predate aici')
                 ->helperText('Doar sporturile declarate la clubul tău.')
@@ -558,6 +562,7 @@ class LocationResource extends Resource
                 EditAction::make()
                     ->mutateRecordDataUsing(fn (array $data, OrganizationLocation $record): array => static::fillFromRecord($data, $record))
                     ->using(fn (OrganizationLocation $record, array $data): OrganizationLocation => static::persist($data, $record)),
+                static::claimAction(),
                 static::proposeCorrectionAction(),
                 DeleteAction::make(),
             ])
@@ -575,6 +580,87 @@ class LocationResource extends Resource
      * place other clubs rely on, so without a way to report a wrong record its
      * only remaining move would be to create a duplicate on purpose.
      */
+    /**
+     * Whether the current organization is the authoritative editor of this place,
+     * in which case it edits the record instead of proposing corrections to it.
+     */
+    protected static function holdsThePen(mixed $locationId, ?Component $livewire = null): bool
+    {
+        $organization = static::resolveOrganization($livewire);
+
+        if (! $organization instanceof Organization || blank($locationId)) {
+            return false;
+        }
+
+        $location = Location::query()->whereKey($locationId)->first();
+
+        return $location !== null && $location->isClaimedBy($organization);
+    }
+
+    /**
+     * Ask to become the authoritative editor of this place.
+     *
+     * A location is created by whoever arrives first, which is usually a club
+     * saying it trains there — and that club has no claim to the record. When the
+     * company that actually runs the place turns up, this is how it takes over the
+     * fields describing the place, without touching anybody's offer.
+     */
+    public static function claimAction(): Action
+    {
+        return Action::make('claim')
+            ->label('Revendică locația')
+            ->icon(Heroicon::OutlinedShieldCheck)
+            ->color('gray')
+            ->modalHeading('Revendică această locație')
+            ->modalDescription('Dacă tu administrezi locul, poți deveni cel care îi ține datele la zi: nume, adresă, facilități. Programele și orarele cluburilor de aici rămân ale lor. Un administrator verifică cererea.')
+            ->modalSubmitActionLabel('Trimite cererea')
+            ->visible(fn (OrganizationLocation $record, ?Component $livewire): bool => static::canClaim($record, $livewire))
+            ->schema([
+                Placeholder::make('place')
+                    ->label('Locația')
+                    ->content(fn (OrganizationLocation $record): string => (string) $record->location?->name),
+                Textarea::make('evidence')
+                    ->label('De ce ești tu administratorul locului?')
+                    ->helperText('Contract, act de proprietate, orice îl ajută pe administrator să decidă.')
+                    ->required()
+                    ->maxLength(2000),
+            ])
+            ->action(function (array $data, OrganizationLocation $record): void {
+                LocationClaim::updateOrCreate(
+                    [
+                        'location_id' => $record->location_id,
+                        'organization_id' => $record->organization_id,
+                    ],
+                    ['evidence' => $data['evidence']],
+                );
+
+                Notification::make()
+                    ->success()
+                    ->title('Cererea a fost trimisă')
+                    ->body('Un administrator o verifică în curând.')
+                    ->send();
+            });
+    }
+
+    /**
+     * Claimable when nobody holds the pen yet and this organization has not
+     * already asked. A place with an editor is settled; a second claim would be a
+     * dispute, and disputes are not a form.
+     */
+    protected static function canClaim(OrganizationLocation $record, ?Component $livewire = null): bool
+    {
+        $location = $record->location;
+
+        if ($location === null || $location->isClaimed()) {
+            return false;
+        }
+
+        return ! LocationClaim::query()
+            ->where('location_id', $location->getKey())
+            ->where('organization_id', $record->organization_id)
+            ->exists();
+    }
+
     public static function proposeCorrectionAction(): Action
     {
         return Action::make('proposeCorrection')
@@ -584,6 +670,8 @@ class LocationResource extends Resource
             ->modalHeading('Propune o corecție')
             ->modalDescription('Locația e partajată cu alte cluburi, așa că nu îi poți schimba datele direct. Un administrator verifică propunerea înainte să se vadă public.')
             ->modalSubmitActionLabel('Trimite propunerea')
+            // Pointless for the organization that can simply edit the record.
+            ->visible(fn (OrganizationLocation $record, ?Component $livewire): bool => ! static::holdsThePen($record->location_id, $livewire))
             ->schema([
                 Placeholder::make('current')
                     ->label('Datele actuale')

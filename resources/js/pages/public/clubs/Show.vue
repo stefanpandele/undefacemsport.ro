@@ -20,7 +20,6 @@ type SportDetail = {
     trustChips: string[];
     sessionFormat: string[];
     audience: string[];
-    beyondSport: string[];
     ages: string[];
     /** How far along the groups are — a separate axis from who they are for. */
     levels: string[];
@@ -42,6 +41,21 @@ type ClubSport = {
     locationCount: number;
 };
 
+/**
+ * Paid extras that are not the sport — the massage at a pilates studio. Real
+ * offers with a price and a duration, rather than a chip somebody happened to
+ * word a certain way.
+ */
+type ClubExtra = {
+    key: string;
+    icon: string;
+    name: string;
+    specialty: string | null;
+    price: string | null;
+    duration: string | null;
+    description: string;
+};
+
 type ClubProfile = {
     slug: string;
     name: string;
@@ -53,6 +67,7 @@ type ClubProfile = {
     sportDetails: Record<string, SportDetail>;
     coaches: ClubCoach[];
     locationsBySport: Record<string, ClubLocation[]>;
+    extras: ClubExtra[];
 };
 
 const props = defineProps<{ club: ClubProfile }>();
@@ -104,14 +119,6 @@ const highlightGroups = computed<HighlightGroup[]>(() => {
             items: detail.audience,
             bg: 'bg-[#eef1fb]',
             text: 'text-[#3d4b9e]',
-        },
-        {
-            key: 'beyondSport',
-            title: 'Dincolo de sport',
-            icon: '💆',
-            items: detail.beyondSport,
-            bg: 'bg-[#f5edfb]',
-            text: 'text-[#7a3fa0]',
         },
     ].filter((group) => group.items.length > 0);
 });
@@ -426,6 +433,53 @@ function openCoach(coach: Coach) {
                         :coaches="club.coaches"
                         @open-coach="openCoach"
                     />
+                </div>
+            </section>
+
+            <!-- Paid extras that are not the sport. Below the programme, because
+                 they are an extra once you are here, never a second reason to
+                 come. -->
+            <section v-if="club.extras.length" class="pb-24">
+                <h2 class="mb-1 font-archivo text-[19px] font-extrabold">
+                    Și, la fața locului
+                </h2>
+                <p class="mb-3.5 text-[13px] text-sage">
+                    Se plătesc separat de antrenamente.
+                </p>
+                <div class="grid gap-2.5 sm:grid-cols-2">
+                    <div
+                        v-for="extra in club.extras"
+                        :key="extra.key"
+                        class="flex items-start gap-3 rounded-2xl border-[1.5px] border-line bg-white px-4 py-3.5"
+                    >
+                        <span class="text-[22px] leading-none">{{ extra.icon }}</span>
+                        <div class="min-w-0">
+                            <div class="font-archivo text-[15px] font-extrabold">
+                                {{ extra.name }}
+                            </div>
+                            <div
+                                v-if="extra.price"
+                                class="mt-0.5 font-jetbrains text-[13px] font-semibold"
+                            >
+                                {{ extra.price }}
+                                <span
+                                    v-if="extra.duration"
+                                    class="font-normal text-sage"
+                                >
+                                    · {{ extra.duration }}
+                                </span>
+                            </div>
+                            <div v-else class="mt-0.5 text-[13px] text-sage">
+                                Preț nespecificat
+                            </div>
+                            <p
+                                v-if="extra.description"
+                                class="mt-1 text-[13px] text-sage"
+                            >
+                                {{ extra.description }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>

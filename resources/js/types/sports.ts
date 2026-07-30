@@ -117,6 +117,20 @@ export type LocationDay = {
     }[];
 };
 
+/**
+ * Something paid you can get at a place that is not a sport: the sauna you buy a
+ * ticket for, the massage somebody gives you. One shape for both, because a
+ * visitor does not care whether they are buying a space or somebody's time.
+ */
+export type Extra = {
+    key: string;
+    icon: string;
+    name: string;
+    detail: string | null;
+    meta: string | null;
+    by: string | null;
+};
+
 export type LocationDetail = {
     slug: string;
     name: string;
@@ -128,5 +142,6 @@ export type LocationDetail = {
     sports: SportOption[];
     clubs: LocationClub[];
     ways: Record<string, WayIn[]>;
+    extras: Extra[];
     day: LocationDay | null;
 };

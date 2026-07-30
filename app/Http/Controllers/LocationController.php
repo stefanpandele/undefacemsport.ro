@@ -8,13 +8,16 @@ use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\Facility;
 use App\Models\Location;
+use App\Models\LocationRedirect;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
 use App\Models\OrganizationLocationSport;
 use App\Models\OrganizationSport;
 use App\Models\Person;
+use App\Models\Service;
 use App\Models\Space;
 use App\Models\Sport;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -29,8 +32,16 @@ class LocationController extends Controller
      * Show a single sports location: its amenities, the sports played here and
      * every club teaching them, each with its own weekly schedule.
      */
-    public function show(Request $request, string $slug): Response
+    public function show(Request $request, string $slug): Response|RedirectResponse
     {
+        // A slug that belonged to a location merged into another still has to
+        // work: it is indexed, and people share it.
+        $redirect = LocationRedirect::query()->with('location')->firstWhere('slug', $slug);
+
+        if ($redirect !== null && $redirect->location !== null) {
+            return redirect()->route('locations.show', $redirect->location->slug, 301);
+        }
+
         $location = Location::query()
             ->where('slug', $slug)
             ->with([
@@ -101,6 +112,11 @@ class LocationController extends Controller
             // Keyed by sport, then the ways in that actually exist there. The page
             // offers a choice only where there is one to make.
             'ways' => $this->waysIn($location, $sports, $clubs),
+            // Paid things that are not a sport: the sauna you buy a ticket for, the
+            // massage somebody gives you. Outside the sport sections because they
+            // answer a different question — not "where do I play" but "what else
+            // can I get here".
+            'extras' => $this->extras($location),
             // Belongs to the place, not to any one offer — which is why it sits
             // outside the sport sections rather than inside a club's card.
             'day' => $this->day($location),
@@ -272,6 +288,81 @@ class LocationController extends Controller
                 ];
             })
             ->all());
+    }
+
+    /**
+     * What you can pay for here that is not a sport.
+     *
+     * Two models behind one heading, because a visitor does not care whether they
+     * are buying a space or somebody's time — only that they can pay and receive.
+     * A sport-less space is the sauna; a service is the massage.
+     *
+     * Never part of discovery: somebody searching for a masseur wants a practice,
+     * not a pilates studio that happens to offer one. An extra earns a place on
+     * this page and nowhere else.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function extras(Location $location): array
+    {
+        $spaces = $location->spaces
+            ->filter(fn (Space $space): bool => $space->sport_id === null)
+            ->map(fn (Space $space): array => [
+                'key' => 'space-'.$space->getKey(),
+                'icon' => '🧖',
+                'name' => $space->name,
+                'detail' => $space->priceFromLabel(),
+                'meta' => $this->openingSummary($space),
+                'by' => $space->organizationLocation?->organization->name,
+            ]);
+
+        // Queried rather than read off `organizationLocations`: that relation is
+        // eager loaded filtered to clubs, for the club blocks. Extras come from
+        // everybody present here — a hotel's massage, a clinic's consultation.
+        $presences = OrganizationLocation::query()
+            ->where('location_id', $location->getKey())
+            ->with(['organization.services.specialty'])
+            ->get();
+
+        $services = collect();
+
+        foreach ($presences as $presence) {
+            foreach ($presence->organization->services as $service) {
+                // A service pinned to another branch is not on offer here.
+                if ($service->organization_location_id !== null
+                    && $service->organization_location_id !== $presence->getKey()) {
+                    continue;
+                }
+
+                $specialty = $service->specialty;
+
+                $services->push([
+                    'key' => 'service-'.$service->getKey(),
+                    'icon' => $specialty === null ? '💆' : (string) $specialty->icon,
+                    'name' => $service->name,
+                    'detail' => $service->priceLabel(),
+                    'meta' => $service->durationLabel(),
+                    'by' => $presence->organization->name,
+                ]);
+            }
+        }
+
+        return array_values(collect($spaces->all())->concat($services)->values()->all());
+    }
+
+    /**
+     * A space's hours as one line, when they are the same every open day —
+     * "12:00–22:00" rather than seven identical rows.
+     */
+    private function openingSummary(Space $space): ?string
+    {
+        $intervals = collect($space->hoursByDay())
+            ->map(fn (array $day): string => collect($day)
+                ->map(fn (array $interval): string => $interval['start'].'–'.$interval['end'])
+                ->implode(', '))
+            ->unique();
+
+        return $intervals->count() === 1 ? $intervals->first() : null;
     }
 
     /**

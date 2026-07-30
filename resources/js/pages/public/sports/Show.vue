@@ -29,12 +29,26 @@ type Way = {
     locations: LocationCard[];
 };
 
+type LevelOption = { id: number; name: string; slug: string };
+
 const props = defineProps<{
     sport: { key: string; label: string; icon: string; color: string | null };
     city: string | null;
     cities: CityOption[];
+    levels: LevelOption[];
+    filters: { level: string | null };
     ways: Way[];
 }>();
+
+/** The same page, with or without the level narrowed. */
+function levelUrl(slug: string | null): string {
+    const base = sportRoutes.show.url({
+        slug: props.sport.key,
+        city: props.cities.find((c) => c.name === props.city)?.slug ?? '',
+    });
+
+    return slug ? `${base}?nivel=${slug}` : base;
+}
 
 const gradient = computed(() => sportGradient(props.sport.color));
 
@@ -207,6 +221,42 @@ const title = computed(() =>
                     </Link>
                 </div>
 
+                <!-- Levels only narrow organised programmes: a rentable court
+                     has no level, so choosing one drops the other ways. -->
+                <div v-if="levels.length > 1" class="mt-6">
+                    <p
+                        class="mb-2 font-jetbrains text-[10px] font-bold tracking-[0.11em] text-sage uppercase"
+                    >
+                        Nivel
+                    </p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <Link
+                            :href="levelUrl(null)"
+                            class="rounded-full border px-3 py-1 text-[13px] transition"
+                            :class="
+                                filters.level
+                                    ? 'border-line text-sage hover:border-grass'
+                                    : 'border-grass bg-white font-semibold text-grass-deep'
+                            "
+                        >
+                            Toate
+                        </Link>
+                        <Link
+                            v-for="option in levels"
+                            :key="option.slug"
+                            :href="levelUrl(option.slug)"
+                            class="rounded-full border px-3 py-1 text-[13px] transition"
+                            :class="
+                                filters.level === option.slug
+                                    ? 'border-grass bg-white font-semibold text-grass-deep'
+                                    : 'border-line text-sage hover:border-grass'
+                            "
+                        >
+                            {{ option.name }}
+                        </Link>
+                    </div>
+                </div>
+
                 <section
                     v-for="way in ways"
                     :key="way.key"
@@ -262,8 +312,20 @@ const title = computed(() =>
                     class="mt-8 rounded-2xl border-[1.5px] border-dashed border-line px-5 py-12 text-center text-sage"
                 >
                     <p class="mx-auto max-w-[40ch] text-sm">
-                        Nu avem încă niciun loc de
-                        {{ sport.label.toLowerCase() }} în {{ city }}.
+                        <template v-if="filters.level">
+                            Niciun club nu predă acest nivel de
+                            {{ sport.label.toLowerCase() }} în {{ city }}.
+                            <Link
+                                :href="levelUrl(null)"
+                                class="font-semibold text-grass-deep"
+                            >
+                                Vezi toate nivelurile →
+                            </Link>
+                        </template>
+                        <template v-else>
+                            Nu avem încă niciun loc de
+                            {{ sport.label.toLowerCase() }} în {{ city }}.
+                        </template>
                     </p>
                 </div>
             </template>

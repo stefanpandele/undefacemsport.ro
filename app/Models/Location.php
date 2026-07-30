@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -24,9 +26,12 @@ use Illuminate\Support\Str;
  * @property string|null $latitude
  * @property string|null $longitude
  * @property string|null $google_place_id
+ * @property int|null $claimed_by_organization_id
+ * @property Carbon|null $claimed_at
  * @property-read int|null $club_count  only set by an explicit withCount alias
  * @property-read int|null $facility_count  only set by an explicit withCount alias
  * @property float|null $distance_meters a runtime value, only set by Location::nearby()
+ * @property-read Organization|null $claimedByOrganization  null until a claim is approved
  * @property-read FacilityLocation|null $pivot  only set when hydrated through Facility::locations()
  */
 class Location extends Model
@@ -245,6 +250,41 @@ class Location extends Model
     public function corrections(): HasMany
     {
         return $this->hasMany(LocationCorrection::class);
+    }
+
+    /**
+     * Whether anybody holds the pen on this place's own fields.
+     */
+    public function isClaimed(): bool
+    {
+        return $this->claimed_by_organization_id !== null;
+    }
+
+    /**
+     * Whether this organization is the one that does.
+     */
+    public function isClaimedBy(Organization $organization): bool
+    {
+        return $this->claimed_by_organization_id === $organization->getKey();
+    }
+
+    /**
+     * The organization that holds the pen: it edits the name, address and
+     * amenities. The clubs training here keep everything of their own.
+     *
+     * @return BelongsTo<Organization, $this>
+     */
+    public function claimedByOrganization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'claimed_by_organization_id');
+    }
+
+    /**
+     * @return HasMany<LocationClaim, $this>
+     */
+    public function claims(): HasMany
+    {
+        return $this->hasMany(LocationClaim::class);
     }
 
     /**

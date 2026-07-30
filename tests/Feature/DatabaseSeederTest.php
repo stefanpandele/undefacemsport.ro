@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\DB;
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
 
-    // 36 demo clubs + the 2 known login clubs + 10 venues.
-    expect(Organization::count())->toBe(48)
+    // 36 demo clubs + the 2 known login clubs + 10 venues + 8 practices.
+    expect(Organization::count())->toBe(56)
         ->and(Organization::where('type', OrganizationType::Club)->count())->toBe(38)
-        ->and(Organization::where('type', OrganizationType::Venue)->count())->toBe(10);
+        ->and(Organization::where('type', OrganizationType::Venue)->count())->toBe(10)
+        ->and(Organization::where('type', OrganizationType::Practice)->count())->toBe(8);
 
     Organization::with('owner', 'users')->get()->each(function (Organization $organization): void {
         expect($organization->owner)->not->toBeNull()

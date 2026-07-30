@@ -6,6 +6,7 @@ use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\OrganizationApplicationController;
+use App\Http\Controllers\PracticeController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\SportController;
 use App\Http\Middleware\RedirectToHomeArea;
@@ -21,6 +22,9 @@ Route::get('preturi', PricingController::class)->name('pricing');
 Route::get('explorare', [ExploreController::class, 'index'])->name('explore');
 Route::get('locatii/{slug}', [LocationController::class, 'show'])->name('locations.show');
 Route::get('cluburi/{slug}', [ClubController::class, 'show'])->name('clubs.show');
+// A physiotherapist is not a club, and somebody looking for one is not looking
+// for training — so the two never share a URL.
+Route::get('specialisti/{slug}', [PracticeController::class, 'show'])->name('practices.show');
 
 Route::get('club-application', [OrganizationApplicationController::class, 'create'])->name('club-application.create');
 Route::post('club-application', [OrganizationApplicationController::class, 'store'])

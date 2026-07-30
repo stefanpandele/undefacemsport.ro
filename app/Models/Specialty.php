@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Models;
+
+use Database\Factories\SpecialtyFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Lang;
+
+/**
+ * What a practice does: physiotherapy, sports medicine, nutrition.
+ *
+ * A separate taxonomy from `Sport`, not a branch of it. Physiotherapy is not a
+ * sport, and `sports` carries product logic — popular sports, reach counts,
+ * explore filters, age groups, levels — that medical specialties would pollute.
+ *
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $icon
+ * @property string|null $color
+ * @property int $sort_order
+ * @property-read string $translated_name
+ */
+class Specialty extends Model
+{
+    /** @use HasFactory<SpecialtyFactory> */
+    use HasFactory;
+
+    public $timestamps = false;
+
+    /** @var list<string> */
+    protected $fillable = ['name', 'slug', 'icon', 'color', 'sort_order'];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'sort_order' => 'integer',
+        ];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    /**
+     * The specialty's name in the current locale, falling back to the stored one —
+     * the same arrangement `Sport` uses.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function translatedName(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $key = 'specialties.'.$this->slug;
+
+            return Lang::has($key) ? __($key) : $this->name;
+        });
+    }
+
+    /**
+     * The sports this specialty is commonly sought for. Only ever used to relate
+     * the two worlds on a page — never to count a physiotherapist as a club.
+     *
+     * @return BelongsToMany<Sport, $this>
+     */
+    public function sports(): BelongsToMany
+    {
+        return $this->belongsToMany(Sport::class, 'specialty_sport');
+    }
+
+    /**
+     * @return HasMany<Service, $this>
+     */
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class);
+    }
+}

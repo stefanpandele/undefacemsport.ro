@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Concerns\PresentsOrganizations;
 use App\Enums\ContactType;
+use App\Enums\OrganizationType;
 use App\Models\Facility;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -11,6 +12,7 @@ use App\Models\OrganizationSport;
 use App\Models\OrganizationSportBenefit;
 use App\Models\Person;
 use App\Models\ScheduleSlot;
+use App\Models\Service;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,16 +44,6 @@ class ClubController extends Controller
     ];
 
     /**
-     * Benefit labels mentioning these describe a service adjacent to the
-     * sport rather than the sport itself (e.g. massage at a pilates studio).
-     *
-     * @var list<string>
-     */
-    private const BEYOND_SPORT_KEYWORDS = [
-        'masaj', 'sauna', 'nutritie', 'fizioterapie', 'kineto', 'spa', 'recuperare',
-    ];
-
-    /**
      * Benefit labels mentioning these describe the format a session comes
      * in, alongside the explicit 1:1 flag.
      *
@@ -68,6 +60,10 @@ class ClubController extends Controller
     {
         $organization = Organization::query()
             ->where('slug', $slug)
+            // Clubs only. A venue or a practice has its own page, and serving one
+            // here would present it as something it is not — with a club's sports
+            // and schedule sections, both of which it has none of.
+            ->where('type', OrganizationType::Club)
             ->with([
                 'contacts',
                 'organizationSports.sport',
@@ -76,6 +72,7 @@ class ClubController extends Controller
                 'organizationSports.levels',
                 'organizationSports.galleryImages',
                 'people.sports',
+                'services.specialty',
                 'organizationLocations.location.facilities',
                 'organizationLocations.organizationLocationSports',
                 'scheduleSlots.organizationLocationSport',
@@ -104,7 +101,39 @@ class ClubController extends Controller
             'sportDetails' => $this->sportDetails($organization),
             'people' => $this->presentPeople($organization->people),
             'locationsBySport' => $this->locationsBySport($organization),
+            // What the club sells one appointment at a time — the massage at a
+            // pilates studio. An extra alongside the programme, never a second
+            // reason to come, and never part of discovery.
+            'extras' => $this->extras($organization),
         ];
+    }
+
+    /**
+     * Paid extras that are not the sport: the studio's massage, the club's
+     * recovery session. Real offers with a price and a duration, rather than a
+     * chip somebody happened to word a certain way.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function extras(Organization $organization): array
+    {
+        return array_values($organization->services
+            ->sortBy('sort_order')
+            ->map(function (Service $service): array {
+                $specialty = $service->specialty;
+
+                return [
+                    'key' => (string) $service->getKey(),
+                    'icon' => $specialty === null ? '💆' : (string) $specialty->icon,
+                    'name' => $service->name,
+                    'specialty' => $specialty === null ? null : $specialty->translated_name,
+                    'price' => $service->priceLabel(),
+                    'duration' => $service->durationLabel(),
+                    'description' => $service->description ?? '',
+                ];
+            })
+            ->values()
+            ->all());
     }
 
     private function representative(Organization $organization): string
@@ -175,7 +204,6 @@ class ClubController extends Controller
                         'trustChips' => $highlights['general'],
                         'sessionFormat' => $highlights['sessionFormat'],
                         'audience' => $highlights['audience'],
-                        'beyondSport' => $highlights['beyondSport'],
                         'ages' => $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all(),
                         'levels' => $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all(),
                         'gallery' => $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all(),
@@ -187,26 +215,27 @@ class ClubController extends Controller
 
     /**
      * Sort a sport's benefit chips into the groups the club page highlights
-     * separately, so a non-sport service (massage at a pilates studio) or an
-     * accessibility note doesn't disappear into a wall of generic chips.
+     * separately, so an accessibility note doesn't disappear into a wall of
+     * generic chips.
      *
-     * @return array{general: list<string>, sessionFormat: list<string>, audience: list<string>, beyondSport: list<string>}
+     * Non-sport extras used to be guessed here from keywords in a free-text label,
+     * which had no price, no duration, and broke on the first wording nobody
+     * anticipated. They are now real offers — see `extras()`.
+     *
+     * @return array{general: list<string>, sessionFormat: list<string>, audience: list<string>}
      */
     private function presentHighlights(OrganizationSport $organizationSport, bool $locationIsAccessible): array
     {
         $general = [];
         $sessionFormat = [];
         $audience = [];
-        $beyondSport = [];
 
         foreach ($organizationSport->benefits->sortBy('sort_order') as $benefit) {
             /** @var OrganizationSportBenefit $benefit */
             $label = trim(($benefit->icon ?? '').' '.$benefit->label);
             $normalized = Str::of($benefit->label)->lower()->ascii()->toString();
 
-            if (Str::contains($normalized, self::BEYOND_SPORT_KEYWORDS)) {
-                $beyondSport[] = $label;
-            } elseif (Str::contains($normalized, self::AUDIENCE_KEYWORDS)) {
+            if (Str::contains($normalized, self::AUDIENCE_KEYWORDS)) {
                 $audience[] = $label;
             } elseif (Str::contains($normalized, self::SESSION_FORMAT_KEYWORDS)) {
                 $sessionFormat[] = $label;
@@ -227,7 +256,6 @@ class ClubController extends Controller
             'general' => $general,
             'sessionFormat' => $sessionFormat,
             'audience' => $audience,
-            'beyondSport' => $beyondSport,
         ];
     }
 

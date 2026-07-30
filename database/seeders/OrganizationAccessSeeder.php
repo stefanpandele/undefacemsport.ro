@@ -12,6 +12,8 @@ use App\Models\Level;
 use App\Models\Organization;
 use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
+use App\Models\Service;
+use App\Models\Specialty;
 use App\Models\Sport;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -43,6 +45,7 @@ class OrganizationAccessSeeder extends Seeder
 
         $organization->addMember($owner);
         $this->seedShowcaseSport($organization);
+        $this->seedShowcaseExtra($organization);
 
         $owner = User::updateOrCreate(
             ['email' => 'club2@email.com'],
@@ -65,10 +68,44 @@ class OrganizationAccessSeeder extends Seeder
     /**
      * Give the demo club one fully fleshed-out sport so the public profile
      * (/cluburi/clubul-demo) shows every highlight group at once: the 1:1
-     * session-format chip, the "cui se adresează" chips (beginners, prenatal,
-     * accessibility), and a non-sport service (massage) — the exact pilates
-     * + massage case this was designed around. Idempotent, safe to re-run.
+     * session-format chip and the "cui se adresează" chips (beginners, prenatal,
+     * accessibility).
+     *
+     * The massage is not among them. It has a price and a duration, so it is an
+     * offer rather than a reason to trust — the exact pilates + massage case this
+     * demo was designed around, now modelled as what it is. See
+     * `seedShowcaseExtra()`. Idempotent, safe to re-run.
      */
+    /**
+     * The studio's massage: a paid non-sport extra alongside the classes.
+     *
+     * Not a second reason to come, which is why it lives under "Și, la fața
+     * locului" on the public page and never in discovery — somebody searching for
+     * a masseur wants a practice, not a pilates studio that happens to offer one.
+     */
+    private function seedShowcaseExtra(Organization $organization): void
+    {
+        $specialty = Specialty::query()->where('slug', 'masaj-sportiv')->first();
+
+        if ($specialty === null) {
+            return;
+        }
+
+        Service::updateOrCreate(
+            [
+                'organization_id' => $organization->getKey(),
+                'name' => 'Masaj terapeutic după antrenament',
+            ],
+            [
+                'specialty_id' => $specialty->getKey(),
+                'duration_minutes' => 30,
+                'price' => 120,
+                'description' => 'Se poate adăuga la orice ședință de pilates.',
+                'sort_order' => 0,
+            ],
+        );
+    }
+
     private function seedShowcaseSport(Organization $organization): void
     {
         $sport = Sport::updateOrCreate(
@@ -85,8 +122,6 @@ class OrganizationAccessSeeder extends Seeder
             ['icon' => '🏅', 'label' => 'Instructor certificat', 'sort_order' => 0],
             ['icon' => '🌱', 'label' => 'Grupe pentru începători', 'sort_order' => 1],
             ['icon' => '🤰', 'label' => 'Clase prenatal', 'sort_order' => 2],
-            ['icon' => '💆', 'label' => 'Masaj terapeutic după antrenament', 'sort_order' => 3],
-            ['icon' => '🧖', 'label' => 'Saună inclusă', 'sort_order' => 4],
         ] as $benefit) {
             $organizationSport->benefits()->updateOrCreate(
                 ['label' => $benefit['label']],
