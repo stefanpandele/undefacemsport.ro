@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FacilityStatus;
+use App\Enums\LocationWay;
 use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\Facility;
@@ -41,6 +43,10 @@ class ExploreController extends Controller
             ->unique()
             ->all());
         $search = $request->string('cauta')->trim()->toString() ?: null;
+        // Which way in the visitor is after: an organised programme, walking in,
+        // or booking the whole space. Unknown values are ignored rather than
+        // returning nothing, so a stale link still lands somewhere useful.
+        $way = LocationWay::tryFrom($request->string('mod')->trim()->toString());
 
         return Inertia::render('public/explore/Index', [
             'city' => $city,
@@ -49,8 +55,10 @@ class ExploreController extends Controller
                 'sport' => $sport,
                 'facilities' => $facilities,
                 'search' => $search,
+                'way' => $way?->value,
             ],
-            'locations' => $city === null ? [] : $this->locations($city, $sport, $facilities, $search),
+            'ways' => LocationWay::options(),
+            'locations' => $city === null ? [] : $this->locations($city, $sport, $facilities, $search, $way),
             'sports' => $city === null ? [] : $this->sports($city),
             'facilities' => $city === null ? [] : $this->facilities($city),
         ]);
@@ -161,10 +169,25 @@ class ExploreController extends Controller
      * @param  list<int>  $facilityIds
      * @return array<int, array<string, mixed>>
      */
-    private function locations(?string $city, ?string $sport, array $facilityIds, ?string $search): array
+    private function locations(?string $city, ?string $sport, array $facilityIds, ?string $search, ?LocationWay $way = null): array
     {
         $locations = Location::query()
             ->when($city, fn (Builder $query) => $query->where('city', $city))
+            // The way in narrows the list to places that actually offer it. A
+            // club programme lives on the presences; the other two on the spaces.
+            ->when($way === LocationWay::Organised, fn (Builder $query) => $query->whereHas(
+                'organizationLocations',
+                fn (BuilderContract $presences) => $presences->whereHas(
+                    'organization',
+                    fn (BuilderContract $organizations) => $organizations->where('type', OrganizationType::Club),
+                ),
+            ))
+            ->when($way?->accessMode() !== null, fn (Builder $query) => $query->whereHas(
+                'spaces',
+                fn (BuilderContract $spaces) => $spaces
+                    ->where('status', FacilityStatus::Approved)
+                    ->where('access_mode', $way?->accessMode()),
+            ))
             ->when($search, fn (Builder $query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when($sport, fn (Builder $query) => $query->whereHas(
                 'organizationLocations',

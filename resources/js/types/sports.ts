@@ -63,6 +63,58 @@ export type Facility = {
     label: string;
 };
 
+/** One interval of a space's opening hours, as a visitor reads it. */
+export type SpaceInterval = {
+    start: string;
+    end: string;
+    price: number | null;
+};
+
+/** A pool, a pitch, a court — one of the things you can use at a location. */
+export type SpaceOffer = {
+    id: number;
+    name: string;
+    operator: string | null;
+    unmanaged: boolean;
+    price: string | null;
+    priceNotes: string | null;
+    isFree: boolean;
+    capacity: number | null;
+    isIndoor: boolean | null;
+    hasFloodlights: boolean | null;
+    surface: string | null;
+    openNow: boolean;
+    closesAt: string | null;
+    lastVerified: string | null;
+    today: SpaceInterval[];
+    week: { day: string; hours: string }[];
+};
+
+/**
+ * A way into a sport at this location: a club's programme, walking in, or
+ * booking the whole space. Only the ones that exist here are sent.
+ */
+export type WayIn = {
+    key: 'organizat' | 'liber' | 'inchiriere';
+    verb: string;
+    how: string;
+    price: string | null;
+    who: string;
+    spaces: SpaceOffer[];
+};
+
+/** Today at this location, one row per space. Belongs to the place, not an offer. */
+export type LocationDay = {
+    label: string;
+    from: number;
+    to: number;
+    rows: {
+        name: string;
+        sub: string;
+        bars: { start: number; end: number; label: string }[];
+    }[];
+};
+
 export type LocationDetail = {
     slug: string;
     name: string;
@@ -73,4 +125,6 @@ export type LocationDetail = {
     facilities: Facility[];
     sports: SportOption[];
     clubs: LocationClub[];
+    ways: Record<string, WayIn[]>;
+    day: LocationDay | null;
 };

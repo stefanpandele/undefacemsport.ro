@@ -42,6 +42,8 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property FacilityStatus $status
  * @property Carbon|null $last_verified_at
  * @property int $sort_order
+ * @property-read Sport|null $sport  a sauna is not a sport
+ * @property-read OrganizationLocation|null $organizationLocation  null when nobody operates it
  */
 class Space extends Model
 {

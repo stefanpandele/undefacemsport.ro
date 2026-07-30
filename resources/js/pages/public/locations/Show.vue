@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import SiteNav from '@/components/SiteNav.vue';
 import ClubBlock from '@/components/sports/ClubBlock.vue';
 import LocationsMap from '@/components/sports/LocationsMap.vue';
@@ -12,7 +12,12 @@ import {
 } from '@/components/ui/dialog';
 import { gradientStyle, sportGradient } from '@/lib/gradients';
 import clubApplication from '@/routes/club-application';
-import type { Coach, LocationDetail, ScheduleSlot } from '@/types/sports';
+import type {
+    Coach,
+    LocationDetail,
+    ScheduleSlot,
+    WayIn,
+} from '@/types/sports';
 
 const props = defineProps<{
     location: LocationDetail;
@@ -76,6 +81,23 @@ const distance = computed(() => {
 
     return `${km < 10 ? km.toFixed(1) : Math.round(km)} km de mine`;
 });
+
+// Every way into the active sport here: a club's programme, walking in off the
+// street, booking the whole space. Only the ones that exist at this address.
+const ways = computed<WayIn[]>(() =>
+    activeSport.value ? (props.location.ways[activeSport.value] ?? []) : [],
+);
+
+const chosenWay = ref<string | null>(null);
+
+// A choice made for swimming means nothing for basketball.
+watch(activeSport, () => {
+    chosenWay.value = null;
+});
+
+const activeWay = computed<WayIn | null>(
+    () => ways.value.find((way) => way.key === chosenWay.value) ?? ways.value[0] ?? null,
+);
 
 const filteredClubs = computed(() =>
     activeSport.value
@@ -356,22 +378,68 @@ function goToClub(key: string) {
                 </div>
             </section>
 
-            <!-- Clubs -->
+            <!-- How you get in -->
             <div v-if="activeSport" class="pb-15">
-                <h2
-                    class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold"
-                >
-                    Cluburi
-                    <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1.5 font-jetbrains text-[11.5px] font-bold text-grass-deep"
+                <!-- Only ever a chooser when there is a choice: one way in is not
+                     an option, it is just the offer. -->
+                <template v-if="ways.length > 1">
+                    <h2 class="mb-3.5 font-archivo text-[19px] font-extrabold">
+                        Cum vrei să intri aici?
+                    </h2>
+                    <div
+                        class="mb-6 grid gap-2.5"
+                        style="
+                            grid-template-columns: repeat(
+                                auto-fit,
+                                minmax(215px, 1fr)
+                            );
+                        "
                     >
-                        <span class="h-1.5 w-1.5 rounded-full bg-grass" />
-                        {{ filteredClubs.length }}
-                        {{ filteredClubs.length === 1 ? 'CLUB' : 'CLUBURI' }}
-                    </span>
-                </h2>
+                        <button
+                            v-for="way in ways"
+                            :key="way.key"
+                            type="button"
+                            class="flex flex-col gap-1 rounded-2xl border-[1.5px] px-4 py-3.5 text-left transition"
+                            :class="
+                                activeWay?.key === way.key
+                                    ? 'border-grass bg-white shadow-[0_0_0_3px_rgba(21,184,119,0.18)]'
+                                    : 'border-line bg-[#f4f6f1] hover:border-grass/45'
+                            "
+                            @click="chosenWay = way.key"
+                        >
+                            <span class="font-archivo text-base font-extrabold">
+                                {{ way.verb }}
+                            </span>
+                            <span class="text-[13px] text-sage">{{ way.how }}</span>
+                            <span
+                                v-if="way.price"
+                                class="mt-0.5 font-jetbrains text-[13px] font-semibold"
+                            >
+                                {{ way.price }}
+                            </span>
+                            <span class="font-jetbrains text-[11px] text-sage">
+                                {{ way.who }}
+                            </span>
+                        </button>
+                    </div>
+                </template>
 
-                <template v-if="filteredClubs.length">
+                <!-- Organised programmes: the clubs, untouched. Nothing about a
+                     venue's hours belongs in here. -->
+                <template v-if="activeWay?.key === 'organizat'">
+                    <h2
+                        class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold"
+                    >
+                        Cluburi
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1.5 font-jetbrains text-[11.5px] font-bold text-grass-deep"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-grass" />
+                            {{ filteredClubs.length }}
+                            {{ filteredClubs.length === 1 ? 'CLUB' : 'CLUBURI' }}
+                        </span>
+                    </h2>
+
                     <ClubBlock
                         v-for="club in filteredClubs"
                         :key="club.key"
@@ -380,8 +448,155 @@ function goToClub(key: string) {
                         @open-hall="openHall"
                     />
                 </template>
+
+                <!-- Walking in, or booking the whole space. -->
+                <template v-else-if="activeWay">
+                    <div class="grid gap-3.5">
+                        <article
+                            v-for="space in activeWay.spaces"
+                            :key="space.id"
+                            class="rounded-2xl border-[1.5px] border-line bg-white p-5"
+                        >
+                            <header
+                                class="flex flex-wrap items-baseline justify-between gap-2.5"
+                            >
+                                <h3 class="font-archivo text-base font-extrabold">
+                                    {{ space.name }}
+                                </h3>
+                                <span
+                                    v-if="space.openNow"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-[#eaf6ef] px-2.5 py-1 font-jetbrains text-[11px] font-bold text-grass-deep"
+                                >
+                                    <span class="h-1.5 w-1.5 rounded-full bg-grass" />
+                                    <template v-if="space.closesAt">
+                                        DESCHIS PÂNĂ LA {{ space.closesAt }}
+                                    </template>
+                                    <template v-else>DESCHIS ACUM</template>
+                                </span>
+                                <span
+                                    v-else
+                                    class="rounded-lg bg-[#f4f6f1] px-2.5 py-1 font-jetbrains text-[11px] font-bold text-sage"
+                                >
+                                    ÎNCHIS ACUM
+                                </span>
+                            </header>
+
+                            <p class="mt-1 text-[13px] text-sage">
+                                <template v-if="space.operator">
+                                    Operat de {{ space.operator }}
+                                </template>
+                                <template v-else>
+                                    Spațiu public, neadministrat
+                                </template>
+                            </p>
+
+                            <p
+                                v-if="space.price"
+                                class="mt-2.5 font-jetbrains text-[15px] font-bold"
+                                :class="space.isFree ? 'text-grass-deep' : ''"
+                            >
+                                {{ space.price }}
+                            </p>
+                            <p v-else class="mt-2.5 text-[13px] text-sage">
+                                Preț nespecificat — întreabă la fața locului.
+                            </p>
+                            <p
+                                v-if="space.priceNotes"
+                                class="mt-1 text-[13px] text-sage"
+                            >
+                                {{ space.priceNotes }}
+                            </p>
+
+                            <!-- Today first: someone deciding now needs today, not
+                                 the shape of the week. -->
+                            <div v-if="space.today.length" class="mt-4">
+                                <p
+                                    class="mb-1.5 font-jetbrains text-[10px] font-bold tracking-[0.11em] text-sage uppercase"
+                                >
+                                    Azi
+                                </p>
+                                <ul class="flex flex-wrap gap-1.5">
+                                    <li
+                                        v-for="interval in space.today"
+                                        :key="interval.start"
+                                        class="rounded-lg border border-line px-2.5 py-1 font-jetbrains text-[12px]"
+                                    >
+                                        {{ interval.start }}–{{ interval.end }}
+                                        <span
+                                            v-if="interval.price !== null"
+                                            class="text-sage"
+                                        >
+                                            · {{ interval.price }} lei
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <details class="mt-3.5">
+                                <summary
+                                    class="cursor-pointer font-jetbrains text-[11px] font-bold tracking-[0.08em] text-sage uppercase"
+                                >
+                                    Programul săptămânii
+                                </summary>
+                                <dl
+                                    class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-jetbrains text-[12px]"
+                                >
+                                    <template v-for="row in space.week" :key="row.day">
+                                        <dt class="text-sage">{{ row.day }}</dt>
+                                        <dd :class="row.hours === 'închis' ? 'text-clay' : ''">
+                                            {{ row.hours }}
+                                        </dd>
+                                    </template>
+                                </dl>
+                            </details>
+
+                            <ul
+                                class="mt-3.5 flex flex-wrap gap-1.5 text-[12px] text-sage"
+                            >
+                                <li
+                                    v-if="space.capacity"
+                                    class="rounded-full border border-line px-2.5 py-0.5"
+                                >
+                                    {{ space.capacity }} locuri
+                                </li>
+                                <li
+                                    v-if="space.isIndoor"
+                                    class="rounded-full border border-line px-2.5 py-0.5"
+                                >
+                                    Acoperit
+                                </li>
+                                <li
+                                    v-if="space.hasFloodlights"
+                                    class="rounded-full border border-line px-2.5 py-0.5"
+                                >
+                                    Nocturnă
+                                </li>
+                                <li
+                                    v-if="space.surface"
+                                    class="rounded-full border border-line px-2.5 py-0.5"
+                                >
+                                    {{ space.surface }}
+                                </li>
+                            </ul>
+
+                            <!-- Nobody maintains an unmanaged record, so the page
+                                 says how old it is instead of pretending. -->
+                            <p
+                                v-if="space.unmanaged"
+                                class="mt-3.5 border-l-[3px] border-clay pl-3 text-[12px] text-sage"
+                            >
+                                <template v-if="space.lastVerified">
+                                    Verificat {{ space.lastVerified }}.
+                                </template>
+                                <template v-else>Neverificat încă.</template>
+                                Dacă informația e greșită, spune-ne.
+                            </p>
+                        </article>
+                    </div>
+                </template>
+
                 <div v-else class="py-8 text-center text-sage">
-                    Niciun club nu ține încă lecții de acest sport aici.
+                    Nimeni nu oferă încă acest sport aici.
                     <Link
                         :href="clubApplication.create.url()"
                         class="font-semibold text-grass-deep"
@@ -390,6 +605,74 @@ function goToClub(key: string) {
                     </Link>
                 </div>
             </div>
+
+            <!-- Today at this location. A view of the place, not of anybody's
+                 offer — which is why it sits outside the sport sections. -->
+            <section v-if="location.day" class="pb-15">
+                <h2 class="mb-1 font-archivo text-[19px] font-extrabold">
+                    {{ location.day.label }}
+                </h2>
+                <p class="mb-3.5 text-[13px] text-sage">
+                    Ce se întâmplă în fiecare spațiu de aici, indiferent cine îl
+                    oferă.
+                </p>
+                <div class="overflow-x-auto">
+                    <div class="min-w-[560px]">
+                        <div
+                            v-for="row in location.day.rows"
+                            :key="row.name"
+                            class="mb-1.5 grid grid-cols-[120px_1fr] items-center gap-2.5"
+                        >
+                            <div class="text-[13px]">
+                                {{ row.name }}
+                                <small
+                                    v-if="row.sub"
+                                    class="block font-jetbrains text-[11px] text-sage"
+                                >
+                                    {{ row.sub }}
+                                </small>
+                            </div>
+                            <div
+                                class="relative h-8 rounded-lg bg-[#f4f6f1]"
+                                :style="{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${location.day.to - location.day.from}, 1fr)`,
+                                }"
+                            >
+                                <div
+                                    v-for="bar in row.bars"
+                                    :key="`${bar.start}-${bar.end}`"
+                                    class="my-1 flex items-center overflow-hidden rounded-md bg-grass px-2 font-jetbrains text-[11px] whitespace-nowrap text-white"
+                                    :style="{
+                                        gridColumn: `${Math.max(1, bar.start - location.day.from + 1)} / ${Math.max(2, bar.end - location.day.from + 1)}`,
+                                    }"
+                                >
+                                    {{ bar.label }}
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-1 grid grid-cols-[120px_1fr] gap-2.5 font-jetbrains text-[10px] text-sage"
+                        >
+                            <span />
+                            <div
+                                :style="{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${location.day.to - location.day.from}, 1fr)`,
+                                }"
+                            >
+                                <span
+                                    v-for="hour in location.day.to -
+                                    location.day.from"
+                                    :key="hour"
+                                >
+                                    {{ String(location.day.from + hour - 1).padStart(2, '0') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <!-- Coach modal -->
