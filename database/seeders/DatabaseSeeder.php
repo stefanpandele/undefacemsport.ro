@@ -33,6 +33,10 @@ class DatabaseSeeder extends Seeder
                 ClubProfileSeeder::class,
                 ClubApplicationSeeder::class,
                 AdminAccessSeeder::class,
+                // Last: needs clubs, locations and admin users to already exist,
+                // so it can file proposals from real clubs and mark some of them
+                // reviewed by a real admin.
+                LocationCorrectionSeeder::class,
             ]);
         }
     }

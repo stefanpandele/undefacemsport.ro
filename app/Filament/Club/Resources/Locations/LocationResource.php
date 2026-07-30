@@ -3,6 +3,7 @@
 namespace App\Filament\Club\Resources\Locations;
 
 use App\Enums\FacilityStatus;
+use App\Enums\LocationCorrectionField;
 use App\Filament\Club\Resources\Locations\Pages\ManageLocations;
 use App\Filament\Concerns\ResolvesClub;
 use App\Filament\Forms\Components\LocationMap;
@@ -13,6 +14,7 @@ use App\Models\County;
 use App\Models\Facility;
 use App\Models\Locality;
 use App\Models\Location;
+use App\Models\LocationCorrection;
 use App\Models\Sport;
 use App\Services\Geocoder;
 use BackedEnum;
@@ -25,7 +27,9 @@ use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -36,12 +40,20 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Component;
 use RuntimeException;
 
 class LocationResource extends Resource
 {
     use ResolvesClub;
+
+    /**
+     * The `location_choice` value that means "none of these — it really is a new
+     * place". An explicit answer, so that saving past a proximity warning is
+     * always a decision and never an oversight.
+     */
+    public const CHOICE_NEW = 'new';
 
     protected static ?string $model = ClubLocation::class;
 
@@ -82,8 +94,7 @@ class LocationResource extends Resource
                 ->required()
                 ->afterStateUpdated(function ($state, $set, Component $livewire): void {
                     $set('city', null);
-                    $set('name_locked', false);
-                    $set('known_location_id', null);
+                    static::forgetResolvedPlace($set);
                     static::geocodeAndGoto($set, $livewire, static::composeAddress(null, null, $state), zoom: 9);
                 }),
             Select::make('city')
@@ -104,10 +115,7 @@ class LocationResource extends Resource
                 ->required()
                 ->columnSpanFull()
                 ->live(onBlur: true)
-                ->afterStateUpdated(function ($set): void {
-                    $set('name_locked', false);
-                    $set('known_location_id', null);
-                })
+                ->afterStateUpdated(fn ($set) => static::forgetResolvedPlace($set))
                 ->rule(static function ($get, ?ClubLocation $record, ?Component $livewire): Closure {
                     return static function (string $attribute, mixed $value, Closure $fail) use ($get, $record, $livewire): void {
                         $club = static::resolveClub($livewire);
@@ -115,6 +123,26 @@ class LocationResource extends Resource
                         if ($club instanceof Club && $club->clubLocationAt($get('county'), $get('city'), $value, $record?->getKey()) !== null) {
                             $fail('Ai deja o locație la această adresă.');
                         }
+                    };
+                })
+                // The search button below is optional, and imports never press it.
+                // This runs on every save: if the pin lands next to places that
+                // are probably the same one, the club has to say which — or say
+                // out loud that this is a new place.
+                ->rule(static function ($get, ?ClubLocation $record): Closure {
+                    return static function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                        $candidates = static::unresolvedNeighbours($get, $record);
+
+                        if ($candidates->isEmpty()) {
+                            return;
+                        }
+
+                        $fail(
+                            'Există deja '.trans_choice('{1} o locație|[2,*] :count locații', $candidates->count())
+                            .' la mai puțin de '.Location::NEARBY_METERS.' m: '
+                            .$candidates->map(fn (Location $location): string => '„'.$location->name.'"')->implode(', ')
+                            .'. Apasă „Caută" și alege locația potrivită, sau confirmă că este una nouă.',
+                        );
                     };
                 })
                 ->suffixAction(
@@ -136,11 +164,11 @@ class LocationResource extends Resource
                                 return;
                             }
 
-                            $coordinates = app(Geocoder::class)->geocode(
+                            $geocoded = app(Geocoder::class)->geocode(
                                 static::composeAddress($get('address'), $get('city'), $get('county')),
                             );
 
-                            if ($coordinates === null) {
+                            if ($geocoded === null) {
                                 Notification::make()
                                     ->warning()
                                     ->title('Adresa nu a putut fi găsită')
@@ -150,36 +178,55 @@ class LocationResource extends Resource
                                 return;
                             }
 
-                            // A shared location may already exist at this address (added by
-                            // any club): reuse its canonical name and show our own pin.
-                            $shared = Location::atAddress($get('county'), $get('city'), $get('address'));
+                            $set('google_place_id', $geocoded->placeId);
+                            $set('location', $geocoded->coordinates());
+
+                            // Google's place id, then the exact address: both mean
+                            // "certainly the same place", so the shared record is
+                            // adopted without asking. Its canonical name comes with it.
+                            $shared = Location::exactMatch(
+                                $geocoded->placeId,
+                                $get('county'),
+                                $get('city'),
+                                $get('address'),
+                            );
 
                             if ($shared !== null) {
-                                $set('name', $shared->name);
-                                $set('name_locked', true);
-
-                                $club = static::resolveClub($livewire);
-                                $alreadyMine = $club instanceof Club
-                                    && $club->clubLocationAt($get('county'), $get('city'), $get('address'), $record?->getKey()) !== null;
+                                static::adoptExistingPlace($set, $shared);
 
                                 Notification::make()
                                     ->warning()
-                                    ->title($alreadyMine ? 'Ai deja această locație' : 'Locație existentă')
-                                    ->body($alreadyMine
+                                    ->title(static::isAlreadyMine($shared, $livewire, $record) ? 'Ai deja această locație' : 'Locație existentă')
+                                    ->body(static::isAlreadyMine($shared, $livewire, $record)
                                         ? '„'.$shared->name.'" e deja în lista ta.'
                                         : '„'.$shared->name.'" există deja — o vei folosi cu numele ei.')
                                     ->send();
                             } else {
-                                $set('name_locked', false);
-                            }
+                                // Nothing certain. Anything close by is only a
+                                // question: two halls can stand 50m apart, so the
+                                // club decides, never the radius.
+                                $candidates = Location::nearby(
+                                    $geocoded->latitude,
+                                    $geocoded->longitude,
+                                    excludeId: $record?->location_id,
+                                );
 
-                            $set('known_location_id', $shared?->getKey());
-                            $set('location', $coordinates);
+                                static::offerNeighbours($set, $candidates);
+
+                                if ($candidates->isNotEmpty()) {
+                                    Notification::make()
+                                        ->warning()
+                                        ->title('Am găsit locații foarte apropiate')
+                                        ->body('Alege locația potrivită din listă, sau confirmă că este una nouă.')
+                                        ->persistent()
+                                        ->send();
+                                }
+                            }
 
                             $livewire->dispatch(
                                 'location-map-goto',
-                                lat: $coordinates['lat'],
-                                lng: $coordinates['lng'],
+                                lat: $geocoded->latitude,
+                                lng: $geocoded->longitude,
                                 zoom: 16,
                                 existing: $shared !== null,
                             );
@@ -189,6 +236,32 @@ class LocationResource extends Resource
                 ->dehydrated(false),
             LocationMap::make('location')
                 ->label('Hartă — mută pinul pentru poziția exactă')
+                ->columnSpanFull(),
+            Radio::make('location_choice')
+                ->label('Este una dintre locațiile deja existente?')
+                ->helperText('Dacă alegi una existentă, o vei folosi cu numele ei — locațiile sunt partajate între cluburi.')
+                ->options(fn ($get): array => static::candidateOptions($get('nearby_candidates')))
+                ->visible(fn ($get): bool => filled($get('nearby_candidates')))
+                ->required(fn ($get): bool => filled($get('nearby_candidates')))
+                ->live()
+                ->afterStateUpdated(function ($state, $set): void {
+                    // Anything that is not an id — CHOICE_NEW, or nothing yet —
+                    // means the club is not adopting an existing place.
+                    if (! is_numeric($state)) {
+                        $set('chosen_location_id', null);
+                        $set('name_locked', false);
+
+                        return;
+                    }
+
+                    $chosen = Location::query()->whereKey((int) $state)->first();
+
+                    if ($chosen !== null) {
+                        static::adoptExistingPlace($set, $chosen);
+                        $set('location_choice', (string) $chosen->getKey());
+                    }
+                })
+                ->dehydrated(false)
                 ->columnSpanFull(),
             TextInput::make('name')
                 ->label('Nume locație')
@@ -208,7 +281,150 @@ class LocationResource extends Resource
                 ->searchable(),
             Hidden::make('known_location_id')
                 ->dehydrated(false),
+            // The shared location the club explicitly settled on when the address
+            // alone was ambiguous. Distinct from `known_location_id`, which only
+            // says which place the facilities tab is talking about and must not
+            // override an address the club is deliberately changing.
+            Hidden::make('chosen_location_id')
+                ->dehydrated(),
+            Hidden::make('google_place_id')
+                ->dehydrated(),
+            Hidden::make('nearby_candidates')
+                ->dehydrated(false),
         ];
+    }
+
+    /**
+     * Drop everything the last address resolution concluded. Called whenever the
+     * county, city or street changes, so a stale answer can never be saved
+     * against a new address.
+     */
+    protected static function forgetResolvedPlace(callable $set): void
+    {
+        $set('name_locked', false);
+        $set('known_location_id', null);
+        $set('chosen_location_id', null);
+        $set('location_choice', null);
+        $set('nearby_candidates', null);
+        $set('google_place_id', null);
+    }
+
+    /**
+     * Take on a shared location: its canonical name, locked, and its id recorded
+     * as both the facilities context and the club's explicit choice.
+     */
+    protected static function adoptExistingPlace(callable $set, Location $location): void
+    {
+        $set('name', $location->name);
+        $set('name_locked', true);
+        $set('known_location_id', $location->getKey());
+        $set('chosen_location_id', $location->getKey());
+        $set('nearby_candidates', null);
+    }
+
+    /**
+     * Put the nearby places in front of the club as a question to answer.
+     *
+     * @param  Collection<int, Location>  $candidates
+     */
+    protected static function offerNeighbours(callable $set, Collection $candidates): void
+    {
+        $set('name_locked', false);
+        $set('known_location_id', null);
+        $set('chosen_location_id', null);
+        $set('location_choice', null);
+        $set('nearby_candidates', $candidates->isEmpty() ? null : $candidates
+            ->mapWithKeys(fn (Location $location): array => [
+                (string) $location->getKey() => $location->name.' — la '.round((float) $location->distance_meters).' m'
+                    .' ('.trans_choice('{0} niciun club|{1} un club|[2,*] :count cluburi', $location->clubLocations()->count()).')',
+            ])
+            ->all());
+    }
+
+    /**
+     * @param  mixed  $candidates  the `nearby_candidates` form state
+     * @return array<string, string>
+     */
+    protected static function candidateOptions(mixed $candidates): array
+    {
+        $options = is_array($candidates) ? $candidates : [];
+
+        return $options + [self::CHOICE_NEW => 'Niciuna — este o locație nouă'];
+    }
+
+    /**
+     * Nearby places the club has neither adopted nor waved off, if any.
+     *
+     * @return Collection<int, Location>
+     */
+    protected static function unresolvedNeighbours(callable $get, ?ClubLocation $record): Collection
+    {
+        return static::neighboursNeedingAnswer([
+            'location' => $get('location'),
+            'google_place_id' => $get('google_place_id'),
+            'county' => $get('county'),
+            'city' => $get('city'),
+            'address' => $get('address'),
+            'chosen_location_id' => $get('chosen_location_id'),
+            'location_choice' => $get('location_choice'),
+        ], $record?->location_id);
+    }
+
+    /**
+     * Nearby places that still need a human answer before this form may be saved.
+     * Empty whenever the address is already certain, there is no pin to compare
+     * against, or the club has answered — by picking one, or by saying out loud
+     * that this is a new place.
+     *
+     * Takes plain state rather than the form, so the rule that guards saving and
+     * the button that offers the choice cannot drift apart.
+     *
+     * @param  array<string, mixed>  $state
+     * @return Collection<int, Location>
+     */
+    public static function neighboursNeedingAnswer(array $state, ?int $excludeLocationId = null): Collection
+    {
+        if (filled($state['chosen_location_id'] ?? null) || ($state['location_choice'] ?? null) === self::CHOICE_NEW) {
+            return new Collection;
+        }
+
+        $latitude = $state['location']['lat'] ?? null;
+        $longitude = $state['location']['lng'] ?? null;
+
+        // No pin means no proximity question to ask; `name` and `address` are
+        // required anyway, so nothing gets in silently.
+        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
+            return new Collection;
+        }
+
+        // A certain match needs no question: syncLocation will reuse that record.
+        $certain = Location::exactMatch(
+            is_string($state['google_place_id'] ?? null) ? $state['google_place_id'] : null,
+            $state['county'] ?? null,
+            $state['city'] ?? null,
+            $state['address'] ?? null,
+        );
+
+        if ($certain !== null) {
+            return new Collection;
+        }
+
+        return Location::nearby((float) $latitude, (float) $longitude, excludeId: $excludeLocationId);
+    }
+
+    /**
+     * Whether this club is already present at the given shared location, ignoring
+     * the presence currently being edited.
+     */
+    protected static function isAlreadyMine(Location $location, ?Component $livewire, ?ClubLocation $record): bool
+    {
+        $club = static::resolveClub($livewire);
+
+        return $club instanceof Club
+            && $club->clubLocations()
+                ->where('location_id', $location->getKey())
+                ->when($record, fn (Builder $query) => $query->whereKeyNot($record->getKey()))
+                ->exists();
     }
 
     /**
@@ -342,6 +558,7 @@ class LocationResource extends Resource
                 EditAction::make()
                     ->mutateRecordDataUsing(fn (array $data, ClubLocation $record): array => static::fillFromRecord($data, $record))
                     ->using(fn (ClubLocation $record, array $data): ClubLocation => static::persist($data, $record)),
+                static::proposeCorrectionAction(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([
@@ -352,14 +569,74 @@ class LocationResource extends Resource
     }
 
     /**
+     * Ask an administrator to fix a field of the shared location.
+     *
+     * The escape valve that makes the duplicate check safe: a club cannot edit a
+     * place other clubs rely on, so without a way to report a wrong record its
+     * only remaining move would be to create a duplicate on purpose.
+     */
+    public static function proposeCorrectionAction(): Action
+    {
+        return Action::make('proposeCorrection')
+            ->label('Propune o corecție')
+            ->icon(Heroicon::OutlinedFlag)
+            ->color('gray')
+            ->modalHeading('Propune o corecție')
+            ->modalDescription('Locația e partajată cu alte cluburi, așa că nu îi poți schimba datele direct. Un administrator verifică propunerea înainte să se vadă public.')
+            ->modalSubmitActionLabel('Trimite propunerea')
+            ->schema([
+                Placeholder::make('current')
+                    ->label('Datele actuale')
+                    ->content(fn (ClubLocation $record): string => implode(' · ', array_filter([
+                        $record->location?->name,
+                        $record->location?->address,
+                        $record->location?->city,
+                        $record->location?->county,
+                    ]))),
+                Select::make('field')
+                    ->label('Ce este greșit?')
+                    ->options(LocationCorrectionField::options())
+                    ->required(),
+                TextInput::make('suggested_value')
+                    ->label('Valoarea corectă')
+                    ->required()
+                    ->maxLength(255),
+                Textarea::make('note')
+                    ->label('De unde știi? (opțional)')
+                    ->helperText('Un administrator citește asta înainte să aplice corecția.')
+                    ->maxLength(1000),
+            ])
+            ->action(function (array $data, ClubLocation $record): void {
+                LocationCorrection::create([
+                    'location_id' => $record->location_id,
+                    'club_id' => $record->club_id,
+                    'field' => $data['field'],
+                    'suggested_value' => $data['suggested_value'],
+                    'note' => $data['note'] ?? null,
+                ]);
+
+                Notification::make()
+                    ->success()
+                    ->title('Propunerea a fost trimisă')
+                    ->body('Îți mulțumim — un administrator o verifică în curând.')
+                    ->send();
+            });
+    }
+
+    /**
      * Persist a club's presence at a location from submitted form data, reusing
      * or creating the shared location and syncing the sports taught there.
      *
      * @param  array<string, mixed>  $data
+     * @param  Club|null  $club  the owning club when there is no panel context to read it from
      */
-    public static function persist(array $data, ?ClubLocation $record = null, ?Component $livewire = null): ClubLocation
-    {
-        $club = $record instanceof ClubLocation ? $record->club : static::resolveClub($livewire);
+    public static function persist(
+        array $data,
+        ?ClubLocation $record = null,
+        ?Component $livewire = null,
+        ?Club $club = null,
+    ): ClubLocation {
+        $club ??= $record instanceof ClubLocation ? $record->club : static::resolveClub($livewire);
 
         if (! $club instanceof Club) {
             throw new RuntimeException('Nu există context de club pentru salvarea locației.');
@@ -373,9 +650,11 @@ class LocationResource extends Resource
                 'name' => $data['name'],
                 'latitude' => $data['location']['lat'] ?? null,
                 'longitude' => $data['location']['lng'] ?? null,
+                'google_place_id' => is_string($data['google_place_id'] ?? null) ? $data['google_place_id'] : null,
             ],
             $data['sports'] ?? [],
             $record,
+            static::chosenLocationId($data),
         );
 
         // Facilities belong to the shared location and are only ever added,
@@ -415,10 +694,29 @@ class LocationResource extends Resource
             'location' => $location?->location,
             'name_locked' => true,
             'known_location_id' => $record->location_id,
+            // Left empty on purpose: a club editing this form may be deliberately
+            // moving its presence to another address, and a pre-filled choice
+            // would pin it to the old place and swallow that edit.
+            'chosen_location_id' => null,
+            'location_choice' => null,
+            'nearby_candidates' => null,
+            'google_place_id' => $location?->google_place_id,
             'new_facilities' => [],
             'new_facility_photos' => [],
             'sports' => $record->sports->pluck('id')->all(),
         ]);
+    }
+
+    /**
+     * The shared location the club settled on, if the form asked it to choose.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected static function chosenLocationId(array $data): ?int
+    {
+        $chosen = $data['chosen_location_id'] ?? null;
+
+        return is_numeric($chosen) ? (int) $chosen : null;
     }
 
     /**
@@ -512,18 +810,20 @@ class LocationResource extends Resource
      */
     protected static function geocodeAndGoto(callable $set, Component $livewire, string $address, int $zoom): bool
     {
-        $coordinates = app(Geocoder::class)->geocode($address);
+        $geocoded = app(Geocoder::class)->geocode($address);
 
-        if ($coordinates === null) {
+        if ($geocoded === null) {
             return false;
         }
 
-        $set('location', $coordinates);
+        // The place id is deliberately not kept: this resolves a county or a city,
+        // and Google's identity for those is not the identity of a venue in them.
+        $set('location', $geocoded->coordinates());
 
         $livewire->dispatch(
             'location-map-goto',
-            lat: $coordinates['lat'],
-            lng: $coordinates['lng'],
+            lat: $geocoded->latitude,
+            lng: $geocoded->longitude,
             zoom: $zoom,
         );
 

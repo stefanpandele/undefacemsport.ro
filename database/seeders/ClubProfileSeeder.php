@@ -114,9 +114,11 @@ class ClubProfileSeeder extends Seeder
             ->doesntHave('clubSports')
             ->get()
             ->each(function (Club $club, int $index) use ($ageGroups, $venuesByCity, $cities, $pools): void {
-                // Round-robin over cities so every city gets clubs, instead of
-                // the random draw clustering them all in one place.
-                $city = $cities[$index % $cities->count()];
+                // Round-robin over cities, two clubs at a time. Handing out one
+                // club per city spread them so thin that no city ever held two,
+                // and a city with a single club has nobody to share a hall with —
+                // which is the whole thing the location page is built to show.
+                $city = $cities[intdiv($index, 2) % $cities->count()];
                 $venues = $venuesByCity->get($city);
                 $pool = $pools->get($city);
 

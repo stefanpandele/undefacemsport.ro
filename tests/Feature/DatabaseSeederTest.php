@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
 
-    expect(Club::count())->toBe(16); // 14 demo clubs + the 2 known login clubs
+    expect(Club::count())->toBe(38); // 36 demo clubs + the 2 known login clubs
 
     Club::with('owner', 'users')->get()->each(function (Club $club): void {
         expect($club->owner)->not->toBeNull()
@@ -78,6 +78,24 @@ test('seeding gives clubs a public profile to show', function () {
     expect(ScheduleSlot::count())->toBeGreaterThan(50);
 });
 
+test('every seeded city holds at least two clubs, so a hall can be shared', function () {
+    // The invariant that ties ClubSeeder's target to LocationSeeder's city list:
+    // widening the venues without widening the clubs once left every city with a
+    // single club, and a lone club shares a hall with nobody.
+    $this->seed();
+
+    $clubsPerCity = DB::table('club_location')
+        ->join('locations', 'locations.id', '=', 'club_location.location_id')
+        ->groupBy('locations.city')
+        ->selectRaw('locations.city, count(distinct club_location.club_id) as clubs')
+        ->pluck('clubs', 'city');
+
+    expect($clubsPerCity)->not->toBeEmpty();
+
+    $clubsPerCity->each(fn (int $clubs, string $city) => expect($clubs)
+        ->toBeGreaterThanOrEqual(2, $city.' has only '.$clubs.' club(s)'));
+});
+
 test('seeding puts clubs in the same hall on the same sport and interval', function () {
     $this->seed();
 
@@ -104,7 +122,7 @@ test('seeding tops up a database that already holds a few clubs', function () {
 
     $this->seed();
 
-    expect(Club::count())->toBe(16);
+    expect(Club::count())->toBe(38);
 
     Club::with('clubSports')->get()->each(
         fn (Club $club) => expect($club->clubSports)->not->toBeEmpty(),

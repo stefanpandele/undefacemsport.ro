@@ -128,24 +128,18 @@ class Club extends Model
      * presence there, and sync the sports it teaches. An existing location is
      * reused (its canonical name is preserved) instead of being duplicated.
      *
-     * @param  array{county: string, city: string, address: string, name: string, latitude?: float|string|null, longitude?: float|string|null}  $attributes
+     * @param  array{county: string, city: string, address: string, name: string, latitude?: float|string|null, longitude?: float|string|null, google_place_id?: string|null}  $attributes
      * @param  array<int>  $sportIds
+     * @param  int|null  $knownLocationId  a shared location the caller has confirmed is the right one
      */
-    public function syncLocation(array $attributes, array $sportIds = [], ?ClubLocation $clubLocation = null): ClubLocation
-    {
-        return DB::transaction(function () use ($attributes, $sportIds, $clubLocation): ClubLocation {
-            $location = Location::firstOrCreate(
-                [
-                    'county' => $attributes['county'],
-                    'city' => $attributes['city'],
-                    'address' => $attributes['address'],
-                ],
-                [
-                    'name' => $attributes['name'],
-                    'latitude' => $attributes['latitude'] ?? null,
-                    'longitude' => $attributes['longitude'] ?? null,
-                ],
-            );
+    public function syncLocation(
+        array $attributes,
+        array $sportIds = [],
+        ?ClubLocation $clubLocation = null,
+        ?int $knownLocationId = null,
+    ): ClubLocation {
+        return DB::transaction(function () use ($attributes, $sportIds, $clubLocation, $knownLocationId): ClubLocation {
+            $location = $this->resolveLocation($attributes, $knownLocationId);
 
             $clubLocation = $clubLocation === null
                 ? $this->clubLocations()->firstOrCreate(['location_id' => $location->getKey()])
@@ -155,6 +149,58 @@ class Club extends Model
 
             return $clubLocation;
         });
+    }
+
+    /**
+     * The shared location a presence belongs to: one the caller explicitly chose,
+     * else the place Google's id or the exact address already identifies, else a
+     * new record.
+     *
+     * This is where the truth lives — not in the panel's search button, which a
+     * user can skip by filling the address and saving straight through, and which
+     * imports and seeders never touch at all.
+     *
+     * Proximity is deliberately absent: two halls can sit 50m apart, so a near
+     * miss is a question for a human, never a silent attachment. The club panel
+     * asks it (see LocationResource); everything else gets a new record.
+     *
+     * @param  array{county: string, city: string, address: string, name: string, latitude?: float|string|null, longitude?: float|string|null, google_place_id?: string|null}  $attributes
+     */
+    private function resolveLocation(array $attributes, ?int $knownLocationId): Location
+    {
+        if ($knownLocationId !== null) {
+            return Location::query()->findOrFail($knownLocationId);
+        }
+
+        $placeId = $attributes['google_place_id'] ?? null;
+
+        $existing = Location::exactMatch(
+            $placeId,
+            $attributes['county'],
+            $attributes['city'],
+            $attributes['address'],
+        );
+
+        if ($existing !== null) {
+            // Backfill Google's identity onto a place first created without it, so
+            // the next club that arrives with a place id matches this row instead
+            // of starting a duplicate beside it.
+            if (filled($placeId) && blank($existing->google_place_id)) {
+                $existing->update(['google_place_id' => $placeId]);
+            }
+
+            return $existing;
+        }
+
+        return Location::create([
+            'county' => $attributes['county'],
+            'city' => $attributes['city'],
+            'address' => $attributes['address'],
+            'name' => $attributes['name'],
+            'latitude' => $attributes['latitude'] ?? null,
+            'longitude' => $attributes['longitude'] ?? null,
+            'google_place_id' => $placeId,
+        ]);
     }
 
     /**

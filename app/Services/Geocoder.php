@@ -7,13 +7,15 @@ use Illuminate\Support\Facades\Http;
 class Geocoder
 {
     /**
-     * Geocode a composed address string into {lat, lng} via the Google Geocoding
-     * API. Returns null when no key is configured, the input is blank, or Google
-     * returns no usable result.
+     * Geocode a composed address string via the Google Geocoding API. Returns
+     * null when no key is configured, the input is blank, or Google returns no
+     * usable result.
      *
-     * @return array{lat: float, lng: float}|null
+     * The response's `place_id` is read alongside the coordinates: it costs
+     * nothing extra on a call that already happens, and it turns location dedup
+     * from a guess about distance into an exact identity check.
      */
-    public function geocode(string $address): ?array
+    public function geocode(string $address): ?GeocodedAddress
     {
         $key = config('filament-google-maps.keys.server_key');
 
@@ -21,19 +23,28 @@ class Geocoder
             return null;
         }
 
-        $location = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
+        $result = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
             'address' => $address,
             'region' => 'ro',
             'key' => $key,
-        ])->json('results.0.geometry.location');
+        ])->json('results.0');
 
-        if (! is_array($location) || ! isset($location['lat'], $location['lng'])) {
+        if (! is_array($result)) {
             return null;
         }
 
-        return [
-            'lat' => (float) $location['lat'],
-            'lng' => (float) $location['lng'],
-        ];
+        $coordinates = $result['geometry']['location'] ?? null;
+
+        if (! is_array($coordinates) || ! isset($coordinates['lat'], $coordinates['lng'])) {
+            return null;
+        }
+
+        $placeId = $result['place_id'] ?? null;
+
+        return new GeocodedAddress(
+            (float) $coordinates['lat'],
+            (float) $coordinates['lng'],
+            is_string($placeId) && filled($placeId) ? $placeId : null,
+        );
     }
 }

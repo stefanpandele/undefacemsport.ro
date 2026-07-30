@@ -13,12 +13,17 @@ class ClubSeeder extends Seeder
      * subscription limits stay testable and the public explore/location pages
      * have enough volume to look real.
      *
+     * Sized against the seeded cities: ClubProfileSeeder places clubs two at a
+     * time, so this has to stay at roughly twice the number of cities in
+     * LocationSeeder — below that, cities end up with venues and no clubs, and
+     * no two clubs ever share a hall.
+     *
      * @var array<string, int>
      */
     private const TARGET = [
-        Plan::Free->value => 4,
-        Plan::Pro->value => 7,
-        Plan::Premium->value => 3,
+        Plan::Free->value => 10,
+        Plan::Pro->value => 18,
+        Plan::Premium->value => 8,
     ];
 
     /**
