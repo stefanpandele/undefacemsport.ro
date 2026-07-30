@@ -5,7 +5,6 @@ import SiteNav from '@/components/SiteNav.vue';
 import AutocompleteField from '@/components/sports/AutocompleteField.vue';
 import type { AutocompleteOption } from '@/components/sports/AutocompleteField.vue';
 import { sportGradient } from '@/lib/gradients';
-import { explore } from '@/routes';
 import sportRoutes from '@/routes/sports';
 
 type SportCard = {
@@ -121,7 +120,7 @@ const matching = computed(() => {
                 <Link
                     v-for="sport in matching"
                     :key="sport.key"
-                    :href="explore.url({ query: { sport: sport.key } })"
+                    :href="sportRoutes.show.url({ slug: sport.key })"
                     class="group overflow-hidden rounded-[18px] border border-line bg-white text-left transition hover:-translate-y-1 hover:border-grass hover:shadow-[0_24px_44px_-26px_rgba(11,20,16,0.45)]"
                 >
                     <div

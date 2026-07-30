@@ -9,6 +9,7 @@ use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use Carbon\CarbonInterface;
 use Database\Factories\SpaceFactory;
+use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -197,6 +198,25 @@ class Space extends Model
     public function scopeOfMode(Builder $query, SpaceAccessMode $mode): void
     {
         $query->where('access_mode', $mode);
+    }
+
+    /**
+     * Spaces you can get into this way — their own mode, or any interval that
+     * overrides it.
+     *
+     * The SQL twin of `accessModes()`. A plain `where('access_mode', …)` would
+     * miss the hall that is booked by the hour all week and runs open-gym on
+     * Friday evenings, which is the entire reason the override exists.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeOffering(Builder $query, SpaceAccessMode $mode): void
+    {
+        $query->where(fn (Builder $offering) => $offering
+            ->where('access_mode', $mode)
+            ->orWhereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                ->where('kind', ScheduleSlotKind::Access)
+                ->where('access_mode', $mode)));
     }
 
     public function isManaged(): bool
