@@ -6,7 +6,6 @@ use Database\Factories\SpecialtyFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
 
@@ -63,17 +62,6 @@ class Specialty extends Model
 
             return Lang::has($key) ? __($key) : $this->name;
         });
-    }
-
-    /**
-     * The sports this specialty is commonly sought for. Only ever used to relate
-     * the two worlds on a page — never to count a physiotherapist as a club.
-     *
-     * @return BelongsToMany<Sport, $this>
-     */
-    public function sports(): BelongsToMany
-    {
-        return $this->belongsToMany(Sport::class, 'specialty_sport');
     }
 
     /**

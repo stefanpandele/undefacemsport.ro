@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import SiteNav from '@/components/SiteNav.vue';
 import { sportGradient } from '@/lib/gradients';
 import locations from '@/routes/locations';
+import practices from '@/routes/practices';
 import sportRoutes from '@/routes/sports';
 
 type CityOption = {
@@ -11,6 +12,7 @@ type CityOption = {
     slug: string;
     locationCount: number;
     ways: Record<string, number>;
+    care: number;
 };
 
 type LocationCard = {
@@ -31,6 +33,18 @@ type Way = {
 
 type LevelOption = { id: number; name: string; slug: string };
 
+/**
+ * Not a way to play the sport — a way to keep playing it. Practices in the city
+ * that treat this sport.
+ */
+type CareCard = {
+    slug: string;
+    name: string;
+    specialties: { icon: string; label: string }[];
+    price: string | null;
+    address: string;
+};
+
 const props = defineProps<{
     sport: { key: string; label: string; icon: string; color: string | null };
     city: string | null;
@@ -38,6 +52,7 @@ const props = defineProps<{
     levels: LevelOption[];
     filters: { level: string | null };
     ways: Way[];
+    care: CareCard[];
 }>();
 
 /** The same page, with or without the level narrowed. */
@@ -176,6 +191,12 @@ const title = computed(() =>
                                     {{ count }} de închiriat
                                 </template>
                             </li>
+                            <li
+                                v-if="option.care"
+                                class="rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-sage"
+                            >
+                                🩹 {{ option.care }} pentru recuperare
+                            </li>
                         </ul>
                     </Link>
                 </div>
@@ -307,8 +328,51 @@ const title = computed(() =>
                     </div>
                 </section>
 
+                <!-- After the ways in, because it answers a different question:
+                     not where to play, but where to get treated so you can. -->
+                <section v-if="care.length" class="pt-10">
+                    <h2 class="font-archivo text-[19px] font-extrabold">
+                        Recuperare și îngrijire
+                    </h2>
+                    <p class="mb-4 text-[14px] text-sage">
+                        Cabinete din {{ city }} care tratează sportivi de
+                        {{ sport.label.toLowerCase() }}.
+                    </p>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <Link
+                            v-for="clinic in care"
+                            :key="clinic.slug"
+                            :href="practices.show.url({ slug: clinic.slug })"
+                            class="flex flex-col gap-1.5 rounded-2xl border-[1.5px] border-line bg-white px-4.5 py-4 transition hover:-translate-y-0.5 hover:border-grass"
+                        >
+                            <span class="font-archivo text-base font-extrabold">
+                                {{ clinic.name }}
+                            </span>
+                            <span v-if="clinic.address" class="text-[13px] text-sage">
+                                {{ clinic.address }}
+                            </span>
+                            <ul class="flex flex-wrap gap-1.5">
+                                <li
+                                    v-for="specialty in clinic.specialties"
+                                    :key="specialty.label"
+                                    class="rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-sage"
+                                >
+                                    {{ specialty.icon }} {{ specialty.label }}
+                                </li>
+                            </ul>
+                            <span
+                                v-if="clinic.price"
+                                class="font-jetbrains text-[13px] font-semibold"
+                            >
+                                de la {{ clinic.price }}
+                            </span>
+                        </Link>
+                    </div>
+                </section>
+
                 <div
-                    v-if="!ways.length"
+                    v-if="!ways.length && !care.length"
                     class="mt-8 rounded-2xl border-[1.5px] border-dashed border-line px-5 py-12 text-center text-sage"
                 >
                     <p class="mx-auto max-w-[40ch] text-sm">

@@ -10,6 +10,7 @@ use App\Models\OrganizationLocation;
 use App\Models\Person;
 use App\Models\Service;
 use App\Models\Specialty;
+use App\Models\Sport;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -161,11 +162,13 @@ class PracticeSeeder extends Seeder
      */
     private function addServices(Organization $practice, Collection $offered, Collection $people): void
     {
+        $sports = Sport::query()->pluck('id', 'slug');
+        $defaults = SpecialtySeeder::sportsBySpecialty();
         $order = 0;
 
         foreach ($offered as $index => $specialty) {
             foreach (self::SERVICES[$specialty->slug] ?? [] as [$name, $minutes, $price]) {
-                Service::firstOrCreate(
+                $service = Service::firstOrCreate(
                     [
                         'organization_id' => $practice->getKey(),
                         'name' => $name,
@@ -178,6 +181,16 @@ class PracticeSeeder extends Seeder
                         'price' => $price,
                         'sort_order' => $order++,
                     ],
+                );
+
+                // The practitioner's own claim about which athletes they treat.
+                // Seeded from a per-specialty default, but stored on the service —
+                // in the panel it is a tick list the practitioner fills in.
+                $service->sports()->syncWithoutDetaching(
+                    collect($defaults[$specialty->slug] ?? [])
+                        ->map(fn (string $slug): ?int => $sports->get($slug))
+                        ->filter()
+                        ->all(),
                 );
             }
         }

@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\Person;
 use App\Models\Service;
 use App\Models\Specialty;
+use App\Models\Sport;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,6 +31,7 @@ class PracticeController extends Controller
                 'people.sports',
                 'services.specialty',
                 'services.person',
+                'services.sports',
                 'organizationLocations.location',
             ])
             ->firstOrFail();
@@ -90,6 +92,16 @@ class PracticeController extends Controller
                 'price' => $service->priceLabel(),
                 'priceNotes' => $service->price_notes,
                 'person' => $service->person?->name,
+                // Which athletes this is for, as the practitioner ticked it.
+                'sports' => $service->sports
+                    ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+                    ->map(fn (Sport $sport): array => [
+                        'key' => $sport->slug,
+                        'label' => $sport->translated_name,
+                        'icon' => (string) $sport->icon,
+                    ])
+                    ->values()
+                    ->all(),
             ])
             ->values()
             ->all());

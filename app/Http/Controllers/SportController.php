@@ -8,7 +8,10 @@ use App\Enums\OrganizationType;
 use App\Enums\ScheduleSlotKind;
 use App\Models\Level;
 use App\Models\Location;
+use App\Models\Organization;
+use App\Models\Service;
 use App\Models\Space;
+use App\Models\Specialty;
 use App\Models\Sport;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -76,7 +79,70 @@ class SportController extends Controller
             'levels' => $levels,
             'filters' => ['level' => $level['slug'] ?? null],
             'ways' => $city === null ? [] : $this->waysInCity($sport, $city, $level['id'] ?? null),
+            // Not a way to play the sport — a way to keep playing it. Separate
+            // section, because an injured footballer is not looking for a pitch.
+            'care' => $city === null ? [] : $this->careInCity($sport, $city),
         ]);
+    }
+
+    /**
+     * Practices in this city that treat this sport: recovery, physiotherapy,
+     * sports medicine, nutrition.
+     *
+     * A practice appears because it said so: whoever offers the service ticked
+     * this sport. Nothing is inferred from the specialty — a global link would
+     * claim every physiotherapist treats footballers.
+     *
+     * Practices only. A pilates studio that also sells massage is offering an
+     * extra, not running a clinic, and listing it here would put it in a search it
+     * has no business being in — the same line drawn everywhere else.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function careInCity(Sport $sport, string $city): array
+    {
+        $practices = $this->careQuery($sport)
+            ->whereHas('organizationLocations.location', fn (BuilderContract $locations) => $locations
+                ->where('city', $city))
+            ->with(['services.specialty', 'services.sports', 'organizationLocations.location'])
+            ->orderBy('name')
+            ->get();
+
+        return array_values($practices
+            ->map(function (Organization $practice) use ($sport): array {
+                // Only the services ticked for this sport: a clinic's nutrition
+                // work is not why a footballer is on this page.
+                $forThisSport = $practice->services->filter(
+                    fn (Service $service): bool => $service->sports->contains('id', $sport->getKey()),
+                );
+
+                $relevant = $forThisSport
+                    ->map(fn (Service $service): ?Specialty => $service->specialty)
+                    ->filter()
+                    ->unique('id')
+                    ->sortBy('sort_order')
+                    ->values();
+
+                $cheapest = $forThisSport
+                    ->map(fn (Service $service): ?string => $service->priceLabel())
+                    ->filter()
+                    ->first();
+
+                return [
+                    'slug' => $practice->slug,
+                    'name' => $practice->name,
+                    'specialties' => $relevant
+                        ->map(fn (Specialty $specialty): array => [
+                            'icon' => (string) $specialty->icon,
+                            'label' => $specialty->translated_name,
+                        ])
+                        ->all(),
+                    'price' => $cheapest,
+                    'address' => (string) $practice->organizationLocations
+                        ->first()?->location?->address,
+                ];
+            })
+            ->all());
     }
 
     /**
@@ -106,9 +172,14 @@ class SportController extends Controller
 
     /**
      * Cities where this sport can be done at all, busiest first, each with how
-     * many ways in there are.
+     * many ways in there are — and how many places treat its athletes.
      *
-     * @return list<array{name: string, slug: string, locationCount: int, ways: array<string, int>}>
+     * Care counts towards being listed, not only towards the card. A town with a
+     * physiotherapist and no club is exactly where somebody with a bad knee needs
+     * an answer, and leaving it out of the picker would make that answer
+     * unreachable.
+     *
+     * @return list<array{name: string, slug: string, locationCount: int, ways: array<string, int>, care: int}>
      */
     private function citiesFor(Sport $sport): array
     {
@@ -122,11 +193,21 @@ class SportController extends Controller
                     ->pluck('total', 'city'),
             ]);
 
+        $care = $this->careQuery($sport)
+            ->join('organization_location', 'organization_location.organization_id', '=', 'organizations.id')
+            ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->whereNotNull('locations.city')
+            ->reorder()
+            ->groupBy('locations.city')
+            ->selectRaw('locations.city, count(distinct organizations.id) as total')
+            ->pluck('total', 'city');
+
         return array_values($counts
             ->flatMap(fn (Collection $byCity): array => $byCity->keys()->all())
+            ->merge($care->keys())
             ->unique()
             ->sort()
-            ->map(function (string $city) use ($counts): array {
+            ->map(function (string $city) use ($counts, $care): array {
                 $ways = $counts
                     ->map(fn (Collection $byCity): int => (int) $byCity->get($city, 0))
                     ->filter(fn (int $count): bool => $count > 0)
@@ -137,11 +218,27 @@ class SportController extends Controller
                     'slug' => Str::slug($city),
                     'locationCount' => max($ways ?: [0]),
                     'ways' => $ways,
+                    'care' => (int) $care->get($city, 0),
                 ];
             })
             ->sortByDesc('locationCount')
             ->values()
             ->all());
+    }
+
+    /**
+     * Practices that treat this sport, anywhere. Shared by the city picker and the
+     * care section, so a city can never be offered without the clinics it was
+     * listed for.
+     *
+     * @return Builder<Organization>
+     */
+    private function careQuery(Sport $sport): Builder
+    {
+        return Organization::query()
+            ->where('type', OrganizationType::Practice)
+            ->whereHas('services.sports', fn (BuilderContract $sports) => $sports
+                ->whereKey($sport->getKey()));
     }
 
     /**

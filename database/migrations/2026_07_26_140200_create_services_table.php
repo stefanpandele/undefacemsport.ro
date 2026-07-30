@@ -36,6 +36,20 @@ return new class extends Migration
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
         });
+
+        // The sports this service is for, ticked by whoever offers it: "I do
+        // recovery for football and basketball."
+        //
+        // On the service rather than on the specialty, because it is a claim about
+        // one practitioner's work and not a fact about the field — a global link
+        // would say every physiotherapist treats footballers. And on the service
+        // rather than the organization, because a clinic's recovery may be for
+        // contact sports while its nutrition is for everyone.
+        Schema::create('service_sport', function (Blueprint $table) {
+            $table->foreignId('service_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('sport_id')->constrained()->cascadeOnDelete();
+            $table->primary(['service_id', 'sport_id']);
+        });
     }
 
     /**
@@ -43,6 +57,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('service_sport');
         Schema::dropIfExists('services');
     }
 };

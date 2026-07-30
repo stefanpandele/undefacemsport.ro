@@ -9,6 +9,7 @@ use App\Models\OrganizationLocation;
 use App\Models\Person;
 use App\Models\Service;
 use App\Models\Specialty;
+use App\Models\Sport;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -69,6 +70,15 @@ class ServiceResource extends Resource
                         ])
                         ->all())
                     ->searchable(),
+                Select::make('sports')
+                    ->label('Pentru ce sporturi')
+                    ->helperText('Bifează sporturile pentru care oferi acest serviciu. Aici te vor găsi sportivii lor.')
+                    ->relationship('sports', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Sport $record): string => $record->translated_name)
+                    ->multiple()
+                    ->preload()
+                    ->searchable()
+                    ->columnSpanFull(),
                 Select::make('organization_location_id')
                     ->label('Unde se oferă')
                     ->helperText('Lasă gol dacă se oferă la toate locațiile tale.')
@@ -109,7 +119,7 @@ class ServiceResource extends Resource
     {
         return $table
             ->defaultSort('sort_order')
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['specialty', 'person', 'organizationLocation.location']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['specialty', 'person', 'sports', 'organizationLocation.location']))
             ->columns([
                 TextColumn::make('name')
                     ->label('Denumire')
@@ -117,6 +127,10 @@ class ServiceResource extends Resource
                     ->sortable(),
                 TextColumn::make('specialty.translated_name')
                     ->label('Specialitate')
+                    ->placeholder('—'),
+                TextColumn::make('sports.translated_name')
+                    ->label('Pentru')
+                    ->badge()
                     ->placeholder('—'),
                 TextColumn::make('organizationLocation.location.name')
                     ->label('Unde')

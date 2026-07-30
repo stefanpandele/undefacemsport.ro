@@ -47,16 +47,31 @@ test('every seeded specialty has an icon, a colour and translations', function (
     }
 });
 
-test('a specialty can name the sports it is sought for, without becoming one', function () {
+test('a practitioner names the sports they treat, and it never makes them a club', function () {
+    // The claim lives on the service, not on the specialty: "I treat footballers"
+    // is a statement about one practitioner, not a fact about physiotherapy.
     $this->seed();
 
-    $rehab = Specialty::query()->where('slug', 'recuperare-dupa-accidentare')->firstOrFail();
+    $treating = Service::query()
+        ->whereHas('organization', fn ($query) => $query->where('type', OrganizationType::Practice))
+        ->has('sports')
+        ->with('sports')
+        ->get();
 
-    expect($rehab->sports)->not->toBeEmpty()
-        // The link relates the two worlds on a page; it must never make a
-        // physiotherapist count as a club teaching football.
-        ->and(collect(Sport::withReach())->pluck('clubCount')->sum())
-        ->toBe(collect(Sport::withReach())->pluck('clubCount')->sum());
+    expect($treating)->not->toBeEmpty();
+
+    // And none of those sports gained a club because of it.
+    $reach = collect(Sport::withReach())->keyBy('key');
+
+    $treating->flatMap->sports->unique('id')->each(function (Sport $sport) use ($reach): void {
+        $clubs = Organization::query()
+            ->where('type', OrganizationType::Club)
+            ->whereHas('organizationSports', fn ($query) => $query->where('sport_id', $sport->getKey()))
+            ->whereHas('organizationLocations')
+            ->count();
+
+        expect($reach->get($sport->slug)['clubCount'] ?? 0)->toBeLessThanOrEqual($clubs);
+    });
 });
 
 test('the specialty seeder is idempotent', function () {

@@ -23,6 +23,7 @@ type ServiceCard = {
     price: string | null;
     priceNotes: string | null;
     person: string | null;
+    sports: { key: string; label: string; icon: string }[];
 };
 
 type PracticePerson = {
@@ -189,6 +190,21 @@ const heroGradient = computed(() =>
                         >
                             {{ service.description }}
                         </p>
+
+                        <!-- Which athletes it is for, as the practitioner ticked
+                             it — the reason a footballer finds this page. -->
+                        <ul
+                            v-if="service.sports.length"
+                            class="mt-2.5 flex flex-wrap gap-1.5"
+                        >
+                            <li
+                                v-for="sport in service.sports"
+                                :key="sport.key"
+                                class="rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-sage"
+                            >
+                                {{ sport.icon }} {{ sport.label }}
+                            </li>
+                        </ul>
 
                         <p
                             v-if="service.person"

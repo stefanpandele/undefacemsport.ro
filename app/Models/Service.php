@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * What a practice sells: a consultation, a session, an assessment.
@@ -117,6 +118,20 @@ class Service extends Model
     public function organizationLocation(): BelongsTo
     {
         return $this->belongsTo(OrganizationLocation::class);
+    }
+
+    /**
+     * The sports this service is for, as ticked by whoever offers it.
+     *
+     * A claim about this practitioner's work, not a fact about the field: a
+     * physiotherapist who treats footballers says so, and one who does not is not
+     * listed under football because physiotherapy generally involves it.
+     *
+     * @return BelongsToMany<Sport, $this>
+     */
+    public function sports(): BelongsToMany
+    {
+        return $this->belongsToMany(Sport::class, 'service_sport');
     }
 
     /**

@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Specialty;
-use App\Models\Sport;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -11,11 +10,11 @@ class SpecialtySeeder extends Seeder
 {
     /**
      * What practices do, with the emoji and colour each is presented with, and the
-     * sports it is commonly sought for.
+     * sports a service of this kind is usually offered for.
      *
-     * The sport links exist so a page can relate the two worlds — "recuperare
-     * după accidentare" next to football — never so a physiotherapist gets counted
-     * as a club.
+     * The sport list here is only a default for the seeder to tick onto seeded
+     * services. The claim itself lives on the service, because "I treat
+     * footballers" is a statement about one practitioner, not about the field.
      *
      * @var array<string, array{string, string, list<string>}>
      */
@@ -32,18 +31,32 @@ class SpecialtySeeder extends Seeder
 
     public function run(): void
     {
-        $sports = Sport::query()->pluck('id', 'slug');
         $order = 0;
 
-        foreach (self::SPECIALTIES as $name => [$icon, $color, $forSports]) {
-            $specialty = Specialty::updateOrCreate(
+        foreach (self::SPECIALTIES as $name => [$icon, $color]) {
+            Specialty::updateOrCreate(
                 ['slug' => Str::slug($name)],
                 ['name' => $name, 'icon' => $icon, 'color' => $color, 'sort_order' => $order++],
             );
-
-            $specialty->sports()->syncWithoutDetaching(
-                collect($forSports)->map(fn (string $slug): ?int => $sports->get($slug))->filter()->all(),
-            );
         }
+    }
+
+    /**
+     * The sports a service of each kind is usually offered for, keyed by specialty
+     * slug — the defaults PracticeSeeder ticks onto the services it creates.
+     *
+     * A default for seeding only. The claim itself lives on the service, because
+     * "I treat footballers" is a statement about one practitioner rather than a
+     * fact about the field.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function sportsBySpecialty(): array
+    {
+        return collect(self::SPECIALTIES)
+            ->mapWithKeys(fn (array $definition, string $name): array => [
+                Str::slug($name) => $definition[2],
+            ])
+            ->all();
     }
 }

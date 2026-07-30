@@ -25,15 +25,6 @@ return new class extends Migration
             $table->string('color')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
         });
-
-        // The sports a specialty is commonly sought for — "recuperare sportivă"
-        // next to football and athletics. Optional, and only ever used to relate
-        // the two worlds on a page, never to count one as the other.
-        Schema::create('specialty_sport', function (Blueprint $table) {
-            $table->foreignId('specialty_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('sport_id')->constrained()->cascadeOnDelete();
-            $table->primary(['specialty_id', 'sport_id']);
-        });
     }
 
     /**
@@ -41,7 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('specialty_sport');
         Schema::dropIfExists('specialties');
     }
 };
