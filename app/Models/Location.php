@@ -248,6 +248,16 @@ class Location extends Model
     }
 
     /**
+     * The pitches, pools and courts here — operated or not.
+     *
+     * @return HasMany<Space, $this>
+     */
+    public function spaces(): HasMany
+    {
+        return $this->hasMany(Space::class)->orderBy('sort_order')->orderBy('name');
+    }
+
+    /**
      * @return BelongsToMany<Organization, $this>
      */
     public function organizations(): BelongsToMany

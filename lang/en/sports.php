@@ -20,4 +20,6 @@ return [
     'badminton' => 'Badminton',
     'sah' => 'Chess',
     'dans-sportiv' => 'Dance Sport',
+    'padel' => 'Padel',
+    'fitness' => 'Fitness',
 ];

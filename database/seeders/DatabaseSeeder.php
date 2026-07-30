@@ -33,6 +33,9 @@ class DatabaseSeeder extends Seeder
                 OrganizationProfileSeeder::class,
                 OrganizationApplicationSeeder::class,
                 AdminAccessSeeder::class,
+                // After the organizations exist, so the seeded venues have
+                // somewhere to publish and something to publish it as.
+                SpaceSeeder::class,
                 // Last: needs clubs, locations and admin users to already exist,
                 // so it can file proposals from real clubs and mark some of them
                 // reviewed by a real admin.

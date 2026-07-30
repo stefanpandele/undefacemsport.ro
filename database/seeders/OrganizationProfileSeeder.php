@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\ContactRole;
 use App\Enums\ContactType;
+use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Location;
@@ -111,6 +112,10 @@ class OrganizationProfileSeeder extends Seeder
         ]);
 
         Organization::query()
+            // Clubs only. A venue has no sports, no age groups and no coaches —
+            // giving it a training programme would be inventing an offer it does
+            // not make. Its spaces come from SpaceSeeder instead.
+            ->where('type', OrganizationType::Club)
             ->doesntHave('organizationSports')
             ->get()
             ->each(function (Organization $organization, int $index) use ($ageGroups, $venuesByCity, $cities, $pools): void {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -135,6 +136,19 @@ class Organization extends Model
     public function canAddLocation(): bool
     {
         return $this->withinPlanLimit('locations', $this->organizationLocations()->count());
+    }
+
+    /**
+     * Whether the organization can add another space under its plan's `spaces`
+     * limit.
+     *
+     * Only the spaces it operates count — `spaces()` goes through
+     * `organization_location`, so a park court declared for everyone's benefit is
+     * never charged against the quota.
+     */
+    public function canAddSpace(): bool
+    {
+        return $this->withinPlanLimit('spaces', $this->spaces()->count());
     }
 
     /**
@@ -307,6 +321,16 @@ class Organization extends Model
     public function organizationLocations(): HasMany
     {
         return $this->hasMany(OrganizationLocation::class);
+    }
+
+    /**
+     * Every space this organization operates, across all its locations.
+     *
+     * @return HasManyThrough<Space, OrganizationLocation, $this>
+     */
+    public function spaces(): HasManyThrough
+    {
+        return $this->hasManyThrough(Space::class, OrganizationLocation::class);
     }
 
     /**

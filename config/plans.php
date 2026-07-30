@@ -36,6 +36,7 @@ return [
         'limits' => [
             'sports' => 1,
             'locations' => 1,
+            'spaces' => 1,
             'gallery_images' => 20,
         ],
     ],
@@ -47,6 +48,7 @@ return [
         'limits' => [
             'sports' => 5,
             'locations' => 3,
+            'spaces' => 5,
             'gallery_images' => 20,
         ],
     ],
@@ -58,6 +60,7 @@ return [
         'limits' => [
             'sports' => null,
             'locations' => null,
+            'spaces' => null,
             'gallery_images' => 20,
         ],
     ],

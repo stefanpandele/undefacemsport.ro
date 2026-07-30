@@ -75,4 +75,14 @@ class OrganizationLocation extends Model
     {
         return $this->hasMany(OrganizationLocationSport::class);
     }
+
+    /**
+     * The spaces this organization operates at this location.
+     *
+     * @return HasMany<Space, $this>
+     */
+    public function spaces(): HasMany
+    {
+        return $this->hasMany(Space::class)->orderBy('sort_order')->orderBy('name');
+    }
 }

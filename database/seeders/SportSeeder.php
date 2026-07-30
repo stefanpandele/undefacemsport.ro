@@ -34,6 +34,10 @@ class SportSeeder extends Seeder
         'Badminton' => ['🏸', '#0EA5A5'],
         'Șah' => ['♟️', '#3A3A3A'],
         'Dans sportiv' => ['💃', '#D6336C'],
+        // Rented by the hour far more often than taught, which is exactly why the
+        // taxonomy needs them: a padel court and a gym are what a venue sells.
+        'Padel' => ['🎾', '#14919B'],
+        'Fitness' => ['🏋️', '#8E44AD'],
     ];
 
     /**
