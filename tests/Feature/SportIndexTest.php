@@ -1,14 +1,14 @@
 <?php
 
-use App\Models\Club;
+use App\Models\Organization;
 use App\Models\Sport;
 
 /**
  * A club teaching one sport at one location in the given city.
  */
-function sportTaughtAt(string $city, string $locationName, Sport $sport, ?Club $club = null): void
+function sportTaughtAt(string $city, string $locationName, Sport $sport, ?Organization $organization = null): void
 {
-    ($club ?? Club::factory()->create())->syncLocation([
+    ($organization ?? Organization::factory()->create())->syncLocation([
         'county' => 'Cluj',
         'city' => $city,
         'address' => 'Str. '.$locationName,
@@ -21,9 +21,9 @@ test('the sports page lists what is taught, biggest first', function () {
     $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal', 'icon' => '⚽']);
     Sport::factory()->create(['slug' => 'polo', 'name' => 'Polo']); // taught nowhere
 
-    $club = Club::factory()->create();
-    sportTaughtAt('Cluj-Napoca', 'Bazinul A', $swimming, $club);
-    sportTaughtAt('Cluj-Napoca', 'Bazinul B', $swimming, $club);
+    $organization = Organization::factory()->create();
+    sportTaughtAt('Cluj-Napoca', 'Bazinul A', $swimming, $organization);
+    sportTaughtAt('Cluj-Napoca', 'Bazinul B', $swimming, $organization);
     sportTaughtAt('Brașov', 'Bazinul C', $swimming);
     sportTaughtAt('Cluj-Napoca', 'Stadionul D', $football);
 
@@ -52,7 +52,7 @@ test('the county field narrows both the sports and their counts', function () {
     sportTaughtAt('Cluj-Napoca', 'Stadionul B', $football);
 
     // A second county, so the unfiltered counts are visibly larger.
-    Club::factory()->create()->syncLocation([
+    Organization::factory()->create()->syncLocation([
         'county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. C', 'name' => 'Bazinul C',
     ], [$swimming->id]);
 
@@ -114,13 +114,13 @@ test('the homepage headline numbers are counted, not claimed', function () {
     $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal']);
     Sport::factory()->create(['slug' => 'polo', 'name' => 'Polo']); // taught nowhere
 
-    $club = Club::factory()->create();
-    sportTaughtAt('Cluj-Napoca', 'Bazinul A', $swimming, $club);
-    sportTaughtAt('Cluj-Napoca', 'Stadionul B', $football, $club);
+    $organization = Organization::factory()->create();
+    sportTaughtAt('Cluj-Napoca', 'Bazinul A', $swimming, $organization);
+    sportTaughtAt('Cluj-Napoca', 'Stadionul B', $football, $organization);
     sportTaughtAt('Brașov', 'Sala C', $swimming);
 
     // A club with no location at all is not an active club.
-    Club::factory()->create();
+    Organization::factory()->create();
 
     $this->get('/')
         ->assertInertia(fn ($page) => $page

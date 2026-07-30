@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Club;
 use App\Models\Location;
+use App\Models\Organization;
 use App\Models\ScheduleSlot;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\DB;
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
 
-    expect(Club::count())->toBe(38); // 36 demo clubs + the 2 known login clubs
+    expect(Organization::count())->toBe(38); // 36 demo clubs + the 2 known login clubs
 
-    Club::with('owner', 'users')->get()->each(function (Club $club): void {
-        expect($club->owner)->not->toBeNull()
-            ->and($club->users->count())->toBeGreaterThanOrEqual(1)
-            ->and($club->owner->isMasterOf($club))->toBeTrue();
+    Organization::with('owner', 'users')->get()->each(function (Organization $organization): void {
+        expect($organization->owner)->not->toBeNull()
+            ->and($organization->users->count())->toBeGreaterThanOrEqual(1)
+            ->and($organization->owner->isMasterOf($organization))->toBeTrue();
     });
 });
 
@@ -24,7 +24,7 @@ test('seeding creates a known club representative owning a club', function () {
     $rep = User::where('email', 'club@email.com')->first();
 
     expect($rep)->not->toBeNull()
-        ->and($rep->ownsAnyClub())->toBeTrue()
+        ->and($rep->ownsAnyOrganization())->toBeTrue()
         ->and($rep->isConsumer())->toBeFalse();
 });
 
@@ -41,14 +41,14 @@ test('seeding creates a platform admin and public consumers', function () {
 
 test('re-running the seeders does not duplicate data', function () {
     $this->seed();
-    $clubCount = Club::count();
+    $clubCount = Organization::count();
     $userCount = User::count();
     $locationCount = Location::count();
     $slotCount = ScheduleSlot::count();
 
     $this->seed();
 
-    expect(Club::count())->toBe($clubCount)
+    expect(Organization::count())->toBe($clubCount)
         ->and(User::count())->toBe($userCount)
         ->and(Location::count())->toBe($locationCount)
         ->and(ScheduleSlot::count())->toBe($slotCount);
@@ -66,28 +66,28 @@ test('every seeded location gets a slug', function () {
 test('seeding gives clubs a public profile to show', function () {
     $this->seed();
 
-    Club::with('clubSports', 'clubLocations', 'coaches', 'contacts')
+    Organization::with('organizationSports', 'organizationLocations', 'people', 'contacts')
         ->get()
-        ->each(function (Club $club): void {
-            expect($club->clubSports)->not->toBeEmpty()
-                ->and($club->clubLocations)->not->toBeEmpty()
-                ->and($club->coaches)->not->toBeEmpty()
-                ->and($club->contacts)->not->toBeEmpty();
+        ->each(function (Organization $organization): void {
+            expect($organization->organizationSports)->not->toBeEmpty()
+                ->and($organization->organizationLocations)->not->toBeEmpty()
+                ->and($organization->people)->not->toBeEmpty()
+                ->and($organization->contacts)->not->toBeEmpty();
         });
 
     expect(ScheduleSlot::count())->toBeGreaterThan(50);
 });
 
 test('every seeded city holds at least two clubs, so a hall can be shared', function () {
-    // The invariant that ties ClubSeeder's target to LocationSeeder's city list:
+    // The invariant that ties OrganizationSeeder's target to LocationSeeder's city list:
     // widening the venues without widening the clubs once left every city with a
     // single club, and a lone club shares a hall with nobody.
     $this->seed();
 
-    $clubsPerCity = DB::table('club_location')
-        ->join('locations', 'locations.id', '=', 'club_location.location_id')
+    $clubsPerCity = DB::table('organization_location')
+        ->join('locations', 'locations.id', '=', 'organization_location.location_id')
         ->groupBy('locations.city')
-        ->selectRaw('locations.city, count(distinct club_location.club_id) as clubs')
+        ->selectRaw('locations.city, count(distinct organization_location.organization_id) as clubs')
         ->pluck('clubs', 'city');
 
     expect($clubsPerCity)->not->toBeEmpty();
@@ -102,11 +102,11 @@ test('seeding puts clubs in the same hall on the same sport and interval', funct
     // Two clubs teaching one sport at one venue is what the location page's
     // occupancy badge and anonymous "hall is taken" card are built on.
     $shared = DB::table('schedule_slots')
-        ->join('club_location_sport', 'club_location_sport.id', '=', 'schedule_slots.club_location_sport_id')
-        ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
-        ->select('club_location.location_id', 'club_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
-        ->selectRaw('count(distinct club_location.club_id) as clubs')
-        ->groupBy('club_location.location_id', 'club_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
+        ->join('organization_location_sport', 'organization_location_sport.id', '=', 'schedule_slots.organization_location_sport_id')
+        ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
+        ->select('organization_location.location_id', 'organization_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
+        ->selectRaw('count(distinct organization_location.organization_id) as clubs')
+        ->groupBy('organization_location.location_id', 'organization_location_sport.sport_id', 'schedule_slots.start_time', 'schedule_slots.end_time')
         ->having('clubs', '>', 1)
         ->get();
 
@@ -114,34 +114,34 @@ test('seeding puts clubs in the same hall on the same sport and interval', funct
 });
 
 test('seeding tops up a database that already holds a few clubs', function () {
-    // Regression: ClubSeeder used to bail out entirely when any club existed,
+    // Regression: OrganizationSeeder used to bail out entirely when any club existed,
     // so a database left short by an earlier failed run stayed short forever —
     // too few clubs per city for any of them to share a hall.
-    Club::factory()->count(2)->create();
-    Club::factory()->premium()->create();
+    Organization::factory()->count(2)->create();
+    Organization::factory()->premium()->create();
 
     $this->seed();
 
-    expect(Club::count())->toBe(38);
+    expect(Organization::count())->toBe(38);
 
-    Club::with('clubSports')->get()->each(
-        fn (Club $club) => expect($club->clubSports)->not->toBeEmpty(),
+    Organization::with('organizationSports')->get()->each(
+        fn (Organization $organization) => expect($organization->organizationSports)->not->toBeEmpty(),
     );
 });
 
 test('seeded clubs stay within their plan limits', function () {
     $this->seed();
 
-    Club::withCount('clubSports', 'clubLocations')->get()->each(function (Club $club): void {
-        $sportLimit = $club->planLimit('sports');
-        $locationLimit = $club->planLimit('locations');
+    Organization::withCount('organizationSports', 'organizationLocations')->get()->each(function (Organization $organization): void {
+        $sportLimit = $organization->planLimit('sports');
+        $locationLimit = $organization->planLimit('locations');
 
         if ($sportLimit !== null) {
-            expect($club->club_sports_count)->toBeLessThanOrEqual($sportLimit);
+            expect($organization->organization_sports_count)->toBeLessThanOrEqual($sportLimit);
         }
 
         if ($locationLimit !== null) {
-            expect($club->club_locations_count)->toBeLessThanOrEqual($locationLimit);
+            expect($organization->organization_locations_count)->toBeLessThanOrEqual($locationLimit);
         }
     });
 });

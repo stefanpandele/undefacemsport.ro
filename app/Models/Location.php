@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 /**
  * A physical place, shared across clubs: many clubs can operate here, each with
- * its own sports (see ClubLocation).
+ * its own sports (see OrganizationLocation).
  *
  * @property int $id
  * @property string $name
@@ -230,11 +230,11 @@ class Location extends Model
     }
 
     /**
-     * @return HasMany<ClubLocation, $this>
+     * @return HasMany<OrganizationLocation, $this>
      */
-    public function clubLocations(): HasMany
+    public function organizationLocations(): HasMany
     {
-        return $this->hasMany(ClubLocation::class);
+        return $this->hasMany(OrganizationLocation::class);
     }
 
     /**
@@ -248,15 +248,17 @@ class Location extends Model
     }
 
     /**
-     * @return BelongsToMany<Club, $this>
+     * @return BelongsToMany<Organization, $this>
      */
-    public function clubs(): BelongsToMany
+    public function organizations(): BelongsToMany
     {
-        return $this->belongsToMany(Club::class);
+        // Named explicitly: Eloquent's alphabetical guess would be
+        // `location_organization`, but the table is `organization_location`.
+        return $this->belongsToMany(Organization::class, 'organization_location');
     }
 
     /**
-     * Amenities offered at this physical location (shared across clubs).
+     * Amenities offered at this physical location (shared across organizations).
      *
      * @return BelongsToMany<Facility, $this, FacilityLocation>
      */

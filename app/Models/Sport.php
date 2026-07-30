@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrganizationType;
 use Database\Factories\SportFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,23 +28,28 @@ class Sport extends Model
     protected $fillable = ['name', 'slug', 'icon', 'color'];
 
     /**
-     * Sports that are actually taught somewhere, biggest first, each with how
+     * Sports that are actually **taught** somewhere, biggest first, each with how
      * far it reaches: locations, clubs and cities. Shared by the homepage and
      * the sports index so the two can never disagree about what is popular.
+     *
+     * Clubs only. A padel court you can rent is not a club teaching padel, and
+     * counting it as one would make "12 cluburi" a lie on the homepage.
      *
      * @param  string|null  $county  narrow every count to a single county
      * @return list<array{key: string, label: string, icon: string, color: string|null, locationCount: int, clubCount: int, cityCount: int}>
      */
     public static function withReach(?string $county = null): array
     {
-        $stats = DB::table('club_location_sport')
-            ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
-            ->join('locations', 'locations.id', '=', 'club_location.location_id')
+        $stats = DB::table('organization_location_sport')
+            ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
+            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
+            ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->where('organizations.type', OrganizationType::Club)
             ->when($county, fn ($query) => $query->where('locations.county', $county))
-            ->groupBy('club_location_sport.sport_id')
-            ->select(['club_location_sport.sport_id'])
+            ->groupBy('organization_location_sport.sport_id')
+            ->select(['organization_location_sport.sport_id'])
             ->selectRaw('count(distinct locations.id) as location_count')
-            ->selectRaw('count(distinct club_location.club_id) as club_count')
+            ->selectRaw('count(distinct organization_location.organization_id) as club_count')
             ->selectRaw('count(distinct locations.city) as city_count')
             ->get()
             ->keyBy('sport_id');
@@ -84,11 +90,11 @@ class Sport extends Model
     }
 
     /**
-     * @return BelongsToMany<Club, $this>
+     * @return BelongsToMany<Organization, $this>
      */
-    public function clubs(): BelongsToMany
+    public function organizations(): BelongsToMany
     {
-        return $this->belongsToMany(Club::class)
+        return $this->belongsToMany(Organization::class)
             ->withPivot(['cover_path', 'description', 'sort_order'])
             ->withTimestamps();
     }

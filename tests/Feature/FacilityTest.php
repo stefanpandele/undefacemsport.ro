@@ -3,13 +3,13 @@
 use App\Enums\FacilityStatus;
 use App\Filament\Admin\Resources\Facilities\FacilityResource as AdminFacilityResource;
 use App\Filament\Admin\Resources\Facilities\Pages\ManageFacilities;
-use App\Filament\Club\Resources\Locations\LocationResource;
-use App\Filament\Club\Resources\Locations\Pages\ManageLocations;
-use App\Models\Club;
+use App\Filament\Organization\Resources\Locations\LocationResource;
+use App\Filament\Organization\Resources\Locations\Pages\ManageLocations;
 use App\Models\County;
 use App\Models\Facility;
 use App\Models\Locality;
 use App\Models\Location;
+use App\Models\Organization;
 use App\Models\Sport;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -18,12 +18,12 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 test('a seeded facility is approved, a club suggestion is not', function () {
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
 
     expect(Facility::factory()->create()->status)->toBe(FacilityStatus::Approved)
-        ->and(Facility::factory()->pending($club)->create())
+        ->and(Facility::factory()->pending($organization)->create())
         ->status->toBe(FacilityStatus::Pending)
-        ->suggested_by_club_id->toBe($club->id);
+        ->suggested_by_organization_id->toBe($organization->id);
 });
 
 test('the approved scope leaves out anything still waiting', function () {
@@ -34,14 +34,14 @@ test('the approved scope leaves out anything still waiting', function () {
 });
 
 test('a club sees approved facilities plus only its own suggestions', function () {
-    $club = Club::factory()->create();
-    $other = Club::factory()->create();
+    $organization = Organization::factory()->create();
+    $other = Organization::factory()->create();
 
     Facility::factory()->create(['name' => 'Parcare']);
-    Facility::factory()->pending($club)->create(['name' => 'Saună']);
+    Facility::factory()->pending($organization)->create(['name' => 'Saună']);
     Facility::factory()->pending($other)->create(['name' => 'Solar']);
 
-    $usable = Facility::constrainUsable(Facility::query(), $club);
+    $usable = Facility::constrainUsable(Facility::query(), $organization);
 
     expect($usable->pluck('name')->sort()->values()->all())
         ->toBe(['Parcare', 'Saună'])
@@ -52,9 +52,9 @@ test('a club sees approved facilities plus only its own suggestions', function (
 
 test('a pending facility stays off the public pages until approved', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj',
         'city' => 'Cluj-Napoca',
         'address' => 'Str. A 1',
@@ -62,8 +62,8 @@ test('a pending facility stays off the public pages until approved', function ()
     ], [$sport->id]);
 
     $approved = Facility::factory()->create(['name' => 'Parcare']);
-    $waiting = Facility::factory()->pending($club)->create(['name' => 'Saună']);
-    $clubLocation->location->facilities()->attach([$approved->id, $waiting->id]);
+    $waiting = Facility::factory()->pending($organization)->create(['name' => 'Saună']);
+    $organizationLocation->location->facilities()->attach([$approved->id, $waiting->id]);
 
     $slug = Location::query()->value('slug');
 
@@ -89,39 +89,39 @@ test('a pending facility stays off the public pages until approved', function ()
 
 test('a facility proposed from a location lands pending and attached to it', function () {
     $member = User::factory()->create();
-    $club = Club::factory()->create();
-    $club->addMember($member);
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
 
     $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A'];
-    $clubLocation = $club->syncLocation($address);
+    $organizationLocation = $organization->syncLocation($address);
 
     $this->actingAs($member);
-    Filament::setCurrentPanel(Filament::getPanel('club'));
-    Filament::setTenant($club);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
 
     // What the location form's "create option" does: a new entry in the shared
     // vocabulary, which the save then attaches to this location with its proof.
-    $facilityId = LocationResource::createSuggestedFacility(['name' => 'Caffe-bar', 'icon' => '☕'], $club);
+    $facilityId = LocationResource::createSuggestedFacility(['name' => 'Caffe-bar', 'icon' => '☕'], $organization);
 
     LocationResource::persist($address + [
         'location' => ['lat' => 46.77, 'lng' => 23.59],
         'sports' => [],
         'new_facilities' => [$facilityId],
         'new_facility_photos' => [$facilityId => 'facilities/proof/bar.webp'],
-    ], $clubLocation);
+    ], $organizationLocation);
 
     $facility = Facility::query()->findOrFail($facilityId);
-    $attached = $clubLocation->location->facilities()->whereKey($facilityId)->first();
+    $attached = $organizationLocation->location->facilities()->whereKey($facilityId)->first();
 
     // Once in the facilities table…
     expect($facility->status)->toBe(FacilityStatus::Pending)
-        ->and($facility->suggested_by_club_id)->toBe($club->id)
+        ->and($facility->suggested_by_organization_id)->toBe($organization->id)
         // …and once on the location, carrying the proof photo.
         ->and($attached)->not->toBeNull()
         ->and($attached->pivot->photo_path)->toBe('facilities/proof/bar.webp');
 
     // Attached, but still not shown to visitors.
-    $this->get('/locatii/'.$clubLocation->location->slug)
+    $this->get('/locatii/'.$organizationLocation->location->slug)
         ->assertInertia(fn ($page) => $page->has('location.facilities', 0));
 });
 
@@ -132,25 +132,25 @@ test('a club proposes a facility from inside the location edit modal', function 
     Locality::create(['county_id' => $county->id, 'name' => 'Cluj-Napoca']);
 
     $member = User::factory()->create();
-    $club = Club::factory()->create();
-    $club->addMember($member);
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A',
     ]);
 
     // An amenity that already exists, to prove the uniqueness check runs against
     // the facilities table. Regression: inside an edit form Filament defaults
-    // `unique()` to ignoring the current record — the ClubLocation — which made
-    // it query `club_location.id` and blow up with an unknown column.
+    // `unique()` to ignoring the current record — the OrganizationLocation — which made
+    // it query `organization_location.id` and blow up with an unknown column.
     Facility::factory()->create(['name' => 'Parcare']);
 
     $this->actingAs($member);
-    Filament::setCurrentPanel(Filament::getPanel('club'));
-    Filament::setTenant($club);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
 
     $component = Livewire::test(ManageLocations::class)
-        ->mountTableAction('edit', $clubLocation);
+        ->mountTableAction('edit', $organizationLocation);
 
     $component->callFormComponentAction('new_facilities', 'createOption', data: [
         'name' => 'Parcare',
@@ -169,12 +169,12 @@ test('a club proposes a facility from inside the location edit modal', function 
 
     expect($created)->not->toBeNull()
         ->and($created->status)->toBe(FacilityStatus::Pending)
-        ->and($created->suggested_by_club_id)->toBe($club->id);
+        ->and($created->suggested_by_organization_id)->toBe($organization->id);
 
     // Attached the moment it is proposed, without saving the location form.
     // Regression: it used to wait for the save, so closing the form left the
     // admin a suggestion with no location and no photo to judge it by.
-    $attached = $clubLocation->location->facilities()->whereKey($created->id)->first();
+    $attached = $organizationLocation->location->facilities()->whereKey($created->id)->first();
 
     expect($attached)->not->toBeNull()
         ->and($attached->pivot->photo_path)->toEndWith('.webp');
@@ -182,24 +182,24 @@ test('a club proposes a facility from inside the location edit modal', function 
 
 test('a just-proposed facility keeps its name in the select', function () {
     $member = User::factory()->create();
-    $club = Club::factory()->create();
-    $club->addMember($member);
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A',
     ]);
 
-    $locationId = $clubLocation->location_id;
-    $attached = Facility::factory()->pending($club)->create(['name' => 'Caffe-bar']);
+    $locationId = $organizationLocation->location_id;
+    $attached = Facility::factory()->pending($organization)->create(['name' => 'Caffe-bar']);
     $free = Facility::factory()->create(['name' => 'Parcare']);
 
     // Proposing attaches it straight away, which used to drop it from the
     // options — leaving the select showing a bare id instead of the name.
-    $clubLocation->location->facilities()->attach($attached);
+    $organizationLocation->location->facilities()->attach($attached);
 
     $this->actingAs($member);
-    Filament::setCurrentPanel(Filament::getPanel('club'));
-    Filament::setTenant($club);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
 
     $withoutSelection = LocationResource::addableFacilities($locationId);
     $withSelection = LocationResource::addableFacilities($locationId, [$attached->id]);
@@ -214,16 +214,16 @@ test('proposing is only offered once the location exists', function () {
     Locality::create(['county_id' => $county->id, 'name' => 'Cluj-Napoca']);
 
     $member = User::factory()->create();
-    $club = Club::factory()->create();
-    $club->addMember($member);
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A',
     ]);
 
     $this->actingAs($member);
-    Filament::setCurrentPanel(Filament::getPanel('club'));
-    Filament::setTenant($club);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
 
     // Creating a location: there is no place yet to attach a proposal to, so a
     // suggestion made here could only end up orphaned.
@@ -233,22 +233,22 @@ test('proposing is only offered once the location exists', function () {
 
     // Editing one that exists: proposing is available.
     Livewire::test(ManageLocations::class)
-        ->mountTableAction('edit', $clubLocation)
+        ->mountTableAction('edit', $organizationLocation)
         ->assertFormComponentActionVisible('new_facilities', 'createOption', formName: 'mountedActionSchema0');
 });
 
 test('every location keeps its own proof, and the admin sees them all', function () {
-    $club = Club::factory()->create();
-    $facility = Facility::factory()->pending($club)->create(['name' => 'Caffe-bar']);
+    $organization = Organization::factory()->create();
+    $facility = Facility::factory()->pending($organization)->create(['name' => 'Caffe-bar']);
 
     // The same amenity proven at three different halls: three photos, three
     // places. Regression: only the first one used to reach the admin.
     foreach (['Sala A', 'Sala B', 'Sala C'] as $index => $name) {
-        $clubLocation = $club->syncLocation([
+        $organizationLocation = $organization->syncLocation([
             'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. '.$name, 'name' => $name,
         ]);
 
-        $clubLocation->location->facilities()->attach($facility, [
+        $organizationLocation->location->facilities()->attach($facility, [
             'photo_path' => "facilities/proof/{$index}.webp",
         ]);
     }
@@ -261,13 +261,13 @@ test('every location keeps its own proof, and the admin sees them all', function
 });
 
 test('the proof photo reaches the admin reviewing the suggestion', function () {
-    $club = Club::factory()->create();
-    $clubLocation = $club->syncLocation([
+    $organization = Organization::factory()->create();
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A',
     ]);
 
-    $facility = Facility::factory()->pending($club)->create(['name' => 'Caffe-bar']);
-    $clubLocation->location->facilities()->attach($facility, ['photo_path' => 'facilities/proof/bar.webp']);
+    $facility = Facility::factory()->pending($organization)->create(['name' => 'Caffe-bar']);
+    $organizationLocation->location->facilities()->attach($facility, ['photo_path' => 'facilities/proof/bar.webp']);
 
     $url = $facility->fresh()->proofPhotoUrl();
 

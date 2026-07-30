@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\ClubApplicationStatus;
-use App\Models\ClubApplication;
+use App\Enums\OrganizationApplicationStatus;
+use App\Models\OrganizationApplication;
 use Illuminate\Support\Facades\Http;
 
 function validApplicationPayload(array $overrides = []): array
@@ -75,14 +75,14 @@ it('stores a pending club application with company details resolved from anaf', 
     $this->post(route('club-application.store'), validApplicationPayload())
         ->assertRedirect(route('club-application.create'));
 
-    $application = ClubApplication::sole();
+    $application = OrganizationApplication::sole();
 
     expect($application->club_name)->toBe('Clubul Sportiv Test')
         ->and($application->fiscal_code)->toBe('RO12345678')
         ->and($application->company_name)->toBe('AQUA JUNIOR SRL')
         ->and($application->address)->toBe('MUNICIPIUL BRAȘOV, STR. LUNGĂ, NR.12')
         ->and($application->is_vat_payer)->toBeTrue()
-        ->and($application->status)->toBe(ClubApplicationStatus::Pending)
+        ->and($application->status)->toBe(OrganizationApplicationStatus::Pending)
         ->and($application->reviewed_at)->toBeNull();
 });
 
@@ -92,7 +92,7 @@ it('requires a turnstile token when turnstile is enabled', function () {
     $this->post(route('club-application.store'), validApplicationPayload())
         ->assertSessionHasErrors('turnstile_token');
 
-    expect(ClubApplication::count())->toBe(0);
+    expect(OrganizationApplication::count())->toBe(0);
 });
 
 it('rejects an application when the turnstile token is invalid', function () {
@@ -106,7 +106,7 @@ it('rejects an application when the turnstile token is invalid', function () {
         'turnstile_token' => 'bad-token',
     ]))->assertSessionHasErrors('turnstile_token');
 
-    expect(ClubApplication::count())->toBe(0);
+    expect(OrganizationApplication::count())->toBe(0);
 });
 
 it('stores an application when turnstile is enabled and the token is valid', function () {
@@ -121,7 +121,7 @@ it('stores an application when turnstile is enabled and the token is valid', fun
         'turnstile_token' => 'valid-token',
     ]))->assertRedirect(route('club-application.create'));
 
-    expect(ClubApplication::count())->toBe(1);
+    expect(OrganizationApplication::count())->toBe(1);
 });
 
 it('strips the RO prefix before querying anaf', function () {
@@ -138,14 +138,14 @@ it('stores an application even when the fiscal code is unknown to anaf', functio
     $this->post(route('club-application.store'), validApplicationPayload())
         ->assertRedirect(route('club-application.create'));
 
-    $application = ClubApplication::sole();
+    $application = OrganizationApplication::sole();
 
     expect($application->club_name)->toBe('Clubul Sportiv Test')
         ->and($application->fiscal_code)->toBe('RO12345678')
         ->and($application->company_name)->toBeNull()
         ->and($application->address)->toBeNull()
         ->and($application->is_vat_payer)->toBeNull()
-        ->and($application->status)->toBe(ClubApplicationStatus::Pending);
+        ->and($application->status)->toBe(OrganizationApplicationStatus::Pending);
 });
 
 it('stores an application even when anaf is unreachable', function () {
@@ -156,17 +156,17 @@ it('stores an application even when anaf is unreachable', function () {
     $this->post(route('club-application.store'), validApplicationPayload())
         ->assertRedirect(route('club-application.create'));
 
-    $application = ClubApplication::sole();
+    $application = OrganizationApplication::sole();
 
     expect($application->company_name)->toBeNull()
-        ->and($application->status)->toBe(ClubApplicationStatus::Pending);
+        ->and($application->status)->toBe(OrganizationApplicationStatus::Pending);
 });
 
 it('requires the mandatory fields', function () {
     $this->post(route('club-application.store'), [])
         ->assertSessionHasErrors(['club_name', 'fiscal_code', 'contact_name', 'contact_email']);
 
-    expect(ClubApplication::count())->toBe(0);
+    expect(OrganizationApplication::count())->toBe(0);
 });
 
 it('does not let the client dictate company details', function () {
@@ -178,9 +178,9 @@ it('does not let the client dictate company details', function () {
         'is_vat_payer' => false,
     ]));
 
-    $application = ClubApplication::sole();
+    $application = OrganizationApplication::sole();
 
-    expect($application->status)->toBe(ClubApplicationStatus::Pending)
+    expect($application->status)->toBe(OrganizationApplicationStatus::Pending)
         ->and($application->company_name)->toBe('AQUA JUNIOR SRL')
         ->and($application->is_vat_payer)->toBeTrue();
 });

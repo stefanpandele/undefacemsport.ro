@@ -10,16 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * One entry in a club's weekly schedule: a sport at a location, on a given day
- * and time, for an age group, run by a coach.
+ * and time, for an age group, run by a person.
  *
  * @property int $id
- * @property int $club_id
- * @property int $club_location_sport_id
+ * @property int $organization_id
+ * @property int $organization_location_sport_id
  * @property Weekday $day_of_week
  * @property string $start_time
  * @property string $end_time
  * @property int|null $age_group_id
- * @property int|null $coach_id
+ * @property int|null $person_id
  */
 class ScheduleSlot extends Model
 {
@@ -28,13 +28,13 @@ class ScheduleSlot extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'club_id',
-        'club_location_sport_id',
+        'organization_id',
+        'organization_location_sport_id',
         'day_of_week',
         'start_time',
         'end_time',
         'age_group_id',
-        'coach_id',
+        'person_id',
     ];
 
     /**
@@ -48,19 +48,19 @@ class ScheduleSlot extends Model
     }
 
     /**
-     * @return BelongsTo<Club, $this>
+     * @return BelongsTo<Organization, $this>
      */
-    public function club(): BelongsTo
+    public function organization(): BelongsTo
     {
-        return $this->belongsTo(Club::class);
+        return $this->belongsTo(Organization::class);
     }
 
     /**
-     * @return BelongsTo<ClubLocationSport, $this>
+     * @return BelongsTo<OrganizationLocationSport, $this>
      */
-    public function clubLocationSport(): BelongsTo
+    public function organizationLocationSport(): BelongsTo
     {
-        return $this->belongsTo(ClubLocationSport::class);
+        return $this->belongsTo(OrganizationLocationSport::class);
     }
 
     /**
@@ -72,10 +72,10 @@ class ScheduleSlot extends Model
     }
 
     /**
-     * @return BelongsTo<Coach, $this>
+     * @return BelongsTo<Person, $this>
      */
-    public function coach(): BelongsTo
+    public function person(): BelongsTo
     {
-        return $this->belongsTo(Coach::class);
+        return $this->belongsTo(Person::class);
     }
 }

@@ -4,9 +4,9 @@ namespace Database\Factories;
 
 use App\Enums\LocationCorrectionField;
 use App\Enums\LocationCorrectionStatus;
-use App\Models\Club;
 use App\Models\Location;
 use App\Models\LocationCorrection;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +22,7 @@ class LocationCorrectionFactory extends Factory
     {
         return [
             'location_id' => Location::factory(),
-            'club_id' => Club::factory(),
+            'organization_id' => Organization::factory(),
             'field' => LocationCorrectionField::Name,
             'suggested_value' => 'Sala Sporturilor '.fake()->unique()->numberBetween(1, 100000),
             'note' => fake()->boolean(70) ? fake()->sentence() : null,

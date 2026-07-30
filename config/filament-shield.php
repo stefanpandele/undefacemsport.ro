@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-use App\Models\Club;
+use App\Models\Organization;
 use BezhanSalleh\FilamentShield\Resources\Roles\RoleResource;
 use Filament\Pages\Dashboard;
 use Filament\Widgets\AccountWidget;
@@ -43,7 +43,7 @@ return [
     |
     */
 
-    'tenant_model' => Club::class,
+    'tenant_model' => Organization::class,
 
     /*
     |--------------------------------------------------------------------------

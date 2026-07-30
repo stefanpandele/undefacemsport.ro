@@ -3,69 +3,69 @@
 use App\Enums\ContactType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
-use App\Models\Club;
-use App\Models\ClubLocationSport;
 use App\Models\Facility;
 use App\Models\Location;
+use App\Models\Organization;
+use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
 use App\Models\Sport;
 use Illuminate\Support\Str;
 
 /**
- * A club teaching one sport at a location, with a coach and one weekly slot.
+ * A club teaching one sport at a location, with a person and one weekly slot.
  */
-function swimmingClubAt(string $locationName, Sport $sport, string $clubName): ClubLocationSport
+function swimmingClubAt(string $locationName, Sport $sport, string $clubName): OrganizationLocationSport
 {
     // A slug derived from the name keeps the page's block keys predictable.
-    $club = Club::factory()->create([
+    $organization = Organization::factory()->create([
         'name' => $clubName,
         'slug' => Str::slug($clubName),
         'description' => 'Despre '.$clubName,
     ]);
-    $club->contacts()->create(['type' => ContactType::Phone, 'value' => '0722111222']);
+    $organization->contacts()->create(['type' => ContactType::Phone, 'value' => '0722111222']);
 
-    $clubSport = $club->clubSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
-    $clubSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
-    $clubSport->ageGroups()->attach(AgeGroup::firstOrCreate(['name' => '3–7 ani'], ['sort_order' => 0]));
-    $clubSport->images()->create(['path' => 'club-sports/gallery/1.webp', 'collection' => 'gallery']);
+    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
+    $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
+    $organizationSport->ageGroups()->attach(AgeGroup::firstOrCreate(['name' => '3–7 ani'], ['sort_order' => 0]));
+    $organizationSport->images()->create(['path' => 'club-sports/gallery/1.webp', 'collection' => 'gallery']);
 
-    $coach = $club->coaches()->create([
+    $person = $organization->people()->create([
         'name' => 'Andrei Popescu',
         'role' => 'Antrenor principal',
         'is_primary' => true,
         'offers_private_sessions' => true,
     ]);
-    $coach->sports()->attach($sport);
+    $person->sports()->attach($sport);
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Brașov',
         'city' => 'Brașov',
         'address' => 'Str. Lungă 12',
         'name' => $locationName,
     ], [$sport->id]);
 
-    $clubLocationSport = ClubLocationSport::query()
-        ->where('club_location_id', $clubLocation->id)
+    $organizationLocationSport = OrganizationLocationSport::query()
+        ->where('organization_location_id', $organizationLocation->id)
         ->where('sport_id', $sport->id)
         ->firstOrFail();
 
     ScheduleSlot::factory()->create([
-        'club_id' => $club->id,
-        'club_location_sport_id' => $clubLocationSport->id,
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $organizationLocationSport->id,
         'day_of_week' => Weekday::Monday,
         'start_time' => '17:00',
         'end_time' => '18:00',
-        'age_group_id' => $clubSport->ageGroups->first()->id,
-        'coach_id' => $coach->id,
+        'age_group_id' => $organizationSport->ageGroups->first()->id,
+        'person_id' => $person->id,
     ]);
 
-    return $clubLocationSport;
+    return $organizationLocationSport;
 }
 
 test('the location page renders its amenities, sports and club blocks', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot', 'icon' => '🏊', 'color' => '#1D7FB8']);
-    $clubLocationSport = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
-    $location = $clubLocationSport->clubLocation->location;
+    $organizationLocationSport = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
+    $location = $organizationLocationSport->organizationLocation->location;
 
     $location->facilities()->attach(Facility::factory()->create(['name' => 'Parcare', 'icon' => '🅿️']));
 
@@ -91,7 +91,7 @@ test('the location page renders its amenities, sports and club blocks', function
             ->has('location.clubs.0.photos', 1)
             ->has('location.clubs.0.trustChips', 2) // the benefit + the 1:1 chip
             ->where('location.clubs.0.ages.0', '3–7 ani')
-            ->has('location.clubs.0.coaches', 1)
+            ->has('location.clubs.0.people', 1)
             ->where('location.clubs.0.schedule.0.day', 'LUN')
             ->has('location.clubs.0.schedule.0.slots', 1)
             ->where('location.clubs.0.schedule.0.slots.0.time', '17:00–18:00')
@@ -101,27 +101,27 @@ test('the location page renders its amenities, sports and club blocks', function
 test('each club at the location only shows the schedule it runs there', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
     $here = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
-    $club = $here->clubLocation->club;
+    $organization = $here->organizationLocation->organization;
 
     // The same club also trains somewhere else — that must not leak in here.
-    $otherLocation = $club->syncLocation([
+    $otherLocation = $organization->syncLocation([
         'county' => 'Brașov',
         'city' => 'Brașov',
         'address' => 'Str. Scurtă 3',
         'name' => 'Bazinul Mic',
     ], [$sport->id]);
 
-    $otherClubLocationSport = ClubLocationSport::query()
-        ->where('club_location_id', $otherLocation->id)
+    $otherClubLocationSport = OrganizationLocationSport::query()
+        ->where('organization_location_id', $otherLocation->id)
         ->firstOrFail();
 
     ScheduleSlot::factory()->count(2)->create([
-        'club_id' => $club->id,
-        'club_location_sport_id' => $otherClubLocationSport->id,
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $otherClubLocationSport->id,
         'day_of_week' => Weekday::Friday,
     ]);
 
-    $this->get('/locatii/'.$here->clubLocation->location->slug)
+    $this->get('/locatii/'.$here->organizationLocation->location->slug)
         ->assertInertia(fn ($page) => $page
             ->has('location.clubs.0.schedule.0.slots', 1)  // Monday, here
             ->has('location.clubs.0.schedule.4.slots', 0)  // Friday belongs to the other location
@@ -146,7 +146,7 @@ test('a location with two clubs on the same sport counts both', function () {
 
 test('arriving with a sport filter opens the page on that sport', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
-    $location = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior')->clubLocation->location;
+    $location = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior')->organizationLocation->location;
 
     $this->get("/locatii/{$location->slug}?sport=inot")
         ->assertInertia(fn ($page) => $page->where('activeSport', 'inot'));
@@ -186,8 +186,8 @@ test('an interval only another club trains in shows as an anonymous busy slot', 
 
     // Aqua Masters also has the pool on Monday evening; Aqua Junior does not.
     ScheduleSlot::factory()->create([
-        'club_id' => $theirs->clubLocation->club_id,
-        'club_location_sport_id' => $theirs->id,
+        'organization_id' => $theirs->organizationLocation->organization_id,
+        'organization_location_sport_id' => $theirs->id,
         'day_of_week' => Weekday::Monday,
         'start_time' => '19:00',
         'end_time' => '20:30',
@@ -239,7 +239,7 @@ test('a club on a different sport in the same hall is not counted', function () 
 
     // Both train Monday 17:00–18:00 in the same pool, on different sports.
     swimmingClubAt('Bazinul Olimpic', $swimming, 'Club Aqua Junior');
-    swimmingClubAt('Bazinul Olimpic', $polo, 'Club Polo Brașov');
+    swimmingClubAt('Bazinul Olimpic', $polo, 'Organization Polo Brașov');
 
     $slug = Location::query()->where('name', 'Bazinul Olimpic')->value('slug');
 

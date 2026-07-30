@@ -59,8 +59,8 @@ class FacilityResource extends Resource
                     ->columnSpanFull(),
                 TextEntry::make('proposal')
                     ->label('Propusă de')
-                    ->state(fn (?Facility $record): string => $record?->suggestedByClub->name ?? '—')
-                    ->visible(fn (?Facility $record): bool => $record?->suggested_by_club_id !== null)
+                    ->state(fn (?Facility $record): string => $record?->suggestedByOrganization->name ?? '—')
+                    ->visible(fn (?Facility $record): bool => $record?->suggested_by_organization_id !== null)
                     ->columnSpanFull(),
                 TextInput::make('name')
                     ->label('Denumire')
@@ -112,7 +112,7 @@ class FacilityResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (FacilityStatus $state): string => $state->label())
                     ->color(fn (FacilityStatus $state): string => $state === FacilityStatus::Approved ? 'success' : 'warning'),
-                TextColumn::make('suggestedByClub.name')
+                TextColumn::make('suggestedByOrganization.name')
                     ->label('Propusă de')
                     ->placeholder('—')
                     ->searchable(),

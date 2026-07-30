@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('location_corrections', function (Blueprint $table) {
             $table->id();
             $table->foreignId('location_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('club_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('organization_id')->nullable()->constrained()->nullOnDelete();
             $table->string('field');
             $table->string('suggested_value');
             $table->text('note')->nullable();

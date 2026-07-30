@@ -40,7 +40,7 @@ test('a converted image keeps its dimensions', function () {
 test('a file GD cannot read is stored untouched', function () {
     Storage::fake('s3');
 
-    $path = webpUpload('coaches')->storeAsWebp(UploadedFile::fake()->create('logo.svg', 4, 'image/svg+xml'));
+    $path = webpUpload('people')->storeAsWebp(UploadedFile::fake()->create('logo.svg', 4, 'image/svg+xml'));
 
     expect($path)->toEndWith('.svg')
         ->and(Storage::disk('s3')->exists($path))->toBeTrue();

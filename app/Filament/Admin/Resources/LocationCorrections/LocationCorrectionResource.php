@@ -40,7 +40,7 @@ class LocationCorrectionResource extends Resource
             ->components([
                 TextEntry::make('location.name')
                     ->label('Locația'),
-                TextEntry::make('club.name')
+                TextEntry::make('organization.name')
                     ->label('Propusă de')
                     ->placeholder('—'),
                 TextEntry::make('field')
@@ -65,7 +65,7 @@ class LocationCorrectionResource extends Resource
         return $table
             // Waiting requests first: they are the only rows needing action.
             ->defaultSort('status')
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['location', 'club']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['location', 'organization']))
             ->columns([
                 TextColumn::make('location.name')
                     ->label('Locația')
@@ -82,7 +82,7 @@ class LocationCorrectionResource extends Resource
                 TextColumn::make('suggested_value')
                     ->label('Propus')
                     ->wrap(),
-                TextColumn::make('club.name')
+                TextColumn::make('organization.name')
                     ->label('Propusă de')
                     ->placeholder('—')
                     ->searchable(),

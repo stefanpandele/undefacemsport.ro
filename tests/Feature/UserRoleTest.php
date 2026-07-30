@@ -1,14 +1,14 @@
 <?php
 
-use App\Models\Club;
+use App\Models\Organization;
 use App\Models\User;
 
 test('a freshly registered user is a consumer', function () {
     $user = User::factory()->create();
 
     expect($user->isConsumer())->toBeTrue()
-        ->and($user->belongsToAnyClub())->toBeFalse()
-        ->and($user->ownsAnyClub())->toBeFalse();
+        ->and($user->belongsToAnyOrganization())->toBeFalse()
+        ->and($user->ownsAnyOrganization())->toBeFalse();
 });
 
 test('an admin is not a consumer', function () {
@@ -19,27 +19,27 @@ test('an admin is not a consumer', function () {
 
 test('a club owner is a representative and master, not a consumer', function () {
     $user = User::factory()->create();
-    $club = Club::createForOwner($user, ['name' => 'Clubul Meu', 'slug' => 'clubul-meu']);
+    $organization = Organization::createForOwner($user, ['name' => 'Clubul Meu', 'slug' => 'clubul-meu']);
 
     $user->refresh();
 
     expect($user->isConsumer())->toBeFalse()
-        ->and($user->belongsToAnyClub())->toBeTrue()
-        ->and($user->ownsAnyClub())->toBeTrue()
-        ->and($user->isMasterOf($club))->toBeTrue();
+        ->and($user->belongsToAnyOrganization())->toBeTrue()
+        ->and($user->ownsAnyOrganization())->toBeTrue()
+        ->and($user->isMasterOf($organization))->toBeTrue();
 });
 
 test('a non-owner member is a representative but not the master', function () {
     $master = User::factory()->create();
-    $club = Club::createForOwner($master, ['name' => 'Alt Club', 'slug' => 'alt-club']);
+    $organization = Organization::createForOwner($master, ['name' => 'Alt Organization', 'slug' => 'alt-club']);
     $member = User::factory()->create();
-    $club->addMember($member);
+    $organization->addMember($member);
 
     $member->refresh();
 
-    expect($member->belongsToAnyClub())->toBeTrue()
-        ->and($member->ownsAnyClub())->toBeFalse()
-        ->and($member->isMasterOf($club))->toBeFalse()
+    expect($member->belongsToAnyOrganization())->toBeTrue()
+        ->and($member->ownsAnyOrganization())->toBeFalse()
+        ->and($member->isMasterOf($organization))->toBeFalse()
         ->and($member->isConsumer())->toBeFalse();
 });
 

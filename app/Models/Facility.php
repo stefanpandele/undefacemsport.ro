@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $name
  * @property string|null $icon
  * @property FacilityStatus $status
- * @property int|null $suggested_by_club_id
+ * @property int|null $suggested_by_organization_id
  * @property int $sort_order
  */
 class Facility extends Model
@@ -33,7 +33,7 @@ class Facility extends Model
     public $timestamps = false;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'icon', 'status', 'suggested_by_club_id', 'sort_order'];
+    protected $fillable = ['name', 'icon', 'status', 'suggested_by_organization_id', 'sort_order'];
 
     /**
      * @return array<string, string>
@@ -69,13 +69,13 @@ class Facility extends Model
      * @param  Builder<TModel>  $query
      * @return Builder<TModel>
      */
-    public static function constrainUsable(Builder $query, ?Club $club): Builder
+    public static function constrainUsable(Builder $query, ?Organization $organization): Builder
     {
-        return $query->where(function (Builder $usable) use ($club): void {
+        return $query->where(function (Builder $usable) use ($organization): void {
             $usable->where('status', FacilityStatus::Approved);
 
-            if ($club instanceof Club) {
-                $usable->orWhere('suggested_by_club_id', $club->getKey());
+            if ($organization instanceof Organization) {
+                $usable->orWhere('suggested_by_organization_id', $organization->getKey());
             }
         });
     }
@@ -88,11 +88,11 @@ class Facility extends Model
     /**
      * The club that proposed this amenity, if it did not come from the seed.
      *
-     * @return BelongsTo<Club, $this>
+     * @return BelongsTo<Organization, $this>
      */
-    public function suggestedByClub(): BelongsTo
+    public function suggestedByOrganization(): BelongsTo
     {
-        return $this->belongsTo(Club::class, 'suggested_by_club_id');
+        return $this->belongsTo(Organization::class, 'suggested_by_organization_id');
     }
 
     /**

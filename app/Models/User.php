@@ -63,35 +63,35 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
     }
 
     /**
-     * @return BelongsToMany<Club, $this, Pivot>
+     * @return BelongsToMany<Organization, $this, Pivot>
      */
-    final public function clubs(): BelongsToMany
+    final public function organizations(): BelongsToMany
     {
-        return $this->belongsToMany(Club::class);
+        return $this->belongsToMany(Organization::class);
     }
 
     /**
-     * @return HasMany<Club, $this>
+     * @return HasMany<Organization, $this>
      */
-    public function ownedClubs(): HasMany
+    public function ownedOrganizations(): HasMany
     {
-        return $this->hasMany(Club::class, 'owner_user_id');
+        return $this->hasMany(Organization::class, 'owner_user_id');
     }
 
-    public function ownsAnyClub(): bool
+    public function ownsAnyOrganization(): bool
     {
-        return $this->ownedClubs()->exists();
+        return $this->ownedOrganizations()->exists();
     }
 
-    public function belongsToAnyClub(): bool
+    public function belongsToAnyOrganization(): bool
     {
-        return $this->clubs()->exists();
+        return $this->organizations()->exists();
     }
 
-    public function isMasterOf(Club $club): bool
+    public function isMasterOf(Organization $organization): bool
     {
-        return $club->owner_user_id !== null
-            && (int) $club->owner_user_id === (int) $this->getKey();
+        return $organization->owner_user_id !== null
+            && (int) $organization->owner_user_id === (int) $this->getKey();
     }
 
     /**
@@ -105,27 +105,27 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
 
     public function isConsumer(): bool
     {
-        return ! $this->is_admin && ! $this->isSuperAdmin() && ! $this->belongsToAnyClub();
+        return ! $this->is_admin && ! $this->isSuperAdmin() && ! $this->belongsToAnyOrganization();
     }
 
     /**
-     * @return Collection<int, Club>
+     * @return Collection<int, Organization>
      */
     public function getTenants(Panel $panel): Collection
     {
-        return $this->clubs;
+        return $this->organizations;
     }
 
     public function canAccessTenant(Model $tenant): bool
     {
-        return $this->clubs()->whereKey($tenant)->exists();
+        return $this->organizations()->whereKey($tenant)->exists();
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
         return match ($panel->getId()) {
             'admin' => $this->is_admin || $this->isSuperAdmin(),
-            'club' => $this->clubs()->exists(),
+            'organization' => $this->organizations()->exists(),
             default => false,
         };
     }
@@ -141,8 +141,8 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
             return Filament::getPanel('admin')->getUrl();
         }
 
-        if ($club = $this->clubs()->first()) {
-            return Filament::getPanel('club')->getUrl($club);
+        if ($organization = $this->organizations()->first()) {
+            return Filament::getPanel('organization')->getUrl($organization);
         }
 
         return route('dashboard');

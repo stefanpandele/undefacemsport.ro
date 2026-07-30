@@ -1,21 +1,21 @@
 <?php
 
-use App\Enums\ClubApplicationStatus;
-use App\Models\ClubApplication;
-use Database\Seeders\ClubApplicationSeeder;
+use App\Enums\OrganizationApplicationStatus;
+use App\Models\OrganizationApplication;
+use Database\Seeders\OrganizationApplicationSeeder;
 
 test('club applications are seeded across pending, approved and rejected states', function () {
-    $this->seed(ClubApplicationSeeder::class);
+    $this->seed(OrganizationApplicationSeeder::class);
 
-    expect(ClubApplication::count())->toBe(13)
-        ->and(ClubApplication::where('status', ClubApplicationStatus::Approved->value)->count())->toBe(3)
-        ->and(ClubApplication::where('status', ClubApplicationStatus::Rejected->value)->count())->toBe(2)
-        ->and(ClubApplication::where('status', ClubApplicationStatus::Pending->value)->count())->toBe(8);
+    expect(OrganizationApplication::count())->toBe(13)
+        ->and(OrganizationApplication::where('status', OrganizationApplicationStatus::Approved->value)->count())->toBe(3)
+        ->and(OrganizationApplication::where('status', OrganizationApplicationStatus::Rejected->value)->count())->toBe(2)
+        ->and(OrganizationApplication::where('status', OrganizationApplicationStatus::Pending->value)->count())->toBe(8);
 });
 
 test('the club application seeder is idempotent', function () {
-    $this->seed(ClubApplicationSeeder::class);
-    $this->seed(ClubApplicationSeeder::class);
+    $this->seed(OrganizationApplicationSeeder::class);
+    $this->seed(OrganizationApplicationSeeder::class);
 
-    expect(ClubApplication::count())->toBe(13);
+    expect(OrganizationApplication::count())->toBe(13);
 });

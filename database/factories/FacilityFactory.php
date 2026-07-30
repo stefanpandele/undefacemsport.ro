@@ -3,8 +3,8 @@
 namespace Database\Factories;
 
 use App\Enums\FacilityStatus;
-use App\Models\Club;
 use App\Models\Facility;
+use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -28,11 +28,11 @@ class FacilityFactory extends Factory
     /**
      * A club's suggestion, waiting for an admin to approve it.
      */
-    public function pending(?Club $club = null): static
+    public function pending(?Organization $organization = null): static
     {
         return $this->state(fn (): array => [
             'status' => FacilityStatus::Pending,
-            'suggested_by_club_id' => $club?->getKey() ?? Club::factory(),
+            'suggested_by_organization_id' => $organization?->getKey() ?? Organization::factory(),
         ]);
     }
 }

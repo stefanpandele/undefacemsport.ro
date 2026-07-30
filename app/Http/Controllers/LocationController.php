@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Concerns\PresentsClubs;
+use App\Concerns\PresentsOrganizations;
 use App\Enums\ContactType;
-use App\Models\Club;
-use App\Models\ClubLocation;
-use App\Models\ClubLocationSport;
-use App\Models\ClubSport;
-use App\Models\Coach;
 use App\Models\Facility;
 use App\Models\Location;
+use App\Models\Organization;
+use App\Models\OrganizationLocation;
+use App\Models\OrganizationLocationSport;
+use App\Models\OrganizationSport;
+use App\Models\Person;
 use App\Models\Sport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -19,7 +19,7 @@ use Inertia\Response;
 
 class LocationController extends Controller
 {
-    use PresentsClubs;
+    use PresentsOrganizations;
 
     /**
      * Show a single sports location: its amenities, the sports played here and
@@ -33,14 +33,18 @@ class LocationController extends Controller
                 // Amenities a club proposed but no admin has reviewed yet are
                 // not shown to visitors.
                 'facilities' => fn ($query) => $query->approved(),
-                'clubLocations.club.contacts',
-                'clubLocations.club.coaches.sports',
-                'clubLocations.club.clubSports.sport',
-                'clubLocations.club.clubSports.benefits',
-                'clubLocations.club.clubSports.ageGroups',
-                'clubLocations.club.clubSports.galleryImages',
-                'clubLocations.clubLocationSports.sport',
-                'clubLocations.clubLocationSports.scheduleSlots.ageGroup',
+                // Club presences only. The page's club blocks, occupancy badges
+                // and "hall is taken" cards are all about organized programmes;
+                // rentable spaces are a different offer, added in a later phase.
+                'organizationLocations' => fn ($query) => $query->ofClubs(),
+                'organizationLocations.organization.contacts',
+                'organizationLocations.organization.people.sports',
+                'organizationLocations.organization.organizationSports.sport',
+                'organizationLocations.organization.organizationSports.benefits',
+                'organizationLocations.organization.organizationSports.ageGroups',
+                'organizationLocations.organization.organizationSports.galleryImages',
+                'organizationLocations.organizationLocationSports.sport',
+                'organizationLocations.organizationLocationSports.scheduleSlots.ageGroup',
             ])
             ->firstOrFail();
 
@@ -95,9 +99,9 @@ class LocationController extends Controller
     {
         $clubCounts = collect($clubs)->countBy('sport');
 
-        return array_values($location->clubLocations
-            ->flatMap(fn (ClubLocation $clubLocation) => $clubLocation->clubLocationSports)
-            ->map(fn (ClubLocationSport $clubLocationSport): Sport => $clubLocationSport->sport)
+        return array_values($location->organizationLocations
+            ->flatMap(fn (OrganizationLocation $organizationLocation) => $organizationLocation->organizationLocationSports)
+            ->map(fn (OrganizationLocationSport $organizationLocationSport): Sport => $organizationLocationSport->sport)
             ->unique('id')
             ->sortBy(fn (Sport $sport): string => $sport->translated_name)
             ->map(fn (Sport $sport): array => [
@@ -120,11 +124,11 @@ class LocationController extends Controller
     {
         $occupancy = $this->occupancy($location);
 
-        return array_values($location->clubLocations
-            ->flatMap(fn (ClubLocation $clubLocation) => $clubLocation->clubLocationSports
-                ->map(fn (ClubLocationSport $clubLocationSport): array => $this->clubBlock(
-                    $clubLocation->club,
-                    $clubLocationSport,
+        return array_values($location->organizationLocations
+            ->flatMap(fn (OrganizationLocation $organizationLocation) => $organizationLocation->organizationLocationSports
+                ->map(fn (OrganizationLocationSport $organizationLocationSport): array => $this->clubBlock(
+                    $organizationLocation->organization,
+                    $organizationLocationSport,
                     $occupancy,
                 )))
             ->sortBy('name')
@@ -145,17 +149,17 @@ class LocationController extends Controller
     {
         $map = [];
 
-        foreach ($location->clubLocations as $clubLocation) {
-            $club = $clubLocation->club;
+        foreach ($location->organizationLocations as $organizationLocation) {
+            $organization = $organizationLocation->organization;
 
-            foreach ($clubLocation->clubLocationSports as $clubLocationSport) {
+            foreach ($organizationLocation->organizationLocationSports as $organizationLocationSport) {
                 $entry = [
-                    'name' => $club->name,
-                    'key' => $this->blockKey($club, $clubLocationSport->sport),
+                    'name' => $organization->name,
+                    'key' => $this->blockKey($organization, $organizationLocationSport->sport),
                 ];
 
-                foreach ($clubLocationSport->scheduleSlots as $slot) {
-                    $map[$clubLocationSport->sport_id][$slot->day_of_week->value][$this->interval($slot)][$club->getKey()] = $entry;
+                foreach ($organizationLocationSport->scheduleSlots as $slot) {
+                    $map[$organizationLocationSport->sport_id][$slot->day_of_week->value][$this->interval($slot)][$organization->getKey()] = $entry;
                 }
             }
         }
@@ -167,9 +171,9 @@ class LocationController extends Controller
      * Identifies one (club, sport) block on the page — also the anchor the
      * hall-occupancy modal links to.
      */
-    private function blockKey(Club $club, Sport $sport): string
+    private function blockKey(Organization $organization, Sport $sport): string
     {
-        return $club->slug.'-'.$sport->slug;
+        return $organization->slug.'-'.$sport->slug;
     }
 
     /**
@@ -183,11 +187,11 @@ class LocationController extends Controller
      * @param  array<int, array<int, array<string, array<int, array{name: string, key: string}>>>>  $occupancy
      * @return array<int, array<string, list<array{name: string, key: string}>>>
      */
-    private function otherClubs(array $occupancy, Club $club, int $sportId): array
+    private function otherClubs(array $occupancy, Organization $organization, int $sportId): array
     {
         return collect($occupancy[$sportId] ?? [])
             ->map(fn (array $byInterval): array => collect($byInterval)
-                ->map(fn (array $clubs): array => array_values(collect($clubs)->except($club->getKey())->shuffle()->all()))
+                ->map(fn (array $clubs): array => array_values(collect($clubs)->except($organization->getKey())->shuffle()->all()))
                 ->reject(fn (array $clubs): bool => $clubs === [])
                 ->all())
             ->reject(fn (array $byInterval): bool => $byInterval === [])
@@ -198,62 +202,62 @@ class LocationController extends Controller
      * @param  array<int, array<int, array<string, array<int, array{name: string, key: string}>>>>  $occupancy
      * @return array<string, mixed>
      */
-    private function clubBlock(Club $club, ClubLocationSport $clubLocationSport, array $occupancy = []): array
+    private function clubBlock(Organization $organization, OrganizationLocationSport $organizationLocationSport, array $occupancy = []): array
     {
-        $sport = $clubLocationSport->sport;
-        $clubSport = $club->clubSports->firstWhere('sport_id', $sport->getKey());
-        $coaches = $this->coachesForSport($club, $sport);
-        $primary = $coaches->first();
+        $sport = $organizationLocationSport->sport;
+        $organizationSport = $organization->organizationSports->firstWhere('sport_id', $sport->getKey());
+        $people = $this->coachesForSport($organization, $sport);
+        $primary = $people->first();
 
         return [
-            'key' => $this->blockKey($club, $sport),
-            'slug' => $club->slug,
+            'key' => $this->blockKey($organization, $sport),
+            'slug' => $organization->slug,
             'sport' => $sport->slug,
-            'name' => $club->name,
+            'name' => $organization->name,
             'representative' => $this->representative($primary),
-            'about' => $club->description ?? '',
-            'photos' => $clubSport instanceof ClubSport
-                ? $clubSport->galleryImages->map(fn ($image): string => $image->url)->values()->all()
+            'about' => $organization->description ?? '',
+            'photos' => $organizationSport instanceof OrganizationSport
+                ? $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all()
                 : [],
-            'trustChips' => $this->presentTrustChips($clubSport),
-            'ages' => $clubSport instanceof ClubSport
-                ? $clubSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all()
+            'trustChips' => $this->presentTrustChips($organizationSport),
+            'ages' => $organizationSport instanceof OrganizationSport
+                ? $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all()
                 : [],
-            'coaches' => $this->presentCoaches($coaches),
+            'people' => $this->presentPeople($people),
             'schedule' => $this->presentWeek(
-                $clubLocationSport->scheduleSlots,
-                $this->otherClubs($occupancy, $club, $sport->getKey()),
+                $organizationLocationSport->scheduleSlots,
+                $this->otherClubs($occupancy, $organization, $sport->getKey()),
             ),
-            'contactName' => $primary->name ?? $club->name,
-            'contactPhone' => $club->contacts->firstWhere('type', ContactType::Phone)?->value,
+            'contactName' => $primary->name ?? $organization->name,
+            'contactPhone' => $organization->contacts->firstWhere('type', ContactType::Phone)?->value,
         ];
     }
 
     /**
-     * A club's coaches for one sport, falling back to all of them when none is
+     * A club's people for one sport, falling back to all of them when none is
      * assigned to it.
      *
-     * @return Collection<int, Coach>
+     * @return Collection<int, Person>
      */
-    private function coachesForSport(Club $club, Sport $sport): Collection
+    private function coachesForSport(Organization $organization, Sport $sport): Collection
     {
-        $forSport = $club->coaches->filter(
-            fn (Coach $coach): bool => $coach->sports->contains('id', $sport->getKey()),
+        $forSport = $organization->people->filter(
+            fn (Person $person): bool => $person->sports->contains('id', $sport->getKey()),
         );
 
         // Same order the block presents them in, so the first one is also the
         // club's representative and contact.
-        return ($forSport->isNotEmpty() ? $forSport : $club->coaches)
+        return ($forSport->isNotEmpty() ? $forSport : $organization->people)
             ->sortBy([['is_primary', 'desc'], ['sort_order', 'asc']])
             ->values();
     }
 
-    private function representative(?Coach $coach): string
+    private function representative(?Person $person): string
     {
-        if (! $coach instanceof Coach) {
+        if (! $person instanceof Person) {
             return '';
         }
 
-        return $coach->role ? "{$coach->name}, {$coach->role}" : $coach->name;
+        return $person->role ? "{$person->name}, {$person->role}" : $person->name;
     }
 }

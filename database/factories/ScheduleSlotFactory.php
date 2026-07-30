@@ -4,8 +4,8 @@ namespace Database\Factories;
 
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
-use App\Models\Club;
-use App\Models\ClubLocationSport;
+use App\Models\Organization;
+use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,13 +20,13 @@ class ScheduleSlotFactory extends Factory
     public function definition(): array
     {
         return [
-            'club_id' => Club::factory(),
-            'club_location_sport_id' => ClubLocationSport::factory(),
+            'organization_id' => Organization::factory(),
+            'organization_location_sport_id' => OrganizationLocationSport::factory(),
             'day_of_week' => Weekday::Monday,
             'start_time' => '10:00',
             'end_time' => '11:00',
             'age_group_id' => AgeGroup::factory(),
-            'coach_id' => null,
+            'person_id' => null,
         ];
     }
 }

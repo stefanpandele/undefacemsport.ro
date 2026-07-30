@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\Facility;
 use App\Models\Location;
@@ -9,6 +10,7 @@ use App\Models\Sport;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -70,19 +72,28 @@ class ExploreController extends Controller
         $topSports = $this->topSportsByCity();
 
         return array_values(DB::table('locations')
-            ->leftJoin('club_location', 'club_location.location_id', '=', 'locations.id')
+            ->leftJoin('organization_location', 'organization_location.location_id', '=', 'locations.id')
+            // Left-joined with the type in the ON clause, not in a WHERE: a city
+            // whose locations host no club at all must still get a card, with a
+            // count of zero, rather than disappearing from the picker.
+            ->leftJoin('organizations', fn (JoinClause $join) => $join
+                ->on('organizations.id', '=', 'organization_location.organization_id')
+                ->where('organizations.type', OrganizationType::Club->value))
             ->whereNotNull('locations.city')
             ->when($sport, fn (QueryBuilder $query) => $query->whereExists(
-                fn (QueryBuilder $exists) => $exists->from('club_location as cl')
-                    ->join('club_location_sport as cls', 'cls.club_location_id', '=', 'cl.id')
+                fn (QueryBuilder $exists) => $exists->from('organization_location as cl')
+                    ->join('organization_location_sport as cls', 'cls.organization_location_id', '=', 'cl.id')
+                    ->join('organizations as o', 'o.id', '=', 'cl.organization_id')
                     ->join('sports', 'sports.id', '=', 'cls.sport_id')
                     ->whereColumn('cl.location_id', 'locations.id')
+                    ->where('o.type', OrganizationType::Club->value)
                     ->where('sports.slug', $sport),
             ))
             ->groupBy('locations.city')
             ->select(['locations.city'])
             ->selectRaw('count(distinct locations.id) as location_count')
-            ->selectRaw('count(distinct club_location.club_id) as club_count')
+            // Counting the joined organizations, so only clubs land in the total.
+            ->selectRaw('count(distinct organizations.id) as club_count')
             ->selectRaw('avg(locations.latitude) as lat')
             ->selectRaw('avg(locations.longitude) as lng')
             ->orderByDesc('location_count')
@@ -114,10 +125,12 @@ class ExploreController extends Controller
      */
     private function topSportsByCity(): Collection
     {
-        return DB::table('club_location_sport')
-            ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
-            ->join('locations', 'locations.id', '=', 'club_location.location_id')
-            ->join('sports', 'sports.id', '=', 'club_location_sport.sport_id')
+        return DB::table('organization_location_sport')
+            ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
+            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
+            ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->join('sports', 'sports.id', '=', 'organization_location_sport.sport_id')
+            ->where('organizations.type', OrganizationType::Club)
             ->whereNotNull('locations.city')
             ->groupBy('locations.city', 'sports.id', 'sports.color')
             ->select(['locations.city', 'sports.color'])
@@ -154,8 +167,14 @@ class ExploreController extends Controller
             ->when($city, fn (Builder $query) => $query->where('city', $city))
             ->when($search, fn (Builder $query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when($sport, fn (Builder $query) => $query->whereHas(
-                'clubLocations.sports',
-                fn (BuilderContract $sports) => $sports->where('sports.slug', $sport),
+                'organizationLocations',
+                fn (BuilderContract $presences) => $presences
+                    // Spelled out rather than via OrganizationLocation::ofClubs():
+                    // inside whereHas the builder is not typed to a model, so the
+                    // scope would be invisible to static analysis.
+                    ->whereHas('organization', fn (BuilderContract $organizations) => $organizations
+                        ->where('type', OrganizationType::Club))
+                    ->whereHas('sports', fn (BuilderContract $sports) => $sports->where('sports.slug', $sport)),
             ))
             ->when($facilityIds !== [], function (Builder $query) use ($facilityIds): void {
                 foreach ($facilityIds as $facilityId) {
@@ -166,16 +185,20 @@ class ExploreController extends Controller
                 }
             })
             ->withCount([
-                'clubLocations as club_count' => fn (Builder $query) => $query->when(
-                    $sport,
-                    fn (Builder $clubLocations) => $clubLocations->whereHas(
-                        'sports',
-                        fn (BuilderContract $sports) => $sports->where('sports.slug', $sport),
+                'organizationLocations as club_count' => fn ($query) => $query
+                    ->ofClubs()
+                    ->when(
+                        $sport,
+                        fn (Builder $organizationLocations) => $organizationLocations->whereHas(
+                            'sports',
+                            fn (BuilderContract $sports) => $sports->where('sports.slug', $sport),
+                        ),
                     ),
-                ),
                 'facilities as facility_count',
             ])
-            ->with(['clubLocations.sports'])
+            // Only club presences carry the sport chips: a rentable court is a
+            // different kind of offer and gets its own treatment in a later phase.
+            ->with(['organizationLocations' => fn ($query) => $query->ofClubs()->with('sports')])
             ->orderBy('name')
             ->get();
 
@@ -183,8 +206,8 @@ class ExploreController extends Controller
 
         return $locations
             ->map(function (Location $location) use ($liveIds): array {
-                $sports = $location->clubLocations
-                    ->flatMap(fn ($clubLocation) => $clubLocation->sports)
+                $sports = $location->organizationLocations
+                    ->flatMap(fn ($organizationLocation) => $organizationLocation->sports)
                     ->unique('id')
                     ->sortBy(fn (Sport $sport): string => $sport->translated_name)
                     ->values();
@@ -225,14 +248,16 @@ class ExploreController extends Controller
         $now = Carbon::now();
 
         return DB::table('schedule_slots')
-            ->join('club_location_sport', 'club_location_sport.id', '=', 'schedule_slots.club_location_sport_id')
-            ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
-            ->whereIn('club_location.location_id', $locationIds)
+            ->join('organization_location_sport', 'organization_location_sport.id', '=', 'schedule_slots.organization_location_sport_id')
+            ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
+            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
+            ->where('organizations.type', OrganizationType::Club)
+            ->whereIn('organization_location.location_id', $locationIds)
             ->where('schedule_slots.day_of_week', Weekday::fromDate($now)->value)
             ->where('schedule_slots.start_time', '<=', $now->format('H:i:s'))
             ->where('schedule_slots.end_time', '>=', $now->format('H:i:s'))
             ->distinct()
-            ->pluck('club_location.location_id');
+            ->pluck('organization_location.location_id');
     }
 
     /**
@@ -242,15 +267,17 @@ class ExploreController extends Controller
      */
     private function sports(?string $city): array
     {
-        $stats = DB::table('club_location_sport')
-            ->join('club_location', 'club_location.id', '=', 'club_location_sport.club_location_id')
-            ->join('locations', 'locations.id', '=', 'club_location.location_id')
+        $stats = DB::table('organization_location_sport')
+            ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
+            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
+            ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->where('organizations.type', OrganizationType::Club)
             ->when($city, fn ($query) => $query->where('locations.city', $city))
-            ->groupBy('club_location_sport.sport_id')
+            ->groupBy('organization_location_sport.sport_id')
             ->select([
-                'club_location_sport.sport_id',
+                'organization_location_sport.sport_id',
                 DB::raw('count(distinct locations.id) as location_count'),
-                DB::raw('count(distinct club_location.club_id) as club_count'),
+                DB::raw('count(distinct organization_location.organization_id) as club_count'),
             ])
             ->get()
             ->keyBy('sport_id');
@@ -285,15 +312,17 @@ class ExploreController extends Controller
      */
     private function ageGroupsBySport(?string $city): Collection
     {
-        return DB::table('club_sport_age_group')
-            ->join('club_sport', 'club_sport.id', '=', 'club_sport_age_group.club_sport_id')
-            ->join('age_groups', 'age_groups.id', '=', 'club_sport_age_group.age_group_id')
-            ->join('club_location', 'club_location.club_id', '=', 'club_sport.club_id')
-            ->join('locations', 'locations.id', '=', 'club_location.location_id')
+        return DB::table('organization_sport_age_group')
+            ->join('organization_sport', 'organization_sport.id', '=', 'organization_sport_age_group.organization_sport_id')
+            ->join('age_groups', 'age_groups.id', '=', 'organization_sport_age_group.age_group_id')
+            ->join('organization_location', 'organization_location.organization_id', '=', 'organization_sport.organization_id')
+            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
+            ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->where('organizations.type', OrganizationType::Club)
             ->when($city, fn ($query) => $query->where('locations.city', $city))
             ->distinct()
             ->orderBy('age_groups.sort_order')
-            ->select(['club_sport.sport_id', 'age_groups.name', 'age_groups.sort_order'])
+            ->select(['organization_sport.sport_id', 'age_groups.name', 'age_groups.sort_order'])
             ->get()
             ->groupBy('sport_id')
             ->map(fn (Collection $rows): Collection => $rows->pluck('name')->unique()->values());

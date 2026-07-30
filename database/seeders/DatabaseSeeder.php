@@ -24,14 +24,14 @@ class DatabaseSeeder extends Seeder
                 CountySeeder::class,
                 LocalitySeeder::class,
                 LocationSeeder::class,
-                ClubSeeder::class,
+                OrganizationSeeder::class,
                 UserSeeder::class,
-                ClubUserSeeder::class,
-                // Must run before ClubProfileSeeder, so the known demo clubs
+                OrganizationUserSeeder::class,
+                // Must run before OrganizationProfileSeeder, so the known demo clubs
                 // exist in time to be given a profile like every other club.
-                ClubAccessSeeder::class,
-                ClubProfileSeeder::class,
-                ClubApplicationSeeder::class,
+                OrganizationAccessSeeder::class,
+                OrganizationProfileSeeder::class,
+                OrganizationApplicationSeeder::class,
                 AdminAccessSeeder::class,
                 // Last: needs clubs, locations and admin users to already exist,
                 // so it can file proposals from real clubs and mark some of them

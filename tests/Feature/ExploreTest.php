@@ -2,10 +2,10 @@
 
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
-use App\Models\Club;
-use App\Models\ClubLocationSport;
 use App\Models\Facility;
 use App\Models\Location;
+use App\Models\Organization;
+use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
 use App\Models\Sport;
 use Illuminate\Support\Carbon;
@@ -13,18 +13,18 @@ use Illuminate\Support\Carbon;
 /**
  * A club teaching one sport at one location, in the given city.
  */
-function trainingAt(string $city, string $locationName, Sport $sport, ?Club $club = null): Location
+function trainingAt(string $city, string $locationName, Sport $sport, ?Organization $organization = null): Location
 {
-    $club ??= Club::factory()->create();
+    $organization ??= Organization::factory()->create();
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj',
         'city' => $city,
         'address' => 'Str. '.$locationName,
         'name' => $locationName,
     ], [$sport->id]);
 
-    return $clubLocation->location;
+    return $organizationLocation->location;
 }
 
 test('the explore page lists a city with its locations and sports', function () {
@@ -211,14 +211,14 @@ test('a location training right now is marked as live', function () {
     Carbon::setTestNow($now);
 
     $sport = Sport::factory()->create();
-    $club = Club::factory()->create();
-    $location = trainingAt('Cluj-Napoca', 'Sala Live', $sport, $club);
+    $organization = Organization::factory()->create();
+    $location = trainingAt('Cluj-Napoca', 'Sala Live', $sport, $organization);
 
-    $clubLocationSport = ClubLocationSport::query()->firstOrFail();
+    $organizationLocationSport = OrganizationLocationSport::query()->firstOrFail();
 
     ScheduleSlot::factory()->create([
-        'club_id' => $club->id,
-        'club_location_sport_id' => $clubLocationSport->id,
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $organizationLocationSport->id,
         'day_of_week' => Weekday::fromDate($now),
         'start_time' => '18:00',
         'end_time' => '19:00',
@@ -241,11 +241,11 @@ test('a location training right now is marked as live', function () {
 
 test('a sport card carries the age groups offered for it in that city', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
-    $club = Club::factory()->create();
-    trainingAt('Cluj-Napoca', 'Bazinul Mare', $sport, $club);
+    $organization = Organization::factory()->create();
+    trainingAt('Cluj-Napoca', 'Bazinul Mare', $sport, $organization);
 
-    $clubSport = $club->clubSports()->create(['sport_id' => $sport->id]);
-    $clubSport->ageGroups()->attach(AgeGroup::factory()->create(['name' => '3–7 ani', 'sort_order' => 1]));
+    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id]);
+    $organizationSport->ageGroups()->attach(AgeGroup::factory()->create(['name' => '3–7 ani', 'sort_order' => 1]));
 
     $this->get('/explorare?oras=Cluj-Napoca')
         ->assertInertia(fn ($page) => $page->where('sports.0.ages', ['3–7 ani']));

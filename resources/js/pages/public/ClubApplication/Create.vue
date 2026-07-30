@@ -2,7 +2,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import AnafLookupController from '@/actions/App/Http/Controllers/AnafLookupController';
-import { store } from '@/actions/App/Http/Controllers/ClubApplicationController';
+import { store } from '@/actions/App/Http/Controllers/OrganizationApplicationController';
 import InputError from '@/components/InputError.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import SiteNav from '@/components/SiteNav.vue';

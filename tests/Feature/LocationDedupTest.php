@@ -1,13 +1,13 @@
 <?php
 
 use App\Enums\LocationCorrectionField;
-use App\Filament\Club\Resources\Locations\LocationResource;
-use App\Filament\Club\Resources\Locations\Pages\ManageLocations;
-use App\Models\Club;
+use App\Filament\Organization\Resources\Locations\LocationResource;
+use App\Filament\Organization\Resources\Locations\Pages\ManageLocations;
 use App\Models\County;
 use App\Models\Locality;
 use App\Models\Location;
 use App\Models\LocationCorrection;
+use App\Models\Organization;
 use App\Models\User;
 use Filament\Actions\CreateAction;
 use Filament\Actions\Testing\TestAction;
@@ -131,13 +131,13 @@ test('nearby skips locations that have no coordinates', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Club::syncLocation
+| Organization::syncLocation
 |--------------------------------------------------------------------------
 */
 
 test('two clubs typing the address differently land on one location, via the place id', function () {
-    $clubA = Club::factory()->create();
-    $clubB = Club::factory()->create();
+    $clubA = Organization::factory()->create();
+    $clubB = Organization::factory()->create();
 
     $clubA->syncLocation([
         'county' => 'București',
@@ -164,15 +164,15 @@ test('two clubs typing the address differently land on one location, via the pla
 });
 
 test('syncLocation backfills the place id onto a location first created without one', function () {
-    $club = Club::factory()->create();
-    $other = Club::factory()->create();
+    $organization = Organization::factory()->create();
+    $other = Organization::factory()->create();
 
     $existing = Location::factory()->create([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Aleea Stadionului 2',
         'google_place_id' => null,
     ]);
 
-    $club->syncLocation([
+    $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Aleea Stadionului 2',
         'name' => 'Cluj Arena', 'google_place_id' => 'ChIJArena',
     ]);
@@ -189,13 +189,13 @@ test('syncLocation backfills the place id onto a location first created without 
 });
 
 test('syncLocation attaches to a location the club explicitly chose, whatever it typed', function () {
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
     $chosen = Location::factory()->create([
         'name' => 'Sala Polivalentă',
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Aleea Stadionului 4',
     ]);
 
-    $clubLocation = $club->syncLocation(
+    $organizationLocation = $organization->syncLocation(
         [
             'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Aleea Stadionului 4 bis',
             'name' => 'Cu totul alt nume',
@@ -206,17 +206,17 @@ test('syncLocation attaches to a location the club explicitly chose, whatever it
     );
 
     expect(Location::count())->toBe(1)
-        ->and($clubLocation->location->is($chosen))->toBeTrue()
-        ->and($clubLocation->location->name)->toBe('Sala Polivalentă');
+        ->and($organizationLocation->location->is($chosen))->toBeTrue()
+        ->and($organizationLocation->location->name)->toBe('Sala Polivalentă');
 });
 
 test('syncLocation never attaches on proximity alone', function () {
     // Two halls 60m apart really are two halls. Deciding by radius is the panel's
     // question to ask a human, never something the model does behind their back.
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
     Location::factory()->at(46.7660, 23.5735)->create(['name' => 'Sala 1']);
 
-    $club->syncLocation([
+    $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Strada Vecină 2',
         'name' => 'Sala 2', 'latitude' => 46.76655, 'longitude' => 23.57385,
     ]);
@@ -225,14 +225,14 @@ test('syncLocation never attaches on proximity alone', function () {
 });
 
 test('syncLocation stores the place id on a brand new location', function () {
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Strada Nouă 1',
         'name' => 'Sala Nouă', 'google_place_id' => 'ChIJNew',
     ]);
 
-    expect($clubLocation->location->google_place_id)->toBe('ChIJNew');
+    expect($organizationLocation->location->google_place_id)->toBe('ChIJNew');
 });
 
 /*
@@ -328,9 +328,9 @@ test('the guard cannot ask anything without a pin', function () {
 */
 
 test('persist carries the place id through to the shared location', function () {
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
 
-    $clubLocation = LocationResource::persist([
+    $organizationLocation = LocationResource::persist([
         'county' => 'Cluj',
         'city' => 'Cluj-Napoca',
         'address' => 'Strada Memorandumului 1',
@@ -338,16 +338,16 @@ test('persist carries the place id through to the shared location', function () 
         'location' => ['lat' => 46.77, 'lng' => 23.59],
         'google_place_id' => 'ChIJMemorandumului',
         'sports' => [],
-    ], null, null, $club);
+    ], null, null, $organization);
 
-    expect($clubLocation->location->google_place_id)->toBe('ChIJMemorandumului');
+    expect($organizationLocation->location->google_place_id)->toBe('ChIJMemorandumului');
 });
 
 test('persist attaches to the location the club chose over the address it typed', function () {
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
     $chosen = Location::factory()->create(['name' => 'Bazinul Olimpic']);
 
-    $clubLocation = LocationResource::persist([
+    $organizationLocation = LocationResource::persist([
         'county' => 'Cluj',
         'city' => 'Cluj-Napoca',
         'address' => 'Adresă tastată altfel 1',
@@ -355,10 +355,10 @@ test('persist attaches to the location the club chose over the address it typed'
         'location' => ['lat' => 46.77, 'lng' => 23.59],
         'chosen_location_id' => $chosen->getKey(),
         'sports' => [],
-    ], null, null, $club);
+    ], null, null, $organization);
 
     expect(Location::count())->toBe(1)
-        ->and($clubLocation->location->is($chosen))->toBeTrue();
+        ->and($organizationLocation->location->is($chosen))->toBeTrue();
 });
 
 /*
@@ -371,7 +371,7 @@ test('persist attaches to the location the club chose over the address it typed'
  * Put a club member inside the club panel, with the geography the form's selects
  * validate against.
  *
- * @return array{0: User, 1: Club}
+ * @return array{0: User, 1: Organization}
  */
 function clubPanelContext(): array
 {
@@ -379,14 +379,14 @@ function clubPanelContext(): array
     Locality::create(['county_id' => $county->id, 'name' => 'Cluj-Napoca']);
 
     $member = User::factory()->create();
-    $club = Club::factory()->pro()->create();
-    $club->addMember($member);
+    $organization = Organization::factory()->pro()->create();
+    $organization->addMember($member);
 
     test()->actingAs($member);
-    Filament::setCurrentPanel(Filament::getPanel('club'));
-    Filament::setTenant($club);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
 
-    return [$member, $club];
+    return [$member, $organization];
 }
 
 test('saving without pressing search is still stopped by the nearby location', function () {
@@ -429,7 +429,7 @@ test('confirming it is a new place lets the save through', function () {
 });
 
 test('choosing the neighbour attaches the club there instead of creating a second row', function () {
-    [, $club] = clubPanelContext();
+    [, $organization] = clubPanelContext();
     $neighbour = Location::factory()->at(46.7660, 23.5735)->create(['name' => 'Bazinul Olimpic']);
 
     Livewire::test(ManageLocations::class)
@@ -446,7 +446,7 @@ test('choosing the neighbour attaches the club there instead of creating a secon
         ->assertHasNoActionErrors();
 
     expect(Location::count())->toBe(1)
-        ->and($club->clubLocations()->first()->location_id)->toBe($neighbour->getKey());
+        ->and($organization->organizationLocations()->first()->location_id)->toBe($neighbour->getKey());
 });
 
 test('a lone address far from anything saves without any question', function () {
@@ -467,15 +467,15 @@ test('a lone address far from anything saves without any question', function () 
 });
 
 test('a club can propose a correction for the shared location it cannot edit', function () {
-    [, $club] = clubPanelContext();
+    [, $organization] = clubPanelContext();
 
-    $clubLocation = $club->syncLocation([
+    $organizationLocation = $organization->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Aleea Stadionului 1',
         'name' => 'Bazinul Olimpik',
     ]);
 
     Livewire::test(ManageLocations::class)
-        ->callAction(TestAction::make('proposeCorrection')->table($clubLocation), data: [
+        ->callAction(TestAction::make('proposeCorrection')->table($organizationLocation), data: [
             'field' => LocationCorrectionField::Name->value,
             'suggested_value' => 'Bazinul Olimpic',
             'note' => 'Așa scrie pe clădire.',
@@ -484,11 +484,11 @@ test('a club can propose a correction for the shared location it cannot edit', f
     $correction = LocationCorrection::query()->first();
 
     expect($correction)->not->toBeNull()
-        ->and($correction->location_id)->toBe($clubLocation->location_id)
-        ->and($correction->club_id)->toBe($club->getKey())
+        ->and($correction->location_id)->toBe($organizationLocation->location_id)
+        ->and($correction->organization_id)->toBe($organization->getKey())
         ->and($correction->field)->toBe(LocationCorrectionField::Name)
         ->and($correction->suggested_value)->toBe('Bazinul Olimpic')
         ->and($correction->isPending())->toBeTrue()
         // The club proposes; it does not get to change the shared record itself.
-        ->and($clubLocation->location->refresh()->name)->toBe('Bazinul Olimpik');
+        ->and($organizationLocation->location->refresh()->name)->toBe('Bazinul Olimpik');
 });

@@ -29,7 +29,7 @@ class RedirectToHomeArea
     {
         return match ($area) {
             'admin' => $user->is_admin || $user->isSuperAdmin(),
-            'club' => $user->clubs()->exists(),
+            'organization' => $user->organizations()->exists(),
             'user' => $user->isConsumer(),
             default => true,
         };

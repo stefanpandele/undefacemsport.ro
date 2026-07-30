@@ -36,10 +36,10 @@ class AgeGroup extends Model
     }
 
     /**
-     * @return BelongsToMany<ClubSport, $this>
+     * @return BelongsToMany<OrganizationSport, $this>
      */
-    public function clubSports(): BelongsToMany
+    public function organizationSports(): BelongsToMany
     {
-        return $this->belongsToMany(ClubSport::class, 'club_sport_age_group');
+        return $this->belongsToMany(OrganizationSport::class, 'organization_sport_age_group');
     }
 }

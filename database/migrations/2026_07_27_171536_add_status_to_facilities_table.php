@@ -17,8 +17,8 @@ return new class extends Migration
         // Whatever is already here is curated reference data, hence approved.
         Schema::table('facilities', function (Blueprint $table) {
             $table->string('status')->default(FacilityStatus::Approved->value)->after('icon');
-            $table->foreignId('suggested_by_club_id')->nullable()->after('status')
-                ->constrained('clubs')->nullOnDelete();
+            $table->foreignId('suggested_by_organization_id')->nullable()->after('status')
+                ->constrained('organizations')->nullOnDelete();
         });
     }
 
@@ -28,7 +28,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('facilities', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('suggested_by_club_id');
+            $table->dropConstrainedForeignId('suggested_by_organization_id');
             $table->dropColumn('status');
         });
     }

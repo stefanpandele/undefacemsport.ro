@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * @property int $id
  * @property int $location_id
- * @property int|null $club_id
+ * @property int|null $organization_id
  * @property LocationCorrectionField $field
  * @property string $suggested_value
  * @property string|null $note
@@ -35,7 +35,7 @@ class LocationCorrection extends Model
      *
      * @var list<string>
      */
-    protected $fillable = ['location_id', 'club_id', 'field', 'suggested_value', 'note'];
+    protected $fillable = ['location_id', 'organization_id', 'field', 'suggested_value', 'note'];
 
     /**
      * Mirrors the column default, so a freshly created request reports its status
@@ -114,11 +114,11 @@ class LocationCorrection extends Model
     }
 
     /**
-     * @return BelongsTo<Club, $this>
+     * @return BelongsTo<Organization, $this>
      */
-    public function club(): BelongsTo
+    public function organization(): BelongsTo
     {
-        return $this->belongsTo(Club::class);
+        return $this->belongsTo(Organization::class);
     }
 
     /**

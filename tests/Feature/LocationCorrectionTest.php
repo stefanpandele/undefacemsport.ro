@@ -3,9 +3,9 @@
 use App\Enums\LocationCorrectionField;
 use App\Enums\LocationCorrectionStatus;
 use App\Filament\Admin\Resources\LocationCorrections\LocationCorrectionResource;
-use App\Models\Club;
 use App\Models\Location;
 use App\Models\LocationCorrection;
+use App\Models\Organization;
 use App\Models\User;
 
 test('a correction starts pending and unreviewed', function () {
@@ -19,12 +19,12 @@ test('a correction starts pending and unreviewed', function () {
 
 test('a club cannot set the status or the reviewer by mass assignment', function () {
     $location = Location::factory()->create();
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
 
     $correction = LocationCorrection::create([
         'location_id' => $location->getKey(),
-        'club_id' => $club->getKey(),
+        'organization_id' => $organization->getKey(),
         'field' => LocationCorrectionField::Name,
         'suggested_value' => 'Numele corect',
         'status' => LocationCorrectionStatus::Approved,
@@ -99,28 +99,28 @@ test('rejecting a correction records the review without touching the location', 
 
 test('a correction belongs to its location, club and reviewer', function () {
     $location = Location::factory()->create();
-    $club = Club::factory()->create();
+    $organization = Organization::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
 
     $correction = LocationCorrection::factory()->create([
         'location_id' => $location->getKey(),
-        'club_id' => $club->getKey(),
+        'organization_id' => $organization->getKey(),
     ]);
 
     $correction->reject($admin);
 
     expect($correction->location->is($location))->toBeTrue()
-        ->and($correction->club->is($club))->toBeTrue()
+        ->and($correction->organization->is($organization))->toBeTrue()
         ->and($correction->reviewer->is($admin))->toBeTrue();
 });
 
 test('a correction survives its club being deleted, because the report still stands', function () {
-    $club = Club::factory()->create();
-    $correction = LocationCorrection::factory()->create(['club_id' => $club->getKey()]);
+    $organization = Organization::factory()->create();
+    $correction = LocationCorrection::factory()->create(['organization_id' => $organization->getKey()]);
 
-    $club->delete();
+    $organization->delete();
 
-    expect($correction->refresh()->club_id)->toBeNull()
+    expect($correction->refresh()->organization_id)->toBeNull()
         ->and(LocationCorrection::count())->toBe(1);
 });
 
@@ -152,7 +152,7 @@ test('an admin can open the corrections review page', function () {
 
 test('a club member cannot reach the corrections review page', function () {
     $member = User::factory()->create();
-    Club::factory()->create()->addMember($member);
+    Organization::factory()->create()->addMember($member);
 
     $this->actingAs($member)
         ->get(LocationCorrectionResource::getUrl('index', panel: 'admin'))

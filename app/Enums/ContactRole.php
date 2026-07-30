@@ -5,7 +5,7 @@ namespace App\Enums;
 enum ContactRole: string
 {
     case General = 'general';
-    case Coach = 'coach';
+    case Person = 'person';
     case LegalRepresentative = 'legal_representative';
     case Accounting = 'accounting';
 
@@ -13,7 +13,7 @@ enum ContactRole: string
     {
         return match ($this) {
             self::General => 'Contact general',
-            self::Coach => 'Antrenor',
+            self::Person => 'Antrenor',
             self::LegalRepresentative => 'Reprezentant legal',
             self::Accounting => 'Contabilitate',
         };

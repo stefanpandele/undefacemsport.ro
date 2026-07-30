@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use App\Enums\LocationCorrectionField;
 use App\Enums\LocationCorrectionStatus;
-use App\Models\Club;
 use App\Models\Location;
 use App\Models\LocationCorrection;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -42,7 +42,7 @@ class LocationCorrectionSeeder extends Seeder
         // field of which location has to come out the same on every run, or
         // re-seeding files a fresh batch of proposals beside the old ones.
         $locations = Location::query()->orderBy('id')->limit(30)->get();
-        $clubs = Club::query()->orderBy('id')->limit(12)->get();
+        $clubs = Organization::query()->orderBy('id')->limit(12)->get();
         $reviewers = User::query()->where('is_admin', true)->orderBy('id')->get();
 
         if ($locations->isEmpty() || $clubs->isEmpty()) {
@@ -56,7 +56,7 @@ class LocationCorrectionSeeder extends Seeder
             // and others merely nudged.
             foreach (range(0, $position % 3) as $ignored) {
                 $complaint = self::COMPLAINTS[$index % count(self::COMPLAINTS)];
-                $club = $clubs[$index % $clubs->count()];
+                $organization = $clubs[$index % $clubs->count()];
                 $field = LocationCorrectionField::from($complaint['field']);
 
                 $suggested = $this->suggestedValue($location, $field, $complaint['transform']);
@@ -67,7 +67,7 @@ class LocationCorrectionSeeder extends Seeder
                     continue;
                 }
 
-                $this->fileCorrection($location, $club, $field, $suggested, $index, $reviewers);
+                $this->fileCorrection($location, $organization, $field, $suggested, $index, $reviewers);
 
                 $index++;
             }
@@ -79,7 +79,7 @@ class LocationCorrectionSeeder extends Seeder
      */
     private function fileCorrection(
         Location $location,
-        Club $club,
+        Organization $organization,
         LocationCorrectionField $field,
         string $suggested,
         int $index,
@@ -88,7 +88,7 @@ class LocationCorrectionSeeder extends Seeder
         $correction = LocationCorrection::firstOrCreate(
             [
                 'location_id' => $location->getKey(),
-                'club_id' => $club->getKey(),
+                'organization_id' => $organization->getKey(),
                 'field' => $field,
             ],
             [

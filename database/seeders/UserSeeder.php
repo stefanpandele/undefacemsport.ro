@@ -11,7 +11,7 @@ class UserSeeder extends Seeder
     /**
      * Seed consumers — public visitors who self-register in the frontend.
      * They have no `is_admin` flag and no club membership. The platform admin
-     * is handled by AdminPasswordSeeder; club representatives by ClubUserSeeder.
+     * is handled by AdminPasswordSeeder; club representatives by OrganizationUserSeeder.
      */
     public function run(): void
     {

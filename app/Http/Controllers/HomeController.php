@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Club;
+use App\Enums\OrganizationType;
 use App\Models\Location;
+use App\Models\Organization;
 use App\Models\Sport;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -69,7 +70,12 @@ class HomeController extends Controller
     {
         return [
             'locations' => Location::query()->count(),
-            'clubs' => Club::query()->whereHas('clubLocations')->count(),
+            // Clubs only: a venue renting out a hall is not a club, and the
+            // headline number must not quietly claim otherwise.
+            'clubs' => Organization::query()
+                ->where('type', OrganizationType::Club)
+                ->whereHas('organizationLocations')
+                ->count(),
             'cities' => Location::query()->whereNotNull('city')->distinct()->count('city'),
             'sports' => count(Sport::withReach()),
         ];

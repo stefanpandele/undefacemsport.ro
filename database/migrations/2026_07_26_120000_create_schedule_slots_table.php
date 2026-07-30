@@ -15,13 +15,13 @@ return new class extends Migration
         Schema::create('schedule_slots', function (Blueprint $table) {
             $table->id();
             // Denormalized tenant key so the club panel can scope directly.
-            $table->foreignId('club_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('club_location_sport_id')->constrained('club_location_sport')->cascadeOnDelete();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('organization_location_sport_id')->constrained('organization_location_sport')->cascadeOnDelete();
             $table->unsignedTinyInteger('day_of_week'); // 1 = Monday ... 7 = Sunday
             $table->time('start_time');
             $table->time('end_time');
             $table->foreignId('age_group_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('coach_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('person_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

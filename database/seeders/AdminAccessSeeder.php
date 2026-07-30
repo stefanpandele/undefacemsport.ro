@@ -26,9 +26,9 @@ class AdminAccessSeeder extends Seeder
         $registrar->setPermissionsTeamId($teamId);
 
         $permissions = [
-            'view_any_club', 'view_club', 'create_club', 'update_club', 'delete_club', 'delete_any_club',
-            'view_any_club_application', 'view_club_application', 'create_club_application',
-            'update_club_application', 'delete_club_application', 'delete_any_club_application',
+            'view_any_organization', 'view_organization', 'create_organization', 'update_organization', 'delete_organization', 'delete_any_organization',
+            'view_any_organization_application', 'view_organization_application', 'create_organization_application',
+            'update_organization_application', 'delete_organization_application', 'delete_any_organization_application',
         ];
 
         foreach ($permissions as $permission) {
@@ -51,11 +51,11 @@ class AdminAccessSeeder extends Seeder
 
         // Limited scope: review club applications, read-only on clubs.
         $role->syncPermissions([
-            'view_any_club',
-            'view_club',
-            'view_any_club_application',
-            'view_club_application',
-            'update_club_application',
+            'view_any_organization',
+            'view_organization',
+            'view_any_organization_application',
+            'view_organization_application',
+            'update_organization_application',
         ]);
 
         $admin = User::updateOrCreate(
