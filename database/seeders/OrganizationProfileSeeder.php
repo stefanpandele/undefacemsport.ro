@@ -7,6 +7,7 @@ use App\Enums\ContactType;
 use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
+use App\Models\Level;
 use App\Models\Location;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -95,6 +96,7 @@ class OrganizationProfileSeeder extends Seeder
     {
         $sports = Sport::query()->get();
         $ageGroups = AgeGroup::query()->get();
+        $levels = Level::query()->orderBy('sort_order')->get();
         $venuesByCity = Location::query()->get()->groupBy('city');
 
         if ($sports->isEmpty() || $ageGroups->isEmpty() || $venuesByCity->isEmpty()) {
@@ -118,7 +120,7 @@ class OrganizationProfileSeeder extends Seeder
             ->where('type', OrganizationType::Club)
             ->doesntHave('organizationSports')
             ->get()
-            ->each(function (Organization $organization, int $index) use ($ageGroups, $venuesByCity, $cities, $pools): void {
+            ->each(function (Organization $organization, int $index) use ($ageGroups, $levels, $venuesByCity, $cities, $pools): void {
                 // Round-robin over cities, two clubs at a time. Handing out one
                 // club per city spread them so thin that no city ever held two,
                 // and a city with a single club has nobody to share a hall with —
@@ -130,11 +132,11 @@ class OrganizationProfileSeeder extends Seeder
                 $anchorSport = $pool->first();
                 $anchorVenue = $venues->first();
 
-                $organizationSports = $this->addSports($organization, $pool, $anchorSport, $ageGroups);
+                $organizationSports = $this->addSports($organization, $pool, $anchorSport, $ageGroups, $levels);
                 $people = $this->addCoaches($organization, $organizationSports);
                 $organizationLocations = $this->addLocations($organization, $venues, $organizationSports, $anchorVenue, $anchorSport);
 
-                $this->addSchedule($organization, $organizationLocations, $people, $ageGroups);
+                $this->addSchedule($organization, $organizationLocations, $people, $ageGroups, $levels);
                 $this->addContacts($organization);
 
                 $organization->update([
@@ -142,15 +144,16 @@ class OrganizationProfileSeeder extends Seeder
                 ]);
             });
 
-        $this->shareHalls($ageGroups);
+        $this->shareHalls($ageGroups, $levels);
     }
 
     /**
      * @param  Collection<int, Sport>  $pool  the city's sports
      * @param  Collection<int, AgeGroup>  $ageGroups
+     * @param  Collection<int, Level>  $levels
      * @return Collection<int, OrganizationSport>
      */
-    private function addSports(Organization $organization, Collection $pool, Sport $anchor, Collection $ageGroups): Collection
+    private function addSports(Organization $organization, Collection $pool, Sport $anchor, Collection $ageGroups, Collection $levels): Collection
     {
         // Premium is unlimited; cap it so the demo stays readable.
         $limit = min($organization->planLimit('sports') ?? 5, 5);
@@ -159,7 +162,7 @@ class OrganizationProfileSeeder extends Seeder
             ->concat($pool->reject(fn (Sport $sport): bool => $sport->is($anchor))->shuffle())
             ->take(fake()->numberBetween(1, $limit))
             ->values()
-            ->map(function (Sport $sport, int $order) use ($organization, $ageGroups): OrganizationSport {
+            ->map(function (Sport $sport, int $order) use ($organization, $ageGroups, $levels): OrganizationSport {
                 /** @var OrganizationSport $organizationSport */
                 $organizationSport = $organization->organizationSports()->create([
                     'sport_id' => $sport->getKey(),
@@ -179,8 +182,37 @@ class OrganizationProfileSeeder extends Seeder
                     $ageGroups->shuffle()->take(fake()->numberBetween(1, 3))->pluck('id')->all(),
                 );
 
+                // Levels come as a run from the bottom rather than at random: a
+                // club that trains competitors almost always also runs a
+                // beginners' group, while one that only does initiation has no
+                // competitors. Picking freely would produce clubs offering
+                // "performanță" and nothing below it, which is not a real club.
+                $organizationSport->levels()->sync(
+                    $levels->take(fake()->numberBetween(1, min(3, $levels->count())))->pluck('id')->all(),
+                );
+
                 return $organizationSport;
             });
+    }
+
+    /**
+     * A level the club actually teaches for this sport, so a slot never claims a
+     * level the club does not offer.
+     *
+     * @param  Collection<int, Level>  $levels
+     */
+    private function levelForSport(OrganizationLocationSport $organizationLocationSport, Collection $levels): ?Level
+    {
+        $organizationSport = $organizationLocationSport->organizationLocation
+            ->organization
+            ->organizationSports
+            ->firstWhere('sport_id', $organizationLocationSport->sport_id);
+
+        $offered = $organizationSport?->levels;
+
+        return $offered === null || $offered->isEmpty()
+            ? $levels->first()
+            : $offered->random();
     }
 
     /**
@@ -260,12 +292,13 @@ class OrganizationProfileSeeder extends Seeder
      * @param  Collection<int, OrganizationLocation>  $organizationLocations
      * @param  Collection<int, Person>  $people
      * @param  Collection<int, AgeGroup>  $ageGroups
+     * @param  Collection<int, Level>  $levels
      */
-    private function addSchedule(Organization $organization, Collection $organizationLocations, Collection $people, Collection $ageGroups): void
+    private function addSchedule(Organization $organization, Collection $organizationLocations, Collection $people, Collection $ageGroups, Collection $levels): void
     {
         $organizationLocations
             ->flatMap(fn (OrganizationLocation $organizationLocation) => $organizationLocation->organizationLocationSports)
-            ->each(function (OrganizationLocationSport $organizationLocationSport) use ($organization, $people, $ageGroups): void {
+            ->each(function (OrganizationLocationSport $organizationLocationSport) use ($organization, $people, $ageGroups, $levels): void {
                 $days = collect(Weekday::cases())
                     ->shuffle()
                     ->take(fake()->numberBetween(2, 3));
@@ -288,6 +321,7 @@ class OrganizationProfileSeeder extends Seeder
                             'start_time' => $start,
                             'end_time' => $end,
                             'age_group_id' => $ageGroups->random()->getKey(),
+                            'level_id' => $this->levelForSport($organizationLocationSport, $levels)?->getKey(),
                             'person_id' => $eligible->random()->getKey(),
                         ]);
                     }
@@ -307,28 +341,30 @@ class OrganizationProfileSeeder extends Seeder
      * Keyed by (organization_location_sport, day, start), so re-running is a no-op.
      *
      * @param  Collection<int, AgeGroup>  $ageGroups
+     * @param  Collection<int, Level>  $levels
      */
-    private function shareHalls(Collection $ageGroups): void
+    private function shareHalls(Collection $ageGroups, Collection $levels): void
     {
         OrganizationLocationSport::query()
             ->with('organizationLocation.organization.people')
             ->get()
             ->groupBy(fn (OrganizationLocationSport $organizationLocationSport): string => $organizationLocationSport->organizationLocation->location_id.'-'.$organizationLocationSport->sport_id)
             ->filter(fn (Collection $sharing): bool => $sharing->count() > 1)
-            ->each(function (Collection $sharing) use ($ageGroups): void {
+            ->each(function (Collection $sharing) use ($ageGroups, $levels): void {
                 foreach ($sharing as $organizationLocationSport) {
-                    $this->slotAt($organizationLocationSport, Weekday::Wednesday, '18:00', '19:30', $ageGroups);
+                    $this->slotAt($organizationLocationSport, Weekday::Wednesday, '18:00', '19:30', $ageGroups, $levels);
                 }
 
                 // One club alone in the hall later that evening.
-                $this->slotAt($sharing->first(), Weekday::Wednesday, '20:00', '21:30', $ageGroups);
+                $this->slotAt($sharing->first(), Weekday::Wednesday, '20:00', '21:30', $ageGroups, $levels);
             });
     }
 
     /**
      * @param  Collection<int, AgeGroup>  $ageGroups
+     * @param  Collection<int, Level>  $levels
      */
-    private function slotAt(OrganizationLocationSport $organizationLocationSport, Weekday $day, string $start, string $end, Collection $ageGroups): void
+    private function slotAt(OrganizationLocationSport $organizationLocationSport, Weekday $day, string $start, string $end, Collection $ageGroups, Collection $levels): void
     {
         $organization = $organizationLocationSport->organizationLocation->organization;
 
@@ -346,6 +382,7 @@ class OrganizationProfileSeeder extends Seeder
                 'organization_id' => $organization->getKey(),
                 'end_time' => $end,
                 'age_group_id' => $ageGroups->random()->getKey(),
+                'level_id' => $this->levelForSport($organizationLocationSport, $levels)?->getKey(),
                 'person_id' => $person?->getKey(),
             ],
         );

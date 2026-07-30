@@ -7,6 +7,7 @@ use App\Filament\Concerns\ClubOnlyResource;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Organization\Resources\ScheduleSlots\Pages\ManageScheduleSlots;
 use App\Models\AgeGroup;
+use App\Models\Level;
 use App\Models\Organization;
 use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
@@ -106,6 +107,7 @@ class ScheduleSlotResource extends Resource
                 'start_time' => $slot['start_time'],
                 'end_time' => $slot['end_time'],
                 'age_group_id' => $slot['age_group_id'] ?? null,
+                'level_id' => $slot['level_id'] ?? null,
                 'person_id' => $slot['person_id'] ?? null,
             ]))
             ->first();
@@ -146,6 +148,9 @@ class ScheduleSlotResource extends Resource
                 ->label('Grupă')
                 ->options(fn (): array => AgeGroup::query()->orderBy('sort_order')->pluck('name', 'id')->all())
                 ->required(),
+            Select::make('level_id')
+                ->label('Nivel')
+                ->options(fn (): array => Level::query()->orderBy('sort_order')->pluck('name', 'id')->all()),
             Select::make('person_id')
                 ->label('Antrenor')
                 ->options(fn ($get, ?Component $livewire): array => static::coachOptions($get($locationSportPath), $livewire))

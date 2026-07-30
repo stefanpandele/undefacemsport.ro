@@ -44,6 +44,8 @@ export type LocationClub = {
     photos: string[];
     trustChips: TrustChip[];
     ages: string[];
+    /** How far along the groups are — a separate axis from who they are for. */
+    levels: string[];
     coaches: Coach[];
     schedule: ScheduleDay[];
     contactName: string;

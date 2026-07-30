@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
                 AdminPasswordSeeder::class,
                 SportSeeder::class,
                 AgeGroupSeeder::class,
+                LevelSeeder::class,
                 FacilitySeeder::class,
                 CountySeeder::class,
                 LocalitySeeder::class,

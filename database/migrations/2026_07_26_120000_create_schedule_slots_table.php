@@ -43,6 +43,9 @@ return new class extends Migration
             $table->string('access_mode')->nullable();
             $table->string('price_unit')->nullable();
             $table->foreignId('age_group_id')->nullable()->constrained()->nullOnDelete();
+            // Who the session is for, and how far along they are — two dimensions,
+            // because a child and an adult can both be beginners.
+            $table->foreignId('level_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('person_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });

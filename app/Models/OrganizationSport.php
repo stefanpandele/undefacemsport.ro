@@ -94,4 +94,14 @@ class OrganizationSport extends Model
     {
         return $this->belongsToMany(AgeGroup::class, 'organization_sport_age_group');
     }
+
+    /**
+     * How far along the groups are — a separate axis from who they are for.
+     *
+     * @return BelongsToMany<Level, $this>
+     */
+    public function levels(): BelongsToMany
+    {
+        return $this->belongsToMany(Level::class, 'organization_sport_level');
+    }
 }

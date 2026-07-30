@@ -22,6 +22,8 @@ type SportDetail = {
     audience: string[];
     beyondSport: string[];
     ages: string[];
+    /** How far along the groups are — a separate axis from who they are for. */
+    levels: string[];
     gallery: string[];
 };
 
@@ -282,6 +284,8 @@ function openCoach(coach: Coach) {
                         </div>
                     </div>
 
+                    <!-- Who it is for, and how far along: two axes, because a
+                         child and an adult can both be beginners. -->
                     <div class="mb-4 flex flex-wrap gap-1.5">
                         <span
                             v-for="age in activeDetail.ages"
@@ -289,6 +293,13 @@ function openCoach(coach: Coach) {
                             class="rounded-lg border border-line bg-[#f2f5ef] px-3 py-1.5 text-[11.5px] font-semibold text-sage"
                         >
                             {{ age }}
+                        </span>
+                        <span
+                            v-for="level in activeDetail.levels"
+                            :key="level"
+                            class="rounded-lg border border-grass/35 bg-[#eaf6ef] px-3 py-1.5 text-[11.5px] font-semibold text-grass-deep"
+                        >
+                            {{ level }}
                         </span>
                     </div>
                     <div

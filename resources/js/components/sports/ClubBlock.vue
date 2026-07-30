@@ -156,7 +156,8 @@ const remainingPhotos = computed(() =>
             </span>
         </div>
 
-        <!-- Age chips -->
+        <!-- Who it is for, and how far along. Two axes, so two rows of chips:
+             a child and an adult can both be beginners. -->
         <div class="mb-4 flex flex-wrap gap-1.5">
             <span
                 v-for="age in club.ages"
@@ -164,6 +165,13 @@ const remainingPhotos = computed(() =>
                 class="rounded-[7px] border border-line bg-[#f2f5ef] px-2.5 py-[5px] text-[11.5px] font-semibold text-sage"
             >
                 {{ age }}
+            </span>
+            <span
+                v-for="level in club.levels"
+                :key="level"
+                class="rounded-[7px] border border-grass/35 bg-[#eaf6ef] px-2.5 py-[5px] text-[11.5px] font-semibold text-grass-deep"
+            >
+                {{ level }}
             </span>
         </div>
 

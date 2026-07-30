@@ -93,7 +93,7 @@ trait PresentsOrganizations
      * @param  array<int, array<string, list<array{name: string, key: string}>>>  $occupancy  day value => interval => other clubs
      *                                                                                        `coach` stays the key the Vue schedule grid reads: the person running a
      *                                                                                        training session is a coach, whatever else an organization's people do.
-     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string, foreign: bool, otherClubs: list<array{name: string, key: string}>}>}>
+     * @return list<array{day: string, slots: list<array{time: string, group: string, level: string, coach: string, foreign: bool, otherClubs: list<array{name: string, key: string}>}>}>
      */
     protected function presentWeek(Collection $slots, array $occupancy = []): array
     {
@@ -107,6 +107,7 @@ trait PresentsOrganizations
                     ->map(fn (ScheduleSlot $slot): array => [
                         'time' => $this->interval($slot),
                         'group' => $slot->ageGroup->name ?? '',
+                        'level' => $slot->level->name ?? '',
                         'coach' => (string) $slot->person_id,
                         'foreign' => false,
                         'otherClubs' => $others[$this->interval($slot)] ?? [],
@@ -119,6 +120,7 @@ trait PresentsOrganizations
                     ->map(fn (array $clubs, string $time): array => [
                         'time' => $time,
                         'group' => '',
+                        'level' => '',
                         'coach' => '',
                         'foreign' => true,
                         'otherClubs' => $clubs,

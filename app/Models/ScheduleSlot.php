@@ -34,6 +34,7 @@ use LogicException;
  * @property SpaceAccessMode|null $access_mode
  * @property PriceUnit|null $price_unit
  * @property int|null $age_group_id
+ * @property int|null $level_id
  * @property int|null $person_id
  * @property-read Space|null $space  a training slot need not happen in a known space
  */
@@ -55,6 +56,7 @@ class ScheduleSlot extends Model
         'access_mode',
         'price_unit',
         'age_group_id',
+        'level_id',
         'person_id',
     ];
 
@@ -203,6 +205,14 @@ class ScheduleSlot extends Model
     public function ageGroup(): BelongsTo
     {
         return $this->belongsTo(AgeGroup::class);
+    }
+
+    /**
+     * @return BelongsTo<Level, $this>
+     */
+    public function level(): BelongsTo
+    {
+        return $this->belongsTo(Level::class);
     }
 
     /**

@@ -73,6 +73,7 @@ class ClubController extends Controller
                 'organizationSports.sport',
                 'organizationSports.benefits',
                 'organizationSports.ageGroups',
+                'organizationSports.levels',
                 'organizationSports.galleryImages',
                 'people.sports',
                 'organizationLocations.location.facilities',
@@ -176,6 +177,7 @@ class ClubController extends Controller
                         'audience' => $highlights['audience'],
                         'beyondSport' => $highlights['beyondSport'],
                         'ages' => $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all(),
+                        'levels' => $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all(),
                         'gallery' => $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all(),
                     ],
                 ];
@@ -278,7 +280,7 @@ class ClubController extends Controller
     /**
      * Build the Monday–Sunday grid for one location and sport.
      *
-     * @return list<array{day: string, slots: list<array{time: string, group: string, coach: string, foreign: bool, otherClubs: list<array{name: string, key: string}>}>}>
+     * @return list<array{day: string, slots: list<array{time: string, group: string, level: string, coach: string, foreign: bool, otherClubs: list<array{name: string, key: string}>}>}>
      */
     private function schedule(Organization $organization, OrganizationLocation $organizationLocation, int $sportId): array
     {

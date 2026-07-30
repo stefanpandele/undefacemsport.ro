@@ -8,6 +8,7 @@ use App\Enums\FacilityStatus;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Facility;
+use App\Models\Level;
 use App\Models\Organization;
 use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
@@ -95,6 +96,11 @@ class OrganizationAccessSeeder extends Seeder
 
         $ageGroup = AgeGroup::firstOrCreate(['name' => 'Adulți'], ['sort_order' => 99]);
         $organizationSport->ageGroups()->syncWithoutDetaching([$ageGroup->id]);
+
+        // Who the groups are for and how far along they are, both — a showcase
+        // club missing half the axes shows off half a page.
+        $levels = Level::query()->orderBy('sort_order')->limit(2)->pluck('id');
+        $organizationSport->levels()->syncWithoutDetaching($levels->all());
 
         $person = $organization->people()->updateOrCreate(
             ['name' => 'Ioana Marinescu'],

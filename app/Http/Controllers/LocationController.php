@@ -46,9 +46,11 @@ class LocationController extends Controller
                 'organizationLocations.organization.organizationSports.sport',
                 'organizationLocations.organization.organizationSports.benefits',
                 'organizationLocations.organization.organizationSports.ageGroups',
+                'organizationLocations.organization.organizationSports.levels',
                 'organizationLocations.organization.organizationSports.galleryImages',
                 'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.organizationLocationSports.scheduleSlots.ageGroup',
+                'organizationLocations.organizationLocationSports.scheduleSlots.level',
                 // The other two ways in. Only what an admin has cleared, the same
                 // rule the amenities follow.
                 'spaces' => fn ($query) => $query->approved(),
@@ -459,6 +461,9 @@ class LocationController extends Controller
             'trustChips' => $this->presentTrustChips($organizationSport),
             'ages' => $organizationSport instanceof OrganizationSport
                 ? $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all()
+                : [],
+            'levels' => $organizationSport instanceof OrganizationSport
+                ? $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all()
                 : [],
             'people' => $this->presentPeople($people),
             'schedule' => $this->presentWeek(
