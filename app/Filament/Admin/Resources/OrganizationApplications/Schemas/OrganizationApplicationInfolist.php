@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\OrganizationApplications\Schemas;
 
+use App\Enums\OrganizationApplicationStatus;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
@@ -31,16 +32,24 @@ class OrganizationApplicationInfolist
                     ->placeholder('-'),
                 TextEntry::make('city')
                     ->placeholder('-'),
-                TextEntry::make('message')
+                TextEntry::make('status')
+                    ->label('Stare')
+                    ->badge()
+                    ->formatStateUsing(fn (OrganizationApplicationStatus $state): string => $state->label())
+                    ->color(fn (OrganizationApplicationStatus $state): string => $state->color()),
+                TextEntry::make('organization.name')
+                    ->label('Organizația creată')
+                    ->placeholder('-'),
+                TextEntry::make('rejection_reason')
+                    ->label('Motivul respingerii')
                     ->placeholder('-')
                     ->columnSpanFull(),
-                TextEntry::make('status')
-                    ->badge(),
                 TextEntry::make('reviewed_at')
+                    ->label('Analizată')
                     ->dateTime()
                     ->placeholder('-'),
-                TextEntry::make('reviewed_by')
-                    ->numeric()
+                TextEntry::make('reviewer.name')
+                    ->label('De către')
                     ->placeholder('-'),
                 TextEntry::make('created_at')
                     ->dateTime()

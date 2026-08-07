@@ -804,8 +804,9 @@ a { color: var(--grass-deep); }
         <h3>Aprobare organizații</h3>
         <p>
             Cererile venite din formularul public, cu tipul declarat de solicitant
-            și datele firmei de la ANAF. Se filtrează și se sortează după tip.
-            Trecerea de la cerere la organizație se face deocamdată de mână.
+            și datele firmei de la ANAF, în trei tabale: în așteptare, aprobate,
+            respinse. La aprobare se creează organizația, cu numele, tipul și
+            datele de firmă din cerere. Respingerea cere obligatoriu un motiv.
         </p>
     </div>
     <div class="card">
@@ -1005,7 +1006,7 @@ a { color: var(--grass-deep); }
     <p><span class="what">Filtru pe tip de organizație în explorare.</span> Se filtrează după mod de acces, nu după cine e în spate.</p>
 </div>
 <div class="gap-item">
-    <p><span class="what">Flux de aprobare a cererilor.</span> Formularul public strânge cererea și o pune în coadă, cu tot cu tipul ales. Nu există încă acțiunea care, la aprobare, să creeze organizația și contul proprietarului — un administrator le face de mână în panou. Câmpurile <code>status</code>, <code>reviewed_at</code> și <code>reviewed_by</code> sunt pregătite pentru el.</p>
+    <p><span class="what">Contul proprietarului.</span> Aprobarea creează organizația, nu și utilizatorul care o administrează. Solicitantul nu se poate autentifica până când cineva nu îi atașează un cont — nu există încă invitație pe e-mail, nici notificare că cererea a fost aprobată sau respinsă. Motivul respingerii se scrie și se păstrează, dar deocamdată nu pleacă nicăieri.</p>
 </div>
 <div class="gap-item">
     <p><span class="what">Teste de browser.</span> Nimic nu execută template-urile Vue. Două redenumiri au lăsat pagini publice goale cu toată suita verde: una a schimbat cheile pe care le citesc componentele, alta a mutat controllerul fără directorul de pagini. Sunt fixate acum și cheile de payload, și existența fișierului pentru fiecare pagină pe care aplicația o randează — dar nici unul nu înlocuiește randarea reală.</p>

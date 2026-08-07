@@ -53,6 +53,7 @@ class OrganizationApplicationFactory extends Factory
     {
         return $this->state(fn (): array => [
             'status' => OrganizationApplicationStatus::Rejected,
+            'rejection_reason' => 'CUI-ul nu corespunde cu denumirea din cerere.',
             'reviewed_at' => now(),
         ]);
     }

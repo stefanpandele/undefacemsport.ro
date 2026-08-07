@@ -26,6 +26,8 @@ return new class extends Migration
             $table->string('county')->nullable();
             $table->string('city')->nullable();
             $table->string('status')->default('pending');
+            $table->text('rejection_reason')->nullable();
+            $table->foreignId('organization_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamp('reviewed_at')->nullable();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

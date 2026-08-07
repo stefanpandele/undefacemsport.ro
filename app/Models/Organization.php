@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * The account holder: a legal entity with a plan, staff and an approval flow.
@@ -62,12 +63,15 @@ class Organization extends Model
     ];
 
     /**
-     * Mirrors the column default, so a freshly created organization reports its
-     * type without having to be refreshed from the database.
+     * Mirrors the column defaults, so a freshly created organization reports its
+     * type and plan without having to be refreshed from the database.
      *
      * @var array<string, string>
      */
-    protected $attributes = ['type' => OrganizationType::Club->value];
+    protected $attributes = [
+        'type' => OrganizationType::Club->value,
+        'plan' => Plan::Free->value,
+    ];
 
     /**
      * @return array<string, string>
@@ -79,6 +83,32 @@ class Organization extends Model
             'plan' => Plan::class,
             'type' => OrganizationType::class,
         ];
+    }
+
+    /**
+     * A slug free to take, derived from the name and falling back to the city
+     * before a bare counter — two clubs called "Dinamo" read better as
+     * `dinamo-bucuresti` than as `dinamo-2`.
+     */
+    public static function uniqueSlug(string $name, ?string $city = null): string
+    {
+        $base = Str::slug($name);
+
+        $candidates = filled($city) ? [$base, $base.'-'.Str::slug($city)] : [$base];
+
+        foreach ($candidates as $candidate) {
+            if (! static::query()->where('slug', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        $suffix = 2;
+
+        while (static::query()->where('slug', $base.'-'.$suffix)->exists()) {
+            $suffix++;
+        }
+
+        return $base.'-'.$suffix;
     }
 
     public function isClub(): bool

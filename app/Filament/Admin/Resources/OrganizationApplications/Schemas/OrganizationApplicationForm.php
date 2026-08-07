@@ -41,17 +41,18 @@ class OrganizationApplicationForm
                     ->default(null),
                 TextInput::make('city')
                     ->default(null),
-                Textarea::make('message')
-                    ->default(null)
-                    ->columnSpanFull(),
                 Select::make('status')
+                    ->label('Stare')
                     ->options(OrganizationApplicationStatus::class)
                     ->default('pending')
                     ->required(),
-                DateTimePicker::make('reviewed_at'),
-                TextInput::make('reviewed_by')
-                    ->numeric()
-                    ->default(null),
+                Textarea::make('rejection_reason')
+                    ->label('Motivul respingerii')
+                    ->default(null)
+                    ->maxLength(1000)
+                    ->columnSpanFull(),
+                DateTimePicker::make('reviewed_at')
+                    ->label('Analizată'),
             ]);
     }
 }
