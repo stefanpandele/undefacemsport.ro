@@ -17,7 +17,7 @@ class TurnstileToken implements ValidationRule
         $secret = config('services.turnstile.secret_key');
 
         if (blank($secret)) {
-            $fail(__('club_application.validation.turnstile.unavailable'));
+            $fail(__('organization_application.validation.turnstile.unavailable'));
 
             return;
         }
@@ -31,7 +31,7 @@ class TurnstileToken implements ValidationRule
         ]);
 
         if (! $response->successful() || $response->json('success') !== true) {
-            $fail(__('club_application.validation.turnstile.failed'));
+            $fail(__('organization_application.validation.turnstile.failed'));
         }
     }
 }

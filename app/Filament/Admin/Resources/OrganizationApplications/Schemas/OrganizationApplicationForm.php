@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\OrganizationApplications\Schemas;
 
 use App\Enums\OrganizationApplicationStatus;
+use App\Enums\OrganizationType;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -16,7 +17,10 @@ class OrganizationApplicationForm
     {
         return $schema
             ->components([
-                TextInput::make('club_name')
+                TextInput::make('name')
+                    ->required(),
+                Select::make('type')
+                    ->options(OrganizationType::options())
                     ->required(),
                 TextInput::make('fiscal_code')
                     ->required(),

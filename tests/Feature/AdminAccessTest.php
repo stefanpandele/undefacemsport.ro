@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrganizationType;
 use App\Models\Organization;
 use App\Models\OrganizationApplication;
 use App\Models\User;
@@ -20,7 +21,8 @@ beforeEach(function () {
 function newApplication(): OrganizationApplication
 {
     return OrganizationApplication::create([
-        'club_name' => 'Aplicație Test',
+        'name' => 'Aplicație Test',
+        'type' => OrganizationType::Club,
         'fiscal_code' => 'RO'.fake()->unique()->numberBetween(1_000_000, 99_999_999),
         'contact_name' => 'Ion Test',
         'contact_email' => fake()->unique()->safeEmail(),

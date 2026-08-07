@@ -2,17 +2,46 @@
 
 return [
     'meta' => [
-        'title' => 'Register your club — Unde Facem Sport',
+        'title' => 'Register your organization — Unde Facem Sport',
     ],
 
     'form' => [
-        'eyebrow' => 'New club account',
-        'heading' => 'Register your club',
-        'subheading' => 'It takes less than a minute. The rest of the details — locations, sports, schedule — you fill in after approval.',
+        'eyebrow' => 'New account',
+        'heading' => 'Register your organization',
+        'subheading' => 'It takes less than a minute. The rest of the details — locations, spaces, schedule — you fill in after approval.',
 
-        'club_name' => [
-            'label' => 'Club name',
+        'type' => [
+            'label' => 'What kind of organization are you?',
+            'hint' => 'This decides how your public page looks and what you can fill in inside your account.',
+            'club' => [
+                'label' => 'Sports club',
+                'description' => 'You run groups, coaches and a recurring training schedule.',
+            ],
+            'venue' => [
+                'label' => 'Sports venue',
+                'description' => 'You have pitches, halls or pools — entry by ticket or rented by the hour.',
+            ],
+            'practice' => [
+                'label' => 'Practice or clinic',
+                'description' => 'You work by appointment: physiotherapy, recovery, nutrition.',
+            ],
+        ],
+
+        'name' => [
+            'label' => 'Organization name',
             'placeholder' => 'e.g. Club Aqua Junior',
+            'club' => [
+                'label' => 'Club name',
+                'placeholder' => 'e.g. Club Aqua Junior',
+            ],
+            'venue' => [
+                'label' => 'Venue name',
+                'placeholder' => 'e.g. Baza Sportivă Olimpia',
+            ],
+            'practice' => [
+                'label' => 'Practice name',
+                'placeholder' => 'e.g. Cabinet Kinetic Recuperare',
+            ],
         ],
         'fiscal_code' => [
             'label' => 'Fiscal code (CUI)',
@@ -28,10 +57,10 @@ return [
         ],
         'contact_email' => [
             'label' => 'Email',
-            'placeholder' => 'andrei@clubultau.ro',
+            'placeholder' => 'andrei@example.ro',
         ],
 
-        'info' => 'After you submit the request, the UndeFacemSport.ro team reviews it manually within 24–48h. You will receive a confirmation email, then you can add locations, sports and schedule.',
+        'info' => 'After you submit the request, the UndeFacemSport.ro team reviews it manually within 24–48h. You will receive a confirmation email, then you can add locations, spaces and schedule.',
         'submit' => 'Send request →',
         'submitting' => 'Sending…',
     ],
@@ -51,15 +80,19 @@ return [
 
     'success' => [
         'heading' => 'Request sent!',
-        'body' => 'Thank you! The UndeFacemSport.ro team is checking the details and will let you know as soon as your club is approved.',
+        'body' => 'Thank you! The UndeFacemSport.ro team is checking the details and will let you know as soon as your account is approved.',
         'badge' => 'PENDING APPROVAL',
         'back' => 'Back to homepage →',
     ],
 
     'validation' => [
-        'club_name' => [
-            'required' => 'Please enter the club name.',
-            'max' => 'The club name must not exceed 255 characters.',
+        'name' => [
+            'required' => 'Please enter the organization name.',
+            'max' => 'The organization name must not exceed 255 characters.',
+        ],
+        'type' => [
+            'required' => 'Please pick what kind of organization you are.',
+            'invalid' => 'Please pick one of the three options.',
         ],
         'fiscal_code' => [
             'required' => 'Please enter the fiscal code (CUI).',

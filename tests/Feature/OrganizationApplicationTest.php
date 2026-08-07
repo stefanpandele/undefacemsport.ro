@@ -1,13 +1,15 @@
 <?php
 
 use App\Enums\OrganizationApplicationStatus;
+use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Illuminate\Support\Facades\Http;
 
 function validApplicationPayload(array $overrides = []): array
 {
     return array_merge([
-        'club_name' => 'Clubul Sportiv Test',
+        'name' => 'Clubul Sportiv Test',
+        'type' => 'club',
         'fiscal_code' => 'RO12345678',
         'contact_name' => 'Ion Popescu',
         'contact_email' => 'ion@example.com',
@@ -64,21 +66,49 @@ beforeEach(function () {
     config(['services.turnstile.enabled' => false]);
 });
 
-it('shows the club application form', function () {
-    $this->get(route('club-application.create'))
+it('shows the organization application form', function () {
+    $this->get(route('organization-application.create'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('public/OrganizationApplication/Create'));
 });
 
-it('stores a pending club application with company details resolved from anaf', function () {
+it('offers every organization type on the form', function () {
+    $this->get(route('organization-application.create'))
+        ->assertInertia(fn ($page) => $page->where('types', ['club', 'venue', 'practice']));
+});
+
+it('stores the kind of organization the applicant picked', function (string $type) {
     fakeAnafFound();
 
-    $this->post(route('club-application.store'), validApplicationPayload())
-        ->assertRedirect(route('club-application.create'));
+    $this->post(route('organization-application.store'), validApplicationPayload(['type' => $type]))
+        ->assertRedirect(route('organization-application.create'));
+
+    expect(OrganizationApplication::sole()->type)->toBe(OrganizationType::from($type));
+})->with(['club', 'venue', 'practice']);
+
+it('refuses a type that is not one of the three', function () {
+    $this->post(route('organization-application.store'), validApplicationPayload(['type' => 'hotel']))
+        ->assertSessionHasErrors('type');
+
+    expect(OrganizationApplication::count())->toBe(0);
+});
+
+it('does not fall back to club when no type is picked', function () {
+    $this->post(route('organization-application.store'), validApplicationPayload(['type' => '']))
+        ->assertSessionHasErrors('type');
+
+    expect(OrganizationApplication::count())->toBe(0);
+});
+
+it('stores a pending organization application with company details resolved from anaf', function () {
+    fakeAnafFound();
+
+    $this->post(route('organization-application.store'), validApplicationPayload())
+        ->assertRedirect(route('organization-application.create'));
 
     $application = OrganizationApplication::sole();
 
-    expect($application->club_name)->toBe('Clubul Sportiv Test')
+    expect($application->name)->toBe('Clubul Sportiv Test')
         ->and($application->fiscal_code)->toBe('RO12345678')
         ->and($application->company_name)->toBe('AQUA JUNIOR SRL')
         ->and($application->address)->toBe('MUNICIPIUL BRAȘOV, STR. LUNGĂ, NR.12')
@@ -90,7 +120,7 @@ it('stores a pending club application with company details resolved from anaf', 
 it('requires a turnstile token when turnstile is enabled', function () {
     config()->set('services.turnstile.enabled', true);
 
-    $this->post(route('club-application.store'), validApplicationPayload())
+    $this->post(route('organization-application.store'), validApplicationPayload())
         ->assertSessionHasErrors('turnstile_token');
 
     expect(OrganizationApplication::count())->toBe(0);
@@ -103,7 +133,7 @@ it('rejects an application when the turnstile token is invalid', function () {
         'challenges.cloudflare.com/*' => Http::response(['success' => false]),
     ]);
 
-    $this->post(route('club-application.store'), validApplicationPayload([
+    $this->post(route('organization-application.store'), validApplicationPayload([
         'turnstile_token' => 'bad-token',
     ]))->assertSessionHasErrors('turnstile_token');
 
@@ -118,9 +148,9 @@ it('stores an application when turnstile is enabled and the token is valid', fun
         'webservicesp.anaf.ro/*' => Http::response(fakeAnafResponse()),
     ]);
 
-    $this->post(route('club-application.store'), validApplicationPayload([
+    $this->post(route('organization-application.store'), validApplicationPayload([
         'turnstile_token' => 'valid-token',
-    ]))->assertRedirect(route('club-application.create'));
+    ]))->assertRedirect(route('organization-application.create'));
 
     expect(OrganizationApplication::count())->toBe(1);
 });
@@ -128,7 +158,7 @@ it('stores an application when turnstile is enabled and the token is valid', fun
 it('strips the RO prefix before querying anaf', function () {
     fakeAnafFound();
 
-    $this->post(route('club-application.store'), validApplicationPayload());
+    $this->post(route('organization-application.store'), validApplicationPayload());
 
     Http::assertSent(fn ($request) => $request->data()[0]['cui'] === 12345678);
 });
@@ -136,12 +166,12 @@ it('strips the RO prefix before querying anaf', function () {
 it('stores an application even when the fiscal code is unknown to anaf', function () {
     fakeAnafNotFound();
 
-    $this->post(route('club-application.store'), validApplicationPayload())
-        ->assertRedirect(route('club-application.create'));
+    $this->post(route('organization-application.store'), validApplicationPayload())
+        ->assertRedirect(route('organization-application.create'));
 
     $application = OrganizationApplication::sole();
 
-    expect($application->club_name)->toBe('Clubul Sportiv Test')
+    expect($application->name)->toBe('Clubul Sportiv Test')
         ->and($application->fiscal_code)->toBe('RO12345678')
         ->and($application->company_name)->toBeNull()
         ->and($application->address)->toBeNull()
@@ -154,8 +184,8 @@ it('stores an application even when anaf is unreachable', function () {
         'webservicesp.anaf.ro/*' => Http::failedConnection(),
     ]);
 
-    $this->post(route('club-application.store'), validApplicationPayload())
-        ->assertRedirect(route('club-application.create'));
+    $this->post(route('organization-application.store'), validApplicationPayload())
+        ->assertRedirect(route('organization-application.create'));
 
     $application = OrganizationApplication::sole();
 
@@ -164,8 +194,8 @@ it('stores an application even when anaf is unreachable', function () {
 });
 
 it('requires the mandatory fields', function () {
-    $this->post(route('club-application.store'), [])
-        ->assertSessionHasErrors(['club_name', 'fiscal_code', 'contact_name', 'contact_email']);
+    $this->post(route('organization-application.store'), [])
+        ->assertSessionHasErrors(['name', 'type', 'fiscal_code', 'contact_name', 'contact_email']);
 
     expect(OrganizationApplication::count())->toBe(0);
 });
@@ -173,7 +203,7 @@ it('requires the mandatory fields', function () {
 it('does not let the client dictate company details', function () {
     fakeAnafFound();
 
-    $this->post(route('club-application.store'), validApplicationPayload([
+    $this->post(route('organization-application.store'), validApplicationPayload([
         'status' => 'approved',
         'company_name' => 'Firma Inventată SRL',
         'is_vat_payer' => false,

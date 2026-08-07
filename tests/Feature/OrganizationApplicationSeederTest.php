@@ -1,10 +1,11 @@
 <?php
 
 use App\Enums\OrganizationApplicationStatus;
+use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Database\Seeders\OrganizationApplicationSeeder;
 
-test('club applications are seeded across pending, approved and rejected states', function () {
+test('organization applications are seeded across pending, approved and rejected states', function () {
     $this->seed(OrganizationApplicationSeeder::class);
 
     expect(OrganizationApplication::count())->toBe(13)
@@ -13,7 +14,13 @@ test('club applications are seeded across pending, approved and rejected states'
         ->and(OrganizationApplication::where('status', OrganizationApplicationStatus::Pending->value)->count())->toBe(8);
 });
 
-test('the club application seeder is idempotent', function () {
+test('every organization type shows up in the seeded queue', function (OrganizationType $type) {
+    $this->seed(OrganizationApplicationSeeder::class);
+
+    expect(OrganizationApplication::where('type', $type->value)->exists())->toBeTrue();
+})->with(OrganizationType::cases());
+
+test('the organization application seeder is idempotent', function () {
     $this->seed(OrganizationApplicationSeeder::class);
     $this->seed(OrganizationApplicationSeeder::class);
 

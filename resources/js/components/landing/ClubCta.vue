@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 
 import { trackEvent } from '@/lib/gtm';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 
 const plans = [
     { pn: 'Basic', pp: 'Gratuit · listare + orar' },
@@ -34,7 +34,7 @@ const plans = [
                     </p>
                     <div class="mt-[22px] flex flex-wrap gap-3">
                         <Link
-                            :href="clubApplication.create.url()"
+                            :href="organizationApplication.create.url()"
                             class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-[22px] py-3 text-[14.5px] font-semibold text-grass-deep transition hover:bg-[#f2f5ef]"
                             @click="
                                 trackEvent('cta_click', {

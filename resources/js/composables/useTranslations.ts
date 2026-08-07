@@ -5,7 +5,7 @@ type TranslationTree = { [key: string]: string | TranslationTree };
 /**
  * Resolves translation keys shared from Laravel's lang files via Inertia.
  * Keys use dot notation and map to nested lang arrays,
- * e.g. `t('club_application.form.club_name.label')`.
+ * e.g. `t('organization_application.form.name.label')`.
  */
 export function useTranslations() {
     const page = usePage();

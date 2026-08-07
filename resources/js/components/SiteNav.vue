@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { trackEvent } from '@/lib/gtm';
 import { explore, login, pricing, register } from '@/routes';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 import sportRoutes from '@/routes/sports';
 
 type Menu = 'nav' | 'visitor' | 'club';
@@ -155,7 +155,7 @@ const btnBase =
                         <a href="/cont/login" :class="menuItem">Login</a>
                         <!-- Club register = formularul nostru Inertia cu aprobare -->
                         <Link
-                            :href="clubApplication.create.url()"
+                            :href="organizationApplication.create.url()"
                             :class="menuItem"
                             @click="
                                 trackEvent('cta_click', {
@@ -223,7 +223,7 @@ const btnBase =
                         Login
                     </a>
                     <Link
-                        :href="clubApplication.create.url()"
+                        :href="organizationApplication.create.url()"
                         :class="sheetItem"
                         @click="
                             trackEvent('cta_click', {

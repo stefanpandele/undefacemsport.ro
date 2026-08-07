@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('organization_applications', function (Blueprint $table) {
             $table->id();
-            $table->string('club_name');
+            $table->string('name');
+            $table->string('type');
             $table->string('contact_name');
             $table->string('contact_email');
             $table->string('contact_phone');

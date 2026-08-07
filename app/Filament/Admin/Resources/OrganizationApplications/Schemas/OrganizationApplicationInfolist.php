@@ -12,7 +12,9 @@ class OrganizationApplicationInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('club_name'),
+                TextEntry::make('name'),
+                TextEntry::make('type')
+                    ->badge(),
                 TextEntry::make('fiscal_code'),
                 TextEntry::make('company_name')
                     ->placeholder('-'),

@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import SiteNav from '@/components/SiteNav.vue';
 import { trackEvent } from '@/lib/gtm';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 
 type PricingPlan = {
     key: string;
@@ -159,7 +159,7 @@ function limitLabel(value: number | null, one: string, many: string): string {
                         </div>
 
                         <Link
-                            :href="clubApplication.create.url()"
+                            :href="organizationApplication.create.url()"
                             class="mt-6 inline-flex w-full items-center justify-center rounded-full px-[22px] py-3 text-[14.5px] font-semibold transition"
                             :class="
                                 plan.key === RECOMMENDED

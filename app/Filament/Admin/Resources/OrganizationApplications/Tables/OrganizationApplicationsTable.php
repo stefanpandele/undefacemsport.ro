@@ -2,12 +2,14 @@
 
 namespace App\Filament\Admin\Resources\OrganizationApplications\Tables;
 
+use App\Enums\OrganizationType;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class OrganizationApplicationsTable
@@ -16,8 +18,18 @@ class OrganizationApplicationsTable
     {
         return $table
             ->columns([
-                TextColumn::make('club_name')
+                TextColumn::make('name')
                     ->searchable(),
+                TextColumn::make('type')
+                    ->label('Tip')
+                    ->badge()
+                    ->formatStateUsing(fn (OrganizationType $state): string => $state->label())
+                    ->color(fn (OrganizationType $state): string => match ($state) {
+                        OrganizationType::Club => 'success',
+                        OrganizationType::Venue => 'warning',
+                        OrganizationType::Practice => 'info',
+                    })
+                    ->sortable(),
                 TextColumn::make('fiscal_code')
                     ->searchable(),
                 TextColumn::make('company_name')
@@ -55,7 +67,9 @@ class OrganizationApplicationsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('type')
+                    ->label('Tip')
+                    ->options(OrganizationType::options()),
             ])
             ->recordActions([
                 ViewAction::make(),

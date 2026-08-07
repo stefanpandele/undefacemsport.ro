@@ -11,7 +11,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { gradientStyle, sportGradient } from '@/lib/gradients';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 import type {
     Person,
     LocationDetail,
@@ -310,7 +310,7 @@ function goToClub(key: string) {
                             găsească.
                         </p>
                         <Link
-                            :href="clubApplication.create.url()"
+                            :href="organizationApplication.create.url()"
                             class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-5 py-3 text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c]"
                         >
                             Adaugă-ți clubul
@@ -618,7 +618,7 @@ function goToClub(key: string) {
                 <div v-else class="py-8 text-center text-sage">
                     Nimeni nu oferă încă acest sport aici.
                     <Link
-                        :href="clubApplication.create.url()"
+                        :href="organizationApplication.create.url()"
                         class="font-semibold text-grass-deep"
                     >
                         Fii primul care se listează →

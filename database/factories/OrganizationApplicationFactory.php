@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\OrganizationApplicationStatus;
+use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,7 +20,8 @@ class OrganizationApplicationFactory extends Factory
         $company = fake()->company();
 
         return [
-            'club_name' => $company,
+            'name' => $company,
+            'type' => fake()->randomElement(OrganizationType::cases()),
             'company_name' => $company.' SRL',
             'fiscal_code' => 'RO'.fake()->unique()->numberBetween(1_000_000, 99_999_999),
             'is_vat_payer' => fake()->boolean(),
@@ -27,11 +29,16 @@ class OrganizationApplicationFactory extends Factory
             'county' => fake()->randomElement(config('counties')),
             'city' => fake()->city(),
             'contact_name' => fake()->name(),
-            'contact_role' => fake()->randomElement(['Președinte', 'Antrenor principal', 'Secretar']),
+            'contact_role' => fake()->randomElement(['Președinte', 'Antrenor principal', 'Secretar', 'Administrator', 'Manager']),
             'contact_email' => fake()->unique()->safeEmail(),
             'contact_phone' => fake()->phoneNumber(),
             'status' => OrganizationApplicationStatus::Pending,
         ];
+    }
+
+    public function ofType(OrganizationType $type): static
+    {
+        return $this->state(fn (): array => ['type' => $type]);
     }
 
     public function approved(): static

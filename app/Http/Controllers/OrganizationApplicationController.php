@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\LookupCompanyByFiscalCode;
+use App\Enums\OrganizationType;
 use App\Http\Requests\StoreOrganizationApplicationRequest;
 use App\Models\OrganizationApplication;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,9 @@ class OrganizationApplicationController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('public/OrganizationApplication/Create');
+        return Inertia::render('public/OrganizationApplication/Create', [
+            'types' => array_column(OrganizationType::cases(), 'value'),
+        ]);
     }
 
     public function store(StoreOrganizationApplicationRequest $request, LookupCompanyByFiscalCode $lookupCompany): RedirectResponse
@@ -32,6 +35,6 @@ class OrganizationApplicationController extends Controller
 
         $application->save();
 
-        return to_route('club-application.create');
+        return to_route('organization-application.create');
     }
 }

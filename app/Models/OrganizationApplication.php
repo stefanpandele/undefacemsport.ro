@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrganizationApplicationStatus;
+use App\Enums\OrganizationType;
 use Database\Factories\OrganizationApplicationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property string $club_name
+ * @property string $name
+ * @property OrganizationType $type
  * @property string $fiscal_code
  * @property string|null $company_name
  * @property bool|null $is_vat_payer
@@ -42,7 +44,8 @@ class OrganizationApplication extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'club_name',
+        'name',
+        'type',
         'fiscal_code',
         'company_name',
         'address',
@@ -61,6 +64,7 @@ class OrganizationApplication extends Model
     {
         return [
             'status' => OrganizationApplicationStatus::class,
+            'type' => OrganizationType::class,
             'is_vat_payer' => 'boolean',
             'social_links' => 'array',
             'reviewed_at' => 'datetime',

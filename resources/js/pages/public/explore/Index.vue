@@ -5,7 +5,7 @@ import SiteNav from '@/components/SiteNav.vue';
 import LocationsMap from '@/components/sports/LocationsMap.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 import locationRoutes from '@/routes/locations';
 
 type ExploreLocation = {
@@ -394,7 +394,7 @@ function locationHref(loc: ExploreLocation): string {
                     Niciun oraș care să semene cu „{{ cityQuery }}”.
                     <br />
                     <Link
-                        :href="clubApplication.create.url()"
+                        :href="organizationApplication.create.url()"
                         class="font-semibold text-grass-deep"
                     >
                         Listează primul club de acolo →

@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\OrganizationType;
 use App\Rules\TurnstileToken;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreOrganizationApplicationRequest extends FormRequest
 {
@@ -22,7 +24,8 @@ class StoreOrganizationApplicationRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'club_name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', Rule::in(array_column(OrganizationType::cases(), 'value'))],
             'fiscal_code' => ['required', 'string', 'unique:organizations,fiscal_code', 'max:50'],
             'contact_name' => ['required', 'string', 'max:255'],
             'contact_email' => ['required', 'email', 'unique:users,email', 'max:255'],
@@ -43,18 +46,20 @@ class StoreOrganizationApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'club_name.required' => __('club_application.validation.club_name.required'),
-            'club_name.max' => __('club_application.validation.club_name.max'),
-            'fiscal_code.required' => __('club_application.validation.fiscal_code.required'),
-            'fiscal_code.max' => __('club_application.validation.fiscal_code.max'),
-            'contact_name.required' => __('club_application.validation.contact_name.required'),
-            'contact_name.max' => __('club_application.validation.contact_name.max'),
-            'contact_email.required' => __('club_application.validation.contact_email.required'),
-            'contact_email.email' => __('club_application.validation.contact_email.email'),
-            'contact_email.max' => __('club_application.validation.contact_email.max'),
-            'contact_phone.required' => __('club_application.validation.contact_phone.required'),
-            'contact_phone.max' => __('club_application.validation.contact_phone.max'),
-            'turnstile_token.required' => __('club_application.validation.turnstile.required'),
+            'name.required' => __('organization_application.validation.name.required'),
+            'name.max' => __('organization_application.validation.name.max'),
+            'type.required' => __('organization_application.validation.type.required'),
+            'type.in' => __('organization_application.validation.type.invalid'),
+            'fiscal_code.required' => __('organization_application.validation.fiscal_code.required'),
+            'fiscal_code.max' => __('organization_application.validation.fiscal_code.max'),
+            'contact_name.required' => __('organization_application.validation.contact_name.required'),
+            'contact_name.max' => __('organization_application.validation.contact_name.max'),
+            'contact_email.required' => __('organization_application.validation.contact_email.required'),
+            'contact_email.email' => __('organization_application.validation.contact_email.email'),
+            'contact_email.max' => __('organization_application.validation.contact_email.max'),
+            'contact_phone.required' => __('organization_application.validation.contact_phone.required'),
+            'contact_phone.max' => __('organization_application.validation.contact_phone.max'),
+            'turnstile_token.required' => __('organization_application.validation.turnstile.required'),
         ];
     }
 }

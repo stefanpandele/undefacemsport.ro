@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import clubApplication from '@/routes/club-application';
+import organizationApplication from '@/routes/organization-application';
 
 const columns = [
     {
@@ -15,7 +15,7 @@ const columns = [
     {
         h: 'Pentru cluburi',
         links: [
-            { label: 'Adaugă club', href: clubApplication.create.url() },
+            { label: 'Adaugă club', href: organizationApplication.create.url() },
             { label: 'Prețuri', href: '#' },
             { label: 'Intră în cont', href: '/cont/login' },
         ],
