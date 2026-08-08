@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\FacilityStatus;
+use App\Enums\LocationWay;
 use App\Enums\SpaceAccessMode;
 use App\Models\Location;
 use App\Models\Organization;
@@ -90,7 +91,7 @@ test('the venue index lists places, not the companies behind them', function () 
             ->has('venues', 1)
             ->where('venues.0.name', 'Baza Olimpia')
             ->where('venues.0.city', 'Brașov')
-            ->where('venues.0.ways.0.key', 'liber')
+            ->where('venues.0.ways.0.key', 'agrement')
             ->where('venues.0.ways.0.price', '25 lei / intrare'),
     );
 });
@@ -226,4 +227,47 @@ test('the practice index narrows by specialty', function () {
     $this->get(route('directory.practices'))->assertInertia(
         fn ($page) => $page->has('specialties', 2),
     );
+});
+
+/*
+|--------------------------------------------------------------------------
+| The badges on a location card
+|--------------------------------------------------------------------------
+*/
+
+test('a location card says which ways in it offers', function () {
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+    $location = Location::factory()->create(['city' => 'Cluj-Napoca', 'county' => 'Cluj']);
+
+    clubAt($location, $sport, 'CS Test');
+    spaceAt($location, $sport, SpaceAccessMode::ExclusiveRental, 180);
+
+    $this->get(route('explore', ['oras' => 'Cluj-Napoca']))->assertInertia(
+        fn ($page) => $page
+            ->has('locations.0.ways', 2)
+            ->where('locations.0.ways.0.key', 'cursuri')
+            ->where('locations.0.ways.0.label', 'Cursuri')
+            ->where('locations.0.ways.1.key', 'inchiriere'),
+    );
+});
+
+test('a way nobody offers here gets no badge', function () {
+    // A badge leading to an empty page is a promise the card cannot keep.
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+    $location = Location::factory()->create(['city' => 'Cluj-Napoca', 'county' => 'Cluj']);
+
+    clubAt($location, $sport, 'CS Test');
+
+    $this->get(route('explore', ['oras' => 'Cluj-Napoca']))->assertInertia(
+        fn ($page) => $page
+            ->has('locations.0.ways', 1)
+            ->where('locations.0.ways.0.key', 'cursuri'),
+    );
+});
+
+test('the badge words are the same three everywhere', function () {
+    // One question asked in one vocabulary: the badge, the explore filter, the
+    // tab on an organization page and the fragment that opens it.
+    expect(collect(LocationWay::cases())->map->value->all())
+        ->toBe(['cursuri', 'agrement', 'inchiriere']);
 });

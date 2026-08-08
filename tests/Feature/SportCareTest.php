@@ -62,7 +62,7 @@ test('care is separate from the ways in, because it is not a way to play', funct
         fn ($page) => $page
             // One way to play, and the clinic is not among them.
             ->has('ways', 1)
-            ->where('ways.0.key', 'organizat')
+            ->where('ways.0.key', 'cursuri')
             ->has('care', 1),
     );
 });

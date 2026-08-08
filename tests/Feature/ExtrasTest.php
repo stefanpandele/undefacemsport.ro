@@ -229,7 +229,7 @@ test('the extras never reach discovery', function () {
     );
 
     $this->get(route('sports.show', ['slug' => 'baschet', 'city' => 'cluj-napoca']))
-        ->assertInertia(fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'organizat'));
+        ->assertInertia(fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'cursuri'));
 });
 
 /*

@@ -431,7 +431,7 @@ function goToClub(key: string) {
 
                 <!-- Organised programmes: the clubs, untouched. Nothing about a
                      venue's hours belongs in here. -->
-                <template v-if="activeWay?.key === 'organizat'">
+                <template v-if="activeWay?.key === 'cursuri'">
                     <h2
                         class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold"
                     >

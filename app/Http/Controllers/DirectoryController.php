@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FacilityStatus;
+use App\Enums\LocationWay;
 use App\Enums\OrganizationType;
 use App\Enums\SpaceAccessMode;
 use App\Models\Location;
@@ -178,7 +179,7 @@ class DirectoryController extends Controller
                     ->filter(fn (SpaceAccessMode $mode): bool => $location->spaces
                         ->contains(fn (Space $space): bool => $space->accessModes()->contains($mode)))
                     ->map(fn (SpaceAccessMode $mode): array => [
-                        'key' => $mode === SpaceAccessMode::OpenAccess ? 'liber' : 'inchiriere',
+                        'key' => LocationWay::forAccessMode($mode)->value,
                         'label' => $mode->label(),
                         'price' => $this->cheapest($location->spaces, $mode),
                     ])

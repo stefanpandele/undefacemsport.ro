@@ -18,6 +18,11 @@ type ExploreLocation = {
     clubCount: number;
     facilityCount: number;
     color: string | null;
+    /**
+     * Which of the three ways in this place offers — the visitor's real
+     * question, and the axis every listing on the site groups by.
+     */
+    ways: { key: string; label: string }[];
     sports: { key: string; label: string }[];
 };
 
@@ -45,6 +50,8 @@ type ExploreFilters = {
     sport: string | null;
     facilities: number[];
     search: string | null;
+    /** The way in the visitor narrowed to, if any. */
+    way: string | null;
 };
 
 const props = defineProps<{
@@ -746,6 +753,24 @@ function locationHref(loc: ExploreLocation): string {
                                 </div>
                             </div>
                             <div class="px-4 pt-3 pb-4">
+                                <!-- How you get in, before what is played here:
+                                     somebody who wants to swim after work is
+                                     choosing between these three, not between
+                                     sports. -->
+                                <div class="mb-2.5 flex flex-wrap gap-1.5">
+                                    <span
+                                        v-for="way in loc.ways"
+                                        :key="way.key"
+                                        class="rounded-[7px] border-[1.5px] px-2.5 py-[3px] text-[11px] font-bold"
+                                        :class="
+                                            filters.way === way.key
+                                                ? 'border-grass-deep bg-grass-deep text-white'
+                                                : 'border-line bg-[#f7f8f6] text-sage'
+                                        "
+                                    >
+                                        {{ way.label }}
+                                    </span>
+                                </div>
                                 <div class="mb-3 flex flex-wrap gap-1.5">
                                     <span
                                         v-for="sport in loc.sports"

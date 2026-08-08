@@ -181,10 +181,10 @@ const title = computed(() =>
                                 :key="key"
                                 class="rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-sage"
                             >
-                                <template v-if="key === 'organizat'">
+                                <template v-if="key === 'cursuri'">
                                     {{ count }} cu cluburi
                                 </template>
-                                <template v-else-if="key === 'liber'">
+                                <template v-else-if="key === 'agrement'">
                                     {{ count }} cu acces liber
                                 </template>
                                 <template v-else>

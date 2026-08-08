@@ -19,9 +19,9 @@ test('a pool with a club and a venue offers both ways in', function () {
     $this->get(route('locations.show', 'bazinul-test'))->assertInertia(
         fn ($page) => $page
             ->has('location.ways.inot', 2)
-            ->where('location.ways.inot.0.key', 'organizat')
+            ->where('location.ways.inot.0.key', 'cursuri')
             ->where('location.ways.inot.0.who', 'un club')
-            ->where('location.ways.inot.1.key', 'liber')
+            ->where('location.ways.inot.1.key', 'agrement')
             ->where('location.ways.inot.1.price', '45 lei / intrare'),
     );
 });
@@ -35,7 +35,7 @@ test('a place with only one way in offers no choice at all', function () {
     $this->get(route('locations.show', 'doar-club'))->assertInertia(
         fn ($page) => $page
             ->has('location.ways.inot', 1)
-            ->where('location.ways.inot.0.key', 'organizat'),
+            ->where('location.ways.inot.0.key', 'cursuri'),
     );
 });
 
@@ -48,7 +48,7 @@ test('a park court is a free way in with nobody behind it', function () {
     $this->get(route('locations.show', 'parcul-test'))->assertInertia(
         fn ($page) => $page
             ->has('location.ways.baschet', 1)
-            ->where('location.ways.baschet.0.key', 'liber')
+            ->where('location.ways.baschet.0.key', 'agrement')
             ->where('location.ways.baschet.0.price', 'Gratuit')
             ->where('location.ways.baschet.0.who', 'Spațiu public, neadministrat')
             ->where('location.ways.baschet.0.spaces.0.unmanaged', true)
@@ -143,7 +143,7 @@ test('a hall with two ways in offers both from one record', function () {
     $this->get(route('locations.show', 'sala-mixta'))->assertInertia(
         fn ($page) => $page
             ->has('location.ways.baschet', 2)
-            ->where('location.ways.baschet.0.key', 'liber')
+            ->where('location.ways.baschet.0.key', 'agrement')
             ->where('location.ways.baschet.0.price', '25 lei / intrare')
             ->where('location.ways.baschet.1.key', 'inchiriere')
             ->where('location.ways.baschet.1.price', '180 lei / oră'),
@@ -173,9 +173,9 @@ test('the explore page can be narrowed to one way in', function () {
             ->viewData('page')['props']['locations'],
     )->pluck('name')->all();
 
-    expect($names('liber'))->toBe(['Parcul liber'])
+    expect($names('agrement'))->toBe(['Parcul liber'])
         ->and($names('inchiriere'))->toBe(['Baza de inchiriat'])
-        ->and($names('organizat'))->toBe(['Sala cu club']);
+        ->and($names('cursuri'))->toBe(['Sala cu club']);
 });
 
 test('an unknown way in is ignored rather than emptying the page', function () {
@@ -195,8 +195,8 @@ test('the explore page offers the three ways as filters', function () {
     $this->get(route('explore'))->assertInertia(
         fn ($page) => $page
             ->has('ways', 3)
-            ->where('ways.0.value', 'organizat')
-            ->where('ways.1.value', 'liber')
+            ->where('ways.0.value', 'cursuri')
+            ->where('ways.1.value', 'agrement')
             ->where('ways.2.value', 'inchiriere'),
     );
 });

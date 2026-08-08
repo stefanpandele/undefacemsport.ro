@@ -438,13 +438,15 @@ const sectionTitle = 'mb-3.5 font-archivo text-[19px] font-extrabold';
                 </div>
             </section>
 
-            <!-- Agrement -->
-            <section v-if="activeTab === 'agrement'" class="py-6.5">
-                <div
-                    v-for="way in organization.leisure"
-                    :key="way.key"
-                    class="mb-6"
-                >
+            <!-- Agrement și închiriere: un tab pentru fiecare, pentru că prețul
+                 și felul în care intri sunt complet diferite. -->
+            <section
+                v-for="way in organization.leisure"
+                v-show="activeTab === way.key"
+                :key="way.key"
+                class="py-6.5"
+            >
+                <div class="mb-6">
                     <h2 class="mb-1 font-archivo text-[19px] font-extrabold">
                         {{ way.verb }}
                     </h2>

@@ -85,7 +85,7 @@ test('a level drops the ways that have no level at all', function () {
 
     $this->get(route('sports.show', ['slug' => 'baschet', 'city' => 'cluj-napoca', 'nivel' => 'initiere']))
         ->assertInertia(
-            fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'organizat'),
+            fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'cursuri'),
         );
 });
 

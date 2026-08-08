@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Concerns\PresentsOrganizations;
 use App\Concerns\PresentsSpaces;
 use App\Enums\ContactType;
+use App\Enums\LocationWay;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\Facility;
@@ -161,9 +162,10 @@ class LocationController extends Controller
 
                 if ($sportClubs->isNotEmpty()) {
                     $ways[] = [
-                        'key' => 'organizat',
+                        'key' => LocationWay::Organised->value,
+                        'label' => LocationWay::Organised->label(),
                         'verb' => 'Mă înscriu la un club',
-                        'how' => 'Antrenamente recurente, pe grupe, cu antrenor',
+                        'how' => LocationWay::Organised->description(),
                         // Clubs do not publish prices, and inventing one would be
                         // worse than saying nothing.
                         'price' => null,
@@ -181,9 +183,10 @@ class LocationController extends Controller
                     }
 
                     $ways[] = [
-                        'key' => $mode === SpaceAccessMode::OpenAccess ? 'liber' : 'inchiriere',
+                        'key' => LocationWay::forAccessMode($mode)->value,
+                        'label' => LocationWay::forAccessMode($mode)->label(),
                         'verb' => $mode->verb(),
-                        'how' => $mode->description(),
+                        'how' => LocationWay::forAccessMode($mode)->description(),
                         'price' => $this->cheapest($spaces, $mode),
                         'who' => $this->operators($spaces),
                         'spaces' => $spaces

@@ -97,7 +97,7 @@ export type SpaceOffer = {
  * booking the whole space. Only the ones that exist here are sent.
  */
 export type WayIn = {
-    key: 'organizat' | 'liber' | 'inchiriere';
+    key: 'cursuri' | 'agrement' | 'inchiriere';
     verb: string;
     how: string;
     price: string | null;

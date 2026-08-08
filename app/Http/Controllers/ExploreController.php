@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\FacilityStatus;
 use App\Enums\LocationWay;
+use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\Facility;
 use App\Models\Location;
+use App\Models\Space;
 use App\Models\Sport;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -209,9 +211,14 @@ class ExploreController extends Controller
                     ),
                 'facilities as facility_count',
             ])
-            // Only club presences carry the sport chips: a rentable court is a
-            // different kind of offer and gets its own treatment in a later phase.
-            ->with(['organizationLocations' => fn ($query) => $query->teaching()->with('sports')])
+            // Only teaching presences carry the sport chips; the ways-in badges
+            // read the spaces separately, because a rentable court is a different
+            // offer and belongs under its own badge.
+            ->with([
+                'organizationLocations' => fn ($query) => $query->teaching()->with('sports'),
+                'spaces' => fn ($query) => $query->approved(),
+                'spaces.accessSlots',
+            ])
             ->orderBy('name')
             ->get();
 
@@ -235,6 +242,10 @@ class ExploreController extends Controller
                     'clubCount' => (int) $location->club_count,
                     'facilityCount' => (int) $location->facility_count,
                     'color' => $sports->first()?->color,
+                    // What you can actually do here, in the one vocabulary the
+                    // whole site uses. Only the ways that exist: a badge leading
+                    // to an empty page is a promise this card cannot keep.
+                    'ways' => $this->waysAt($location),
                     'sports' => $sports
                         ->map(fn (Sport $sport): array => [
                             'key' => $sport->slug,
@@ -244,6 +255,31 @@ class ExploreController extends Controller
                 ];
             })
             ->all();
+    }
+
+    /**
+     * Which of the three ways in this place actually offers.
+     *
+     * @return list<array{key: string, label: string}>
+     */
+    private function waysAt(Location $location): array
+    {
+        $ways = [];
+
+        if ($location->organizationLocations->isNotEmpty()) {
+            $ways[] = LocationWay::Organised;
+        }
+
+        foreach ([SpaceAccessMode::OpenAccess, SpaceAccessMode::ExclusiveRental] as $mode) {
+            if ($location->spaces->contains(fn (Space $space): bool => $space->accessModes()->contains($mode))) {
+                $ways[] = LocationWay::forAccessMode($mode);
+            }
+        }
+
+        return array_map(fn (LocationWay $way): array => [
+            'key' => $way->value,
+            'label' => $way->label(),
+        ], $ways);
     }
 
     /**

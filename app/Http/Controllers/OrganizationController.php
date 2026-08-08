@@ -6,6 +6,7 @@ use App\Concerns\PresentsOrganizations;
 use App\Concerns\PresentsSpaces;
 use App\Enums\ContactType;
 use App\Enums\FacilityStatus;
+use App\Enums\LocationWay;
 use App\Enums\SpaceAccessMode;
 use App\Models\Facility;
 use App\Models\Organization;
@@ -17,7 +18,6 @@ use App\Models\ScheduleSlot;
 use App\Models\Service;
 use App\Models\Space;
 use App\Models\Sport;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -114,17 +114,42 @@ class OrganizationController extends Controller
             'socials' => $this->socials($organization),
             'people' => $this->presentPeople($organization->people),
             'locations' => $this->locations($organization),
-            // Only the tabs with something behind them. A tab that opens on an
-            // empty panel is a promise the page cannot keep.
-            'tabs' => array_values(array_filter([
-                $courses === [] ? null : ['key' => 'cursuri', 'label' => 'Cursuri'],
-                $leisure === [] ? null : ['key' => 'agrement', 'label' => 'Agrement'],
-                $services === [] ? null : ['key' => 'servicii', 'label' => 'Servicii'],
-            ])),
+            // The same three words the badges and the listings use, plus the
+            // services. Only the tabs with something behind them: a tab that
+            // opens on an empty panel is a promise the page cannot keep.
+            'tabs' => $this->tabs($courses, $leisure, $services),
             'courses' => $courses,
             'leisure' => $leisure,
             'services' => $services,
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $courses
+     * @param  list<array<string, mixed>>  $leisure
+     * @param  list<array<string, mixed>>  $services
+     * @return list<array{key: string, label: string}>
+     */
+    private function tabs(array $courses, array $leisure, array $services): array
+    {
+        $tabs = [];
+
+        if ($courses !== []) {
+            $tabs[] = [
+                'key' => LocationWay::Organised->value,
+                'label' => LocationWay::Organised->label(),
+            ];
+        }
+
+        foreach ($leisure as $way) {
+            $tabs[] = ['key' => $way['key'], 'label' => $way['label']];
+        }
+
+        if ($services !== []) {
+            $tabs[] = ['key' => 'servicii', 'label' => 'Servicii'];
+        }
+
+        return $tabs;
     }
 
     /**
@@ -197,8 +222,8 @@ class OrganizationController extends Controller
                 }
 
                 return [
-                    'key' => $mode === SpaceAccessMode::OpenAccess ? 'liber' : 'inchiriere',
-                    'label' => $mode->label(),
+                    'key' => LocationWay::forAccessMode($mode)->value,
+                    'label' => LocationWay::forAccessMode($mode)->label(),
                     'verb' => $mode->verb(),
                     'how' => $mode->description(),
                     'spaces' => $matching
