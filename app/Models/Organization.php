@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\FacilityStatus;
 use App\Enums\OrganizationType;
 use App\Enums\Plan;
 use Database\Factories\OrganizationFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -111,19 +113,59 @@ class Organization extends Model
         return $base.'-'.$suffix;
     }
 
-    public function isClub(): bool
+    /**
+     * Whether this organization publishes the kind of offer that makes it one of
+     * these.
+     *
+     * A pool operator that also runs a swimming club is both, and nobody had to
+     * declare it — the training programme and the ticketed hours each speak for
+     * themselves. Reading it from the offers is what keeps the answer true: a
+     * stored flag survives the deletion of the last space it stood for.
+     *
+     * A space always carries an access mode, so publishing one *is* the claim
+     * that somebody can get in. Moderation gates it, the same as everywhere else
+     * a visitor is told something.
+     */
+    public function offers(OrganizationType $type): bool
     {
-        return $this->type === OrganizationType::Club;
+        return match ($type) {
+            OrganizationType::Club => $this->organizationSports()->exists(),
+            OrganizationType::Venue => $this->spaces()->approved()->exists(),
+            OrganizationType::Practice => $this->services()->exists(),
+        };
     }
 
-    public function isVenue(): bool
+    /**
+     * @return list<OrganizationType>
+     */
+    public function offeredTypes(): array
     {
-        return $this->type === OrganizationType::Venue;
+        return array_values(array_filter(
+            OrganizationType::cases(),
+            fn (OrganizationType $type): bool => $this->offers($type),
+        ));
     }
 
-    public function isPractice(): bool
+    /**
+     * The SQL twin of `offers()`, for the listings that ask the question of
+     * thousands of rows at once.
+     *
+     * The approved check is spelled out rather than calling `Space::approved()`:
+     * inside `whereHas` the builder is not typed to a model, so the scope would
+     * be invisible to static analysis.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeOffering(Builder $query, OrganizationType $type): void
     {
-        return $this->type === OrganizationType::Practice;
+        match ($type) {
+            OrganizationType::Club => $query->whereHas('organizationSports'),
+            OrganizationType::Venue => $query->whereHas(
+                'spaces',
+                fn (Builder $spaces) => $spaces->where('status', FacilityStatus::Approved),
+            ),
+            OrganizationType::Practice => $query->whereHas('services'),
+        };
     }
 
     /**

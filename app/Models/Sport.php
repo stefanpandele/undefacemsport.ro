@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\OrganizationType;
 use Database\Factories\SportFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,9 +41,7 @@ class Sport extends Model
     {
         $stats = DB::table('organization_location_sport')
             ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
-            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
             ->join('locations', 'locations.id', '=', 'organization_location.location_id')
-            ->where('organizations.type', OrganizationType::Club)
             ->when($county, fn ($query) => $query->where('locations.county', $county))
             ->groupBy('organization_location_sport.sport_id')
             ->select(['organization_location_sport.sport_id'])

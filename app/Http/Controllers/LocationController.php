@@ -51,7 +51,7 @@ class LocationController extends Controller
                 // Club presences only. The page's club blocks, occupancy badges
                 // and "hall is taken" cards are all about organized programmes;
                 // rentable spaces are a different offer, added in a later phase.
-                'organizationLocations' => fn ($query) => $query->ofClubs(),
+                'organizationLocations' => fn ($query) => $query->teaching(),
                 'organizationLocations.organization.contacts',
                 'organizationLocations.organization.people.sports',
                 'organizationLocations.organization.organizationSports.sport',

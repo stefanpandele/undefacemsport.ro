@@ -107,19 +107,60 @@ test('only the services ticked for this sport are listed', function () {
     );
 });
 
-test('a studio that sells massage on the side is not listed as a clinic', function () {
-    // The line drawn everywhere else: a practice's services are its business, a
-    // club's are an extra. An extra has no place in a search.
+test('a studio that sells massage on the side is not listed under recovery', function () {
+    // Massage sits alongside a real activity rather than being one. The line is
+    // drawn on the specialty, not on the organization, so it holds now that
+    // nothing records what an organization "is".
     $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal']);
-    $massage = Specialty::factory()->create(['slug' => 'masaj', 'name' => 'Masaj']);
+    $massage = Specialty::factory()->create(['slug' => 'masaj', 'name' => 'Masaj', 'is_medical' => false]);
 
     $location = Location::factory()->create(['city' => 'Cluj-Napoca']);
     $studio = clubAt($location, $football, 'Pilates Studio');
 
-    // Ticked for football, and still not listed: it is an extra, not a clinic.
     Service::factory()->create([
         'organization_id' => $studio->getKey(),
         'specialty_id' => $massage->getKey(),
+    ])->sports()->sync([$football->getKey()]);
+
+    $this->get(route('sports.show', ['slug' => 'fotbal', 'city' => 'cluj-napoca']))->assertInertia(
+        fn ($page) => $page->where('care', []),
+    );
+});
+
+test('a clinic is listed for its medical work and not for its massage', function () {
+    // The same line, applied to a clinic: what gets it listed is the recovery, and
+    // the card says so. Drawing it on the organization would have let the massage
+    // through here while blocking it at the studio.
+    $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal']);
+    $rehab = Specialty::factory()->create(['slug' => 'recuperare', 'name' => 'Recuperare', 'sort_order' => 0]);
+    $massage = Specialty::factory()->create(['slug' => 'masaj', 'name' => 'Masaj', 'is_medical' => false, 'sort_order' => 1]);
+
+    $location = Location::factory()->create(['city' => 'Cluj-Napoca']);
+    clubAt($location, $football, 'CS Cluj');
+    $clinic = clinicFor($location, $rehab, 'Clinica Recuperare', [$football]);
+
+    Service::factory()->create([
+        'organization_id' => $clinic->getKey(),
+        'specialty_id' => $massage->getKey(),
+    ])->sports()->sync([$football->getKey()]);
+
+    $this->get(route('sports.show', ['slug' => 'fotbal', 'city' => 'cluj-napoca']))->assertInertia(
+        fn ($page) => $page
+            ->has('care', 1)
+            ->has('care.0.specialties', 1)
+            ->where('care.0.specialties.0.label', 'Recuperare'),
+    );
+});
+
+test('a service with no specialty at all does not reach the recovery section', function () {
+    $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal']);
+
+    $location = Location::factory()->create(['city' => 'Cluj-Napoca']);
+    $studio = clubAt($location, $football, 'Pilates Studio');
+
+    Service::factory()->create([
+        'organization_id' => $studio->getKey(),
+        'specialty_id' => null,
     ])->sports()->sync([$football->getKey()]);
 
     $this->get(route('sports.show', ['slug' => 'fotbal', 'city' => 'cluj-napoca']))->assertInertia(

@@ -3,7 +3,6 @@
 namespace App\Filament\Organization\Resources\ScheduleSlots;
 
 use App\Enums\Weekday;
-use App\Filament\Concerns\ClubOnlyResource;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Organization\Resources\ScheduleSlots\Pages\ManageScheduleSlots;
 use App\Models\AgeGroup;
@@ -29,7 +28,7 @@ use Livewire\Component;
 
 class ScheduleSlotResource extends Resource
 {
-    use ClubOnlyResource, ResolvesOrganization;
+    use ResolvesOrganization;
 
     protected static ?string $model = ScheduleSlot::class;
 

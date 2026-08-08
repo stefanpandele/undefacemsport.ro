@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\FacilityStatus;
 use App\Enums\LocationWay;
-use App\Enums\OrganizationType;
 use App\Enums\ScheduleSlotKind;
 use App\Models\Level;
 use App\Models\Location;
@@ -89,13 +88,16 @@ class SportController extends Controller
      * Practices in this city that treat this sport: recovery, physiotherapy,
      * sports medicine, nutrition.
      *
-     * A practice appears because it said so: whoever offers the service ticked
-     * this sport. Nothing is inferred from the specialty — a global link would
-     * claim every physiotherapist treats footballers.
+     * One appears because it said so: whoever offers the service ticked this
+     * sport. Nothing is inferred from the specialty — a global link would claim
+     * every physiotherapist treats footballers.
      *
-     * Practices only. A pilates studio that also sells massage is offering an
-     * extra, not running a clinic, and listing it here would put it in a search it
-     * has no business being in — the same line drawn everywhere else.
+     * Only medical specialties. Sports massage is sold alongside a real activity —
+     * a pilates studio, a gym, a hotel — rather than being one, and somebody with
+     * a torn ligament on this page is not looking for it. The line is drawn on the
+     * specialty rather than on the organization, so a clinic's massage is left out
+     * too: the question the section answers is "where do I recover", not "who
+     * happens to be a clinic".
      *
      * @return list<array<string, mixed>>
      */
@@ -110,10 +112,12 @@ class SportController extends Controller
 
         return array_values($practices
             ->map(function (Organization $practice) use ($sport): array {
-                // Only the services ticked for this sport: a clinic's nutrition
-                // work is not why a footballer is on this page.
+                // Only the medical services ticked for this sport: a clinic's
+                // nutrition work is not why a footballer is on this page, and its
+                // massage is not what got it listed.
                 $forThisSport = $practice->services->filter(
-                    fn (Service $service): bool => $service->sports->contains('id', $sport->getKey()),
+                    fn (Service $service): bool => $service->specialty?->is_medical === true
+                        && $service->sports->contains('id', $sport->getKey()),
                 );
 
                 $relevant = $forThisSport
@@ -156,10 +160,8 @@ class SportController extends Controller
         return array_values(Level::query()
             ->whereHas('organizationSports', fn (BuilderContract $sports) => $sports
                 ->where('sport_id', $sport->getKey())
-                ->whereHas('organization', fn (BuilderContract $organizations) => $organizations
-                    ->where('type', OrganizationType::Club)
-                    ->whereHas('organizationLocations.location', fn (BuilderContract $locations) => $locations
-                        ->where('city', $city))))
+                ->whereHas('organization.organizationLocations.location', fn (BuilderContract $locations) => $locations
+                    ->where('city', $city)))
             ->orderBy('sort_order')
             ->get()
             ->map(fn (Level $level): array => [
@@ -236,9 +238,11 @@ class SportController extends Controller
     private function careQuery(Sport $sport): Builder
     {
         return Organization::query()
-            ->where('type', OrganizationType::Practice)
-            ->whereHas('services.sports', fn (BuilderContract $sports) => $sports
-                ->whereKey($sport->getKey()));
+            ->whereHas('services', fn (BuilderContract $services) => $services
+                ->whereHas('specialty', fn (BuilderContract $specialties) => $specialties
+                    ->where('is_medical', true))
+                ->whereHas('sports', fn (BuilderContract $sports) => $sports
+                    ->whereKey($sport->getKey())));
     }
 
     /**
@@ -305,14 +309,12 @@ class SportController extends Controller
             return Location::query()->whereHas(
                 'organizationLocations',
                 fn (BuilderContract $presences) => $presences
-                    ->whereHas('organization', fn (BuilderContract $organizations) => $organizations
-                        ->where('type', OrganizationType::Club)
-                        ->when($levelId, fn (BuilderContract $clubs) => $clubs->whereHas(
-                            'organizationSports',
-                            fn (BuilderContract $sports) => $sports
-                                ->where('sport_id', $sport->getKey())
-                                ->whereHas('levels', fn (BuilderContract $levels) => $levels->whereKey($levelId)),
-                        )))
+                    ->when($levelId, fn (BuilderContract $teaching) => $teaching->whereHas(
+                        'organization.organizationSports',
+                        fn (BuilderContract $sports) => $sports
+                            ->where('sport_id', $sport->getKey())
+                            ->whereHas('levels', fn (BuilderContract $levels) => $levels->whereKey($levelId)),
+                    ))
                     ->whereHas('sports', fn (BuilderContract $sports) => $sports->whereKey($sport->getKey())),
             );
         }
@@ -374,7 +376,7 @@ class SportController extends Controller
     private function clubCount(Location $location, Sport $sport): int
     {
         return $location->organizationLocations()
-            ->ofClubs()
+            ->teaching()
             ->whereHas('sports', fn (BuilderContract $sports) => $sports->whereKey($sport->getKey()))
             ->count();
     }

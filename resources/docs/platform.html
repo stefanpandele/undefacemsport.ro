@@ -486,53 +486,58 @@ a { color: var(--grass-deep); }
 <section id="organizatii">
 <hr>
 <p class="eyebrow">Titularul de cont</p>
-<h2>Trei feluri de organizații</h2>
+<h2>Ce e o organizație se citește din ce publică</h2>
 
 <p>
     Orice entitate care își administrează prezența pe platformă este o
-    <code>Organization</code>, cu un <code>type</code>. Tipul decide
-    <strong>numai</strong> adresa publică și forma paginii.
-</p>
-
-<p>
-    Tipul îl declară solicitantul, în primul pas al formularului de înregistrare.
-    Nu e o preferință de afișare: el decide ce resurse are contul după aprobare,
-    iar un administrator care citește doar denumirea firmei nu poate distinge un
-    cabinet de kinetoterapie de un club. Coloana nu are valoare implicită, tocmai
-    ca să nu treacă tăcut fiecare bază sportivă drept club.
+    <code>Organization</code>. Nimeni nu declară ce fel de organizație e, și nicio
+    coloană nu o reține: „club", „bază sportivă" și „cabinet" sunt trei fațete
+    calculate din ofertele publicate, prin <code>offeredTypes()</code>.
 </p>
 
 <div class="scroller">
 <table>
 <thead>
-<tr><th>Tip</th><th>Cine e</th><th>Pagina publică</th></tr>
+<tr><th>Fațetă</th><th>Ce o produce</th><th>Unde se vede</th></tr>
 </thead>
 <tbody>
 <tr>
-    <td><strong>Club</strong><br><span class="mono" style="color:var(--sage)">club</span></td>
-    <td>Club sportiv, asociație, studio. Predă: grupe, antrenori, program recurent.</td>
-    <td><code>/cluburi/{slug}</code></td>
+    <td><strong>Club</strong></td>
+    <td>Un program de antrenamente: grupe, antrenori, orar recurent.</td>
+    <td>Indexul de cluburi</td>
 </tr>
 <tr>
-    <td><strong>Bază sportivă</strong><br><span class="mono" style="color:var(--sage)">venue</span></td>
-    <td>Operatorul unui spațiu: SRL cu terenuri de padel, hotel cu bazin, sală închiriabilă. Nu predă — dă acces.</td>
-    <td>Prin pagina locației</td>
+    <td><strong>Bază sportivă</strong></td>
+    <td>Un spațiu aprobat la moderare — bazin, teren, sală. Publicarea lui e afirmația că cineva poate intra.</td>
+    <td>Indexul de baze sportive, prin locație</td>
 </tr>
 <tr>
-    <td><strong>Cabinet</strong><br><span class="mono" style="color:var(--sage)">practice</span></td>
-    <td>Clinică, medic sportiv, fizioterapeut, nutriționist. Un PFA solo e propria organizație.</td>
-    <td><code>/specialisti/{slug}</code></td>
+    <td><strong>Cabinet</strong></td>
+    <td>Un serviciu vândut pe programare: consultație, ședință, evaluare.</td>
+    <td>Indexul de specialiști</td>
 </tr>
 </tbody>
 </table>
 </div>
 
 <div class="rule">
-    <p><span class="what">Tipul e identitate, nu permisiune.</span></p>
+    <p><span class="what">Fațetele se adună, și niciuna nu e o permisiune.</span></p>
     <p>
-        Un club care își deține sala poate publica spații de închiriat. O bază
-        sportivă care angajează un antrenor poate publica un program. Ofertele se
-        adună; tipul spune doar cum arată pagina de start a organizației.
+        Bazinul care ține și cursuri de înot e club și bază sportivă deodată, fără
+        să fi bifat nimic. Când angajează un kinetoterapeut devine și cabinet, în
+        ziua în care publică primul serviciu. Nicio resursă din panou nu e
+        rezervată vreunei fațete — altfel n-ai putea deveni club decât dacă erai
+        deja club.
+    </p>
+</div>
+
+<div class="rule">
+    <p><span class="what">Calculat, niciodată stocat.</span></p>
+    <p>
+        O coloană ar rămâne în urmă. Bazinul își șterge ultimul spațiu cu intrare
+        liberă, iar coloana ar continua să scrie „bază sportivă": listarea de
+        agrement ar promite un loc în care nu se mai poate intra. Un
+        <code>EXISTS</code> peste oferte nu poate rămâne în urmă niciodată.
     </p>
 </div>
 </section>
@@ -666,7 +671,8 @@ a { color: var(--grass-deep); }
         <h3>Un sport într-un oraș</h3>
         <p>
             Întâi alegi orașul, apoi vezi modurile de a juca, cu filtru pe nivel. Sub
-            ele, secțiunea de recuperare: cabinetele care au bifat acest sport.
+            ele, secțiunea de recuperare: oricine vinde un serviciu medical bifat
+            pentru acest sport.
         </p>
     </div>
     <div class="card">
@@ -935,8 +941,19 @@ a { color: var(--grass-deep); }
         <h3>Extra-urile nu intră în căutare</h3>
         <p>
             Masajul unui studio de pilates apare pe pagina locului, ca extensie
-            plătită a activității. Nu apare niciodată ca sport și nu apare în
-            explorare.
+            plătită a activității. Nu apare niciodată ca sport, nu apare în
+            explorare și nu apare în secțiunea de recuperare. Linia e trasată pe
+            specialitate — <code>specialties.is_medical</code> — nu pe cine o
+            vinde, așa că masajul unei clinici e la fel de exclus.
+        </p>
+    </div>
+    <div class="card">
+        <span class="tag">Descoperire</span>
+        <h3>Listezi ce oferi, nu ce ești</h3>
+        <p>
+            Nicio listare nu întreabă ce fel de organizație e cineva, pentru că
+            nimic nu reține asta. Bazinul cu club de înot apare și între cluburi, și
+            între bazele sportive, din două oferte diferite ale aceleiași firme.
         </p>
     </div>
     <div class="card">

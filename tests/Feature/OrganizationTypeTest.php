@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\FacilityStatus;
 use App\Enums\OrganizationType;
 use App\Enums\PersonProfession;
 use App\Filament\Organization\Resources\Locations\LocationResource;
@@ -8,42 +9,107 @@ use App\Filament\Organization\Resources\People\PersonResource;
 use App\Filament\Organization\Resources\ScheduleSlots\ScheduleSlotResource;
 use App\Models\Location;
 use App\Models\Organization;
+use App\Models\OrganizationSport;
 use App\Models\Person;
+use App\Models\Service;
+use App\Models\Space;
 use App\Models\Sport;
 use App\Models\User;
 use Filament\Facades\Filament;
-use Illuminate\Support\Facades\DB;
+
+/**
+ * @return array{county: string, city: string, address: string, name: string}
+ */
+function clujAddress(): array
+{
+    return ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. Test 1', 'name' => 'Baza Test'];
+}
 
 /*
 |--------------------------------------------------------------------------
-| The type itself
+| What an organization is, read from what it publishes
 |--------------------------------------------------------------------------
 */
 
-test('an organization created without a type is a club', function () {
-    $organization = new Organization;
-
-    expect($organization->type)->toBe(OrganizationType::Club)
-        ->and($organization->isClub())->toBeTrue()
-        ->and($organization->isVenue())->toBeFalse()
-        ->and($organization->isPractice())->toBeFalse();
+test('an organization that has published nothing is nothing yet', function () {
+    expect(Organization::factory()->create()->offeredTypes())->toBe([]);
 });
 
-test('every existing row migrated to the club type', function () {
-    // The column default backfills, so nothing that already existed changes
-    // meaning: every organization on the platform today is a club.
-    DB::table('organizations')->insert([
-        'name' => 'Vechi', 'slug' => 'vechi', 'created_at' => now(), 'updated_at' => now(),
+test('a training programme makes it a club', function () {
+    $organization = Organization::factory()->create();
+    OrganizationSport::factory()->for($organization)->create();
+
+    expect($organization->offers(OrganizationType::Club))->toBeTrue()
+        ->and($organization->offeredTypes())->toBe([OrganizationType::Club]);
+});
+
+test('an approved space makes it a venue', function () {
+    $organization = Organization::factory()->create();
+    $presence = $organization->syncLocation(clujAddress());
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Approved,
     ]);
 
-    expect(Organization::query()->firstWhere('slug', 'vechi')->type)->toBe(OrganizationType::Club);
+    expect($organization->offers(OrganizationType::Venue))->toBeTrue();
 });
 
-test('the factory can produce each type', function () {
-    expect(Organization::factory()->create()->isClub())->toBeTrue()
-        ->and(Organization::factory()->venue()->create()->isVenue())->toBeTrue()
-        ->and(Organization::factory()->practice()->create()->isPractice())->toBeTrue();
+test('a space still waiting for moderation makes it nothing', function () {
+    $organization = Organization::factory()->create();
+    $presence = $organization->syncLocation(clujAddress());
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Pending,
+    ]);
+
+    expect($organization->offers(OrganizationType::Venue))->toBeFalse();
 });
+
+test('a service makes it a practice', function () {
+    $organization = Organization::factory()->create();
+    Service::factory()->for($organization)->create();
+
+    expect($organization->offers(OrganizationType::Practice))->toBeTrue();
+});
+
+test('the pool with a swimming club is both, and declared neither', function () {
+    $organization = Organization::factory()->create();
+    OrganizationSport::factory()->for($organization)->create();
+    $presence = $organization->syncLocation(clujAddress());
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Approved,
+    ]);
+
+    expect($organization->offeredTypes())
+        ->toBe([OrganizationType::Club, OrganizationType::Venue]);
+});
+
+test('deleting the last space takes the venue facet away with it', function () {
+    // The whole reason this is computed and not stored: a column would still say
+    // "venue" here, and the agrement listing would promise a pool nobody can
+    // enter.
+    $organization = Organization::factory()->create();
+    $presence = $organization->syncLocation(clujAddress());
+    $space = Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Approved,
+    ]);
+
+    expect($organization->offers(OrganizationType::Venue))->toBeTrue();
+
+    $space->delete();
+
+    expect($organization->offers(OrganizationType::Venue))->toBeFalse();
+});
+
+test('the offering scope answers the same question in SQL', function (OrganizationType $type) {
+    $organization = Organization::factory()->create();
+    OrganizationSport::factory()->for($organization)->create();
+
+    expect(Organization::query()->offering($type)->exists())
+        ->toBe($organization->offers($type));
+})->with(OrganizationType::cases());
 
 test('every type has a Romanian label, singular and plural', function () {
     foreach (OrganizationType::cases() as $type) {
@@ -105,7 +171,7 @@ test('every profession has a Romanian label', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Panel resources gated by type
+| Nothing in the panel is gated by what an organization is
 |--------------------------------------------------------------------------
 */
 
@@ -124,62 +190,45 @@ function tenantContext(Organization $organization): User
     return $member;
 }
 
-test('a club sees the programme resources', function () {
+test('every organization sees every resource, whatever it has published', function () {
     tenantContext(Organization::factory()->create());
 
     expect(OrganizationSportResource::canAccess())->toBeTrue()
         ->and(ScheduleSlotResource::canAccess())->toBeTrue()
-        ->and(PersonResource::canAccess())->toBeTrue();
+        ->and(PersonResource::canAccess())->toBeTrue()
+        ->and(LocationResource::canAccess())->toBeTrue();
 });
 
-test('a venue does not, because it runs no training programme', function () {
-    tenantContext(Organization::factory()->venue()->create());
+test('a pool operator can reach the programme resources it needs to become a club', function () {
+    // The chicken and egg the old gating created: adding a programme required
+    // already being a club, and being a club required a programme.
+    $venue = Organization::factory()->create();
+    $presence = $venue->syncLocation(clujAddress());
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Approved,
+    ]);
 
-    expect(OrganizationSportResource::canAccess())->toBeFalse()
-        ->and(ScheduleSlotResource::canAccess())->toBeFalse()
-        ->and(PersonResource::canAccess())->toBeFalse()
-        ->and(OrganizationSportResource::shouldRegisterNavigation())->toBeFalse();
-});
-
-test('a practice does not either', function () {
-    tenantContext(Organization::factory()->practice()->create());
-
-    expect(OrganizationSportResource::canAccess())->toBeFalse()
-        ->and(ScheduleSlotResource::canAccess())->toBeFalse();
-});
-
-test('locations stay open to every type, because every organization has an address', function () {
-    tenantContext(Organization::factory()->venue()->create());
-    expect(LocationResource::canAccess())->toBeTrue();
-
-    tenantContext(Organization::factory()->practice()->create());
-    expect(LocationResource::canAccess())->toBeTrue();
-});
-
-test('a venue member is bounced off a programme resource URL, not just the nav link', function () {
-    $venue = Organization::factory()->venue()->create();
     $member = tenantContext($venue);
 
     $this->actingAs($member)
         ->get(OrganizationSportResource::getUrl(panel: 'organization', tenant: $venue))
-        ->assertForbidden();
+        ->assertSuccessful();
 });
 
 /*
 |--------------------------------------------------------------------------
-| Discovery counts nothing but clubs
+| Discovery counts what is taught, not who the organization is
 |--------------------------------------------------------------------------
 */
 
-test('a venue at a location is not counted as a club teaching there', function () {
+test('a presence that teaches nothing there is not counted as teaching', function () {
     $sport = Sport::factory()->create(['slug' => 'padel', 'name' => 'Padel']);
     $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. Padel 1', 'name' => 'Baza Padel'];
 
-    $club = Organization::factory()->create();
-    $club->syncLocation($address, [$sport->getKey()]);
-
-    $venue = Organization::factory()->venue()->create();
-    $venue->syncLocation($address, [$sport->getKey()]);
+    Organization::factory()->create()->syncLocation($address, [$sport->getKey()]);
+    // Present at the same hall, teaching nothing — it only rents it out.
+    Organization::factory()->create()->syncLocation($address);
 
     $reach = collect(Sport::withReach())->firstWhere('key', 'padel');
 
@@ -187,25 +236,44 @@ test('a venue at a location is not counted as a club teaching there', function (
         ->and($reach['locationCount'])->toBe(1);
 });
 
-test('the homepage club count leaves venues and practices out', function () {
+test('an organization that rents out spaces still counts where it teaches', function () {
+    // The case the old type filter got wrong: the pool operator with a swimming
+    // club used to vanish from the club count because it was typed as a venue.
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Bazinul B'];
+
+    $pool = Organization::factory()->create();
+    $presence = $pool->syncLocation($address, [$sport->getKey()]);
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'status' => FacilityStatus::Approved,
+    ]);
+
+    $reach = collect(Sport::withReach())->firstWhere('key', 'inot');
+
+    expect($reach['clubCount'])->toBe(1);
+});
+
+test('the homepage club count leaves out organizations that teach nowhere', function () {
+    $sport = Sport::factory()->create();
     $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A'];
 
+    Organization::factory()->create()->syncLocation($address, [$sport->getKey()]);
     Organization::factory()->create()->syncLocation($address);
-    Organization::factory()->venue()->create()->syncLocation($address);
-    Organization::factory()->practice()->create()->syncLocation($address);
+    Organization::factory()->create();
 
     $this->get(route('home'))->assertInertia(
         fn ($page) => $page->where('stats.clubs', 1),
     );
 });
 
-test('the explore page counts only club presences at a location', function () {
+test('the explore page counts the presences that teach at a location', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
     $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Bazinul B'];
 
     Organization::factory()->create()->syncLocation($address, [$sport->getKey()]);
     Organization::factory()->create()->syncLocation($address, [$sport->getKey()]);
-    Organization::factory()->venue()->create()->syncLocation($address, [$sport->getKey()]);
+    Organization::factory()->create()->syncLocation($address);
 
     $this->get(route('explore', ['oras' => 'Cluj-Napoca']))->assertInertia(
         fn ($page) => $page
@@ -215,11 +283,11 @@ test('the explore page counts only club presences at a location', function () {
     );
 });
 
-test('a city whose locations host only a venue still appears in the picker', function () {
+test('a city whose locations host no programme still appears in the picker', function () {
     // Counted with a left join on purpose: dropping the city would hide a real
-    // place from the visitor just because no club has signed up there yet.
+    // place from the visitor just because nobody teaches there yet.
     $address = ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. C 3', 'name' => 'Baza C'];
-    Organization::factory()->venue()->create()->syncLocation($address);
+    Organization::factory()->create()->syncLocation($address);
 
     $this->get(route('explore'))->assertInertia(
         fn ($page) => $page

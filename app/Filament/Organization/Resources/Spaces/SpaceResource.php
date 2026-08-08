@@ -35,9 +35,8 @@ use Livewire\Component;
 /**
  * The spaces at an organization's locations: a pool, a pitch, a court, a gym.
  *
- * Deliberately **not** `ClubOnlyResource`. This is the resource a venue lives in,
- * and a club that owns its hall uses exactly the same one — renting out dead
- * hours does not make it a different kind of organization.
+ * Publishing one is what makes an organization a venue — nothing is declared, and
+ * a club that rents out its dead hours becomes one without ceasing to be a club.
  */
 class SpaceResource extends Resource
 {

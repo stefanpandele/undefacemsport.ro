@@ -2,7 +2,6 @@
 
 namespace App\Filament\Organization\Resources\OrganizationSports;
 
-use App\Filament\Concerns\ClubOnlyResource;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Forms\Components\WebpUpload;
 use App\Filament\Organization\Resources\OrganizationSports\Pages\ManageOrganizationSports;
@@ -29,7 +28,7 @@ use Livewire\Component;
 
 class OrganizationSportResource extends Resource
 {
-    use ClubOnlyResource, ResolvesOrganization;
+    use ResolvesOrganization;
 
     protected static ?string $model = OrganizationSport::class;
 

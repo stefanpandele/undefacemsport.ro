@@ -9,34 +9,39 @@ use Illuminate\Support\Str;
 class SpecialtySeeder extends Seeder
 {
     /**
-     * What practices do, with the emoji and colour each is presented with, and the
-     * sports a service of this kind is usually offered for.
+     * What practices do, with the emoji and colour each is presented with, whether
+     * somebody with an injury would search for it, and the sports a service of
+     * this kind is usually offered for.
+     *
+     * Sports massage is the one that is not searched for: it sits alongside a real
+     * activity — a pilates studio, a gym, a hotel — rather than being one. Listing
+     * it under recovery would fill that page with places nobody went there to find.
      *
      * The sport list here is only a default for the seeder to tick onto seeded
      * services. The claim itself lives on the service, because "I treat
      * footballers" is a statement about one practitioner, not about the field.
      *
-     * @var array<string, array{string, string, list<string>}>
+     * @var array<string, array{string, string, bool, list<string>}>
      */
     private const SPECIALTIES = [
-        'Fizioterapie' => ['🤲', '#1D7FB8', ['fotbal', 'baschet', 'handbal', 'atletism']],
-        'Kinetoterapie' => ['🦵', '#0C7A4E', ['fotbal', 'gimnastica', 'atletism']],
-        'Medicină sportivă' => ['🩺', '#C0392B', ['fotbal', 'baschet', 'atletism', 'inot']],
-        'Nutriție sportivă' => ['🥗', '#15B877', ['atletism', 'inot', 'ciclism']],
-        'Masaj sportiv' => ['💆', '#A25DD1', ['fotbal', 'atletism', 'ciclism']],
-        'Recuperare după accidentare' => ['🩹', '#FF5A2C', ['fotbal', 'baschet', 'handbal']],
-        'Psihologie sportivă' => ['🧠', '#5D4DB0', ['tenis', 'gimnastica', 'inot']],
-        'Podologie' => ['🦶', '#8B5E3C', ['atletism', 'fotbal']],
+        'Fizioterapie' => ['🤲', '#1D7FB8', true, ['fotbal', 'baschet', 'handbal', 'atletism']],
+        'Kinetoterapie' => ['🦵', '#0C7A4E', true, ['fotbal', 'gimnastica', 'atletism']],
+        'Medicină sportivă' => ['🩺', '#C0392B', true, ['fotbal', 'baschet', 'atletism', 'inot']],
+        'Nutriție sportivă' => ['🥗', '#15B877', true, ['atletism', 'inot', 'ciclism']],
+        'Masaj sportiv' => ['💆', '#A25DD1', false, ['fotbal', 'atletism', 'ciclism']],
+        'Recuperare după accidentare' => ['🩹', '#FF5A2C', true, ['fotbal', 'baschet', 'handbal']],
+        'Psihologie sportivă' => ['🧠', '#5D4DB0', true, ['tenis', 'gimnastica', 'inot']],
+        'Podologie' => ['🦶', '#8B5E3C', true, ['atletism', 'fotbal']],
     ];
 
     public function run(): void
     {
         $order = 0;
 
-        foreach (self::SPECIALTIES as $name => [$icon, $color]) {
+        foreach (self::SPECIALTIES as $name => [$icon, $color, $isMedical]) {
             Specialty::updateOrCreate(
                 ['slug' => Str::slug($name)],
-                ['name' => $name, 'icon' => $icon, 'color' => $color, 'sort_order' => $order++],
+                ['name' => $name, 'icon' => $icon, 'color' => $color, 'is_medical' => $isMedical, 'sort_order' => $order++],
             );
         }
     }
@@ -55,7 +60,7 @@ class SpecialtySeeder extends Seeder
     {
         return collect(self::SPECIALTIES)
             ->mapWithKeys(fn (array $definition, string $name): array => [
-                Str::slug($name) => $definition[2],
+                Str::slug($name) => $definition[3],
             ])
             ->all();
     }
