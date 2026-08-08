@@ -303,17 +303,17 @@ function goToClub(key: string) {
                         <h3
                             class="mb-1.5 font-archivo text-[17px] font-extrabold"
                         >
-                            Ții lecții aici?
+                            Tu ești de aici?
                         </h3>
                         <p class="mb-4 text-[13.5px] text-sage">
-                            Adaugă-ți clubul și programul, ca lumea să te
-                            găsească.
+                            Predai, închiriezi sau tratezi la această adresă?
+                            Publică-ți oferta, ca lumea să te găsească.
                         </p>
                         <Link
                             :href="organizationApplication.create.url()"
                             class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-5 py-3 text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c]"
                         >
-                            Adaugă-ți clubul
+                            Înregistrează-te
                         </Link>
                     </div>
                 </div>

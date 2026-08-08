@@ -398,8 +398,14 @@ class LocationController extends Controller
     }
 
     /**
-     * One block per (club, sport) taught here — the same club appears once for
-     * every sport it teaches at this location, with the schedule for it.
+     * One block per (organization, sport) taught here — the same organization
+     * appears once for every sport it teaches at this location, with the
+     * schedule for it.
+     *
+     * The payload calls these `clubs`, and that is still the right word: an
+     * organization that teaches *is* a club, and "club" is what a visitor is
+     * shown. What changed is only where the answer comes from — the programme
+     * published here, not a column that once said so.
      *
      * @return list<array<string, mixed>>
      */

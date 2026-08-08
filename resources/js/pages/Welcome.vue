@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import CityNumbers from '@/components/landing/CityNumbers.vue';
-import ClubCta from '@/components/landing/ClubCta.vue';
+import AccountCta from '@/components/landing/AccountCta.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import HowItWorks from '@/components/landing/HowItWorks.vue';
 import PopularSports from '@/components/landing/PopularSports.vue';
@@ -39,7 +39,7 @@ function shareLocation() {
         <PopularSports :sports="popularSports" />
         <CityNumbers :location-shared="locationShared" @share="shareLocation" />
         <HowItWorks />
-        <ClubCta />
+        <AccountCta />
         <SiteFooter />
     </div>
 </template>

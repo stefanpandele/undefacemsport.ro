@@ -40,7 +40,7 @@ function limitLabel(value: number | null, one: string, many: string): string {
                 <span
                     class="mb-3.5 block font-jetbrains text-[11px] font-semibold tracking-[0.16em] text-grass-deep uppercase"
                 >
-                    Pentru cluburi
+                    Pentru organizații
                 </span>
                 <h1
                     class="font-archivo text-[clamp(28px,5.5vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em]"
@@ -168,7 +168,7 @@ function limitLabel(value: number | null, one: string, many: string): string {
                             "
                             @click="
                                 trackEvent('cta_click', {
-                                    cta: 'add_club',
+                                    cta: 'add_organization',
                                     location: `pricing_${plan.key}`,
                                 })
                             "
@@ -190,7 +190,7 @@ function limitLabel(value: number | null, one: string, many: string): string {
                         Vizitatorii nu plătesc niciodată
                     </div>
                     <p class="mt-1.5 text-[13.5px] leading-relaxed text-sage">
-                        Căutarea, orarul și datele de contact ale cluburilor
+                        Căutarea, orarul și datele de contact ale organizațiilor
                         sunt gratuite pentru oricine caută unde să facă sport.
                     </p>
                 </div>
@@ -208,7 +208,7 @@ function limitLabel(value: number | null, one: string, many: string): string {
                         Începi gratuit
                     </div>
                     <p class="mt-1.5 text-[13.5px] leading-relaxed text-sage">
-                        Îți listezi clubul fără să plătești nimic și treci pe un
+                        Te listezi fără să plătești nimic și treci pe un
                         plan mai mare doar când ai nevoie de mai mult spațiu.
                     </p>
                 </div>

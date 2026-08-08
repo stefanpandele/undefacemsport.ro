@@ -17,9 +17,9 @@ const columns = [
         ],
     },
     {
-        h: 'Pentru cluburi',
+        h: 'Pentru organizații',
         links: [
-            { label: 'Adaugă club', href: organizationApplication.create.url() },
+            { label: 'Înregistrează-te', href: organizationApplication.create.url() },
             { label: 'Prețuri', href: '#' },
             { label: 'Intră în cont', href: '/cont/login' },
         ],
@@ -52,7 +52,7 @@ const columns = [
                         />
                     </Link>
                     <p class="mt-3 max-w-[32ch] text-sm text-sage">
-                        Găsești locația, vezi cluburile și orarele, suni direct.
+                        Găsești locul, vezi cine e acolo și cu ce program, suni direct.
                     </p>
                 </div>
 

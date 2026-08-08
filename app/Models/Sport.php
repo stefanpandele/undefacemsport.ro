@@ -31,8 +31,9 @@ class Sport extends Model
      * far it reaches: locations, clubs and cities. Shared by the homepage and
      * the sports index so the two can never disagree about what is popular.
      *
-     * Clubs only. A padel court you can rent is not a club teaching padel, and
-     * counting it as one would make "12 cluburi" a lie on the homepage.
+     * Only what is taught. The count reaches the sport through
+     * `organization_location_sport`, so a padel court you can rent never lands in
+     * it — counting one would make "12 cluburi" a lie on the homepage.
      *
      * @param  string|null  $county  narrow every count to a single county
      * @return list<array{key: string, label: string, icon: string, color: string|null, locationCount: int, clubCount: int, cityCount: int}>
