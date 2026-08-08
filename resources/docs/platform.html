@@ -743,7 +743,13 @@ a { color: var(--grass-deep); }
         <div class="route"><span class="path">/la/{slug}</span></div>
         <h3>O organizație</h3>
         <p>
-            Un tab pentru fiecare fel de ofertă, și numai pentru cele publicate:
+            Începe cu <strong>unde</strong>: județele în care are locații, în ordinea
+            în care și le-a adăugat. Alegi județul, vezi locațiile cu sporturile,
+            extra-urile și câte dotări are fiecare; deschizi o locație și vezi
+            dotările și ce se oferă acolo; deschizi un sport și vezi cum se intră
+            la el și cu ce program. Un club cu săli în trei județe nu poate fi citit
+            ca o listă unică — nimeni nu merge la cursuri două județe mai încolo.
+            Sub navigator, aceleași oferte adunate cap la cap:
             <strong>Cursuri</strong> — sporturi, grupe, niveluri, orar pe locație;
             <strong>Agrement</strong> — spațiile, grupate după cum intri, cu preț
             și program; <strong>Servicii</strong> — ce se vinde pe programare.
@@ -1129,7 +1135,13 @@ a { color: var(--grass-deep); }
         <p>
             {{ seed.organizations }} de organizații pe cele trei planuri, dintre care
             {{ seed.clubs }} primesc un program, {{ seed.venues }} primesc spații și
-            {{ seed.practices }} primesc servicii — cu locații partajate,
+            {{ seed.practices }} primesc servicii. Un club pe plan plătit lucrează în
+            trei județe și predă cel puțin trei sporturi la fiecare adresă — altfel
+            navigatorul de județe n-ar avea ce naviga. Cele pe Premium au și o a doua
+            sală în orașul de acasă, singurul fel în care un județ ajunge să arate
+            două carduri; pe Pro nu încape, fiindcă trei adrese înseamnă exact trei
+            județe. Cel pe Free rămâne la un sport într-o sală, fiindcă exact asta
+            cumpără. Cu locații partajate,
             spații administrate și publice, orare și servicii. Seedarea e idempotentă.
         </p>
     </div>

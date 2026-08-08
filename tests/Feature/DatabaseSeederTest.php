@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OrganizationType;
+use App\Enums\Plan;
 use App\Models\Location;
 use App\Models\Organization;
 use App\Models\ScheduleSlot;
@@ -163,5 +164,99 @@ test('seeded clubs stay within their plan limits', function () {
         if ($spaceLimit !== null) {
             expect($organization->spaces_count)->toBeLessThanOrEqual($spaceLimit);
         }
+    });
+});
+
+test('a club on a paid plan works in at least three counties', function () {
+    // Free is one sport at one hall by definition — "un club cu un singur sport,
+    // la o singură sală" is the plan's own promise. Everyone else has to give the
+    // county navigator something to navigate.
+    $this->seed();
+
+    // The two hand-built demo accounts are excluded: they are curated for the
+    // login walkthrough — a pilates studio at one address is exactly what a
+    // pilates studio is — and their content is written by hand, not generated.
+    $clubs = Organization::query()
+        ->offering(OrganizationType::Club)
+        ->where('plan', '!=', Plan::Free)
+        ->whereNotIn('slug', ['clubul-demo', 'clubul-2-demo'])
+        ->with('organizationLocations.location')
+        ->get();
+
+    expect($clubs)->not->toBeEmpty();
+
+    $clubs->each(function (Organization $club): void {
+        $counties = $club->organizationLocations
+            ->map(fn ($presence): ?string => $presence->location?->county)
+            ->filter()
+            ->unique();
+
+        expect($counties->count())->toBeGreaterThanOrEqual(
+            3,
+            $club->name.' works in '.$counties->count().' county/counties',
+        );
+    });
+});
+
+test('every address of a paid club teaches at least three sports', function () {
+    $this->seed();
+
+    Organization::query()
+        ->offering(OrganizationType::Club)
+        ->where('plan', '!=', Plan::Free)
+        ->whereNotIn('slug', ['clubul-demo', 'clubul-2-demo'])
+        ->with('organizationLocations.organizationLocationSports', 'organizationLocations.location')
+        ->get()
+        ->each(function (Organization $club): void {
+            $club->organizationLocations->each(function ($presence) use ($club): void {
+                expect($presence->organizationLocationSports->count())->toBeGreaterThanOrEqual(
+                    3,
+                    $club->name.' teaches '.$presence->organizationLocationSports->count()
+                        .' sport(s) at '.($presence->location?->name ?? '?'),
+                );
+            });
+        });
+});
+
+test('a free club stays inside the one sport and one hall it pays for', function () {
+    $this->seed();
+
+    Organization::query()
+        ->offering(OrganizationType::Club)
+        ->where('plan', Plan::Free)
+        ->whereNotIn('slug', ['clubul-demo', 'clubul-2-demo'])
+        ->withCount('organizationSports', 'organizationLocations')
+        ->get()
+        ->each(function (Organization $club): void {
+            expect($club->organization_sports_count)->toBe(1)
+                ->and($club->organization_locations_count)->toBe(1);
+        });
+});
+
+test('a club with room for a fourth address takes a second hall in its home town', function () {
+    // Two halls in the same city is the commonest real shape, and the only way a
+    // county ever shows more than one card in the navigator. Only Premium reaches
+    // it: Pro buys three addresses and three counties uses all of them.
+    $this->seed();
+
+    $premium = Organization::query()
+        ->offering(OrganizationType::Club)
+        ->where('plan', Plan::Premium)
+        ->whereNotIn('slug', ['clubul-demo', 'clubul-2-demo'])
+        ->with('organizationLocations.location')
+        ->get();
+
+    expect($premium)->not->toBeEmpty();
+
+    $premium->each(function (Organization $club): void {
+        $perCity = $club->organizationLocations
+            ->map(fn ($presence): ?string => $presence->location?->city)
+            ->filter()
+            ->countBy();
+
+        expect($perCity->max())->toBeGreaterThanOrEqual(
+            2,
+            $club->name.' has no town with two halls',
+        );
     });
 });
