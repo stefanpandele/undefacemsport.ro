@@ -40,6 +40,10 @@ class ScheduleSlotResource extends Resource
 
     protected static ?string $navigationLabel = 'Orar';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+
+    protected static ?int $navigationSort = 2;
+
     /**
      * Editing one existing interval: everything, including where it happens.
      */

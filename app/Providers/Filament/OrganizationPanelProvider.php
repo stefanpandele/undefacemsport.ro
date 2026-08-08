@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Organization\Widgets\OfferChecklistWidget;
 use App\Http\Middleware\FilamentAuthenticate;
 use App\Models\Organization;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -38,6 +39,7 @@ class OrganizationPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Organization/Widgets'), for: 'App\Filament\Organization\Widgets')
             ->widgets([
+                OfferChecklistWidget::class,
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])

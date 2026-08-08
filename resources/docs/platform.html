@@ -821,21 +821,35 @@ a { color: var(--grass-deep); }
 <p>
     Panou multi-tenant cu {{ account.resources }} resurse: un utilizator poate ține de mai multe
     organizații și comută între ele. Toate resursele sunt deschise tuturor; doar planul
-    plătit limitează cât se poate publica din fiecare.
+    plătit limitează cât se poate publica din fiecare. Navigația e grupată pe felul
+    ofertei — aceleași cuvinte ca pe partea publică.
 </p>
+
+<div class="rule">
+    <p><span class="what">Prima logare: ce poți publica, nu ce ești.</span></p>
+    <p>
+        Primul lucru de pe tablou e o listă cu cele trei feluri de ofertă, scrise în
+        limba operatorului: „țin cursuri", „am spații în care se poate intra",
+        „ofer servicii pe programare". Niciunul nu e o bifă — fiecare e o ușă către
+        resursa care face afirmația adevărată, pentru că o bifă ar fi o a doua copie
+        a unui fapt pe care oferta îl poartă deja, iar o copie poate fi greșită.
+        Lista spune și ce nu e evident: un cont aprobat care n-a publicat nimic nu
+        are încă pagină publică.
+    </p>
+</div>
 
 <div class="scroller">
 <table>
 <thead>
-<tr><th>Resursă</th><th>Ce face</th><th>Cine o vede</th></tr>
+<tr><th>Resursă</th><th>Ce face</th><th>Grup</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>Locații</strong></td><td>Unde își desfășoară activitatea, cu geocodare și detectarea duplicatelor.</td><td>Toți</td></tr>
-<tr><td><strong>Sporturi</strong></td><td>Ce predă, cu grupe de vârstă, niveluri, beneficii, galerie.</td><td>Cluburi</td></tr>
-<tr><td><strong>Persoane</strong></td><td>Cele {{ professions.count }} profesii — antrenor, medic, fizioterapeut, nutriționist — cu bio, foto și sporturi.</td><td>Cluburi</td></tr>
-<tr><td><strong>Orar</strong></td><td>Intervale săptămânale pe sport, locație, grupă și nivel.</td><td>Cluburi</td></tr>
-<tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli: mod de acces, preț pe unitate, program, preț pe interval.</td><td>Toți</td></tr>
-<tr><td><strong>Servicii</strong></td><td>Consultații și ședințe: durată, preț, persoană, filială și sporturile vizate.</td><td>Toți</td></tr>
+<tr><td><strong>Locații</strong></td><td>Unde își desfășoară activitatea, cu geocodare și detectarea duplicatelor.</td><td>Organizația</td></tr>
+<tr><td><strong>Sporturi</strong></td><td>Ce predă, cu grupe de vârstă, niveluri, beneficii, galerie.</td><td>Cursuri</td></tr>
+<tr><td><strong>Orar</strong></td><td>Intervale săptămânale pe sport, locație, grupă și nivel.</td><td>Cursuri</td></tr>
+<tr><td><strong>Persoane</strong></td><td>Cele {{ professions.count }} profesii — antrenor, medic, fizioterapeut, nutriționist — cu bio, foto și sporturi.</td><td>Cursuri</td></tr>
+<tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli: mod de acces, preț pe unitate, program, preț pe interval.</td><td>Agrement și închiriere</td></tr>
+<tr><td><strong>Servicii</strong></td><td>Consultații și ședințe: durată, preț, persoană, filială și sporturile vizate.</td><td>Servicii</td></tr>
 </tbody>
 </table>
 </div>
@@ -1074,9 +1088,6 @@ a { color: var(--grass-deep); }
 </div>
 <div class="gap-item">
     <p><span class="what">Teste de browser.</span> Nimic nu execută template-urile Vue. Două redenumiri au lăsat pagini publice goale cu toată suita verde: una a schimbat cheile pe care le citesc componentele, alta a mutat controllerul fără directorul de pagini. Sunt fixate acum și cheile de payload, și existența fișierului pentru fiecare pagină pe care aplicația o randează — dar nici unul nu înlocuiește randarea reală.</p>
-</div>
-<div class="gap-item">
-    <p><span class="what">Onboarding în panou.</span> Acum că orice organizație poate publica orice, prima logare nu îndrumă pe nimeni: nu există „adaugă ofertă" cu cele trei feluri, iar cine intră prima oară vede o listă de resurse fără să știe cu care începe.</p>
 </div>
 </section>
 

@@ -41,6 +41,10 @@ class PersonResource extends Resource
 
     protected static ?string $navigationLabel = 'Antrenori';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+
+    protected static ?int $navigationSort = 3;
+
     public static function form(Schema $schema): Schema
     {
         return $schema

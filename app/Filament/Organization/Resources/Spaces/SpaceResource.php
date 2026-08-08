@@ -52,6 +52,10 @@ class SpaceResource extends Resource
 
     protected static ?string $navigationLabel = 'Spații';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Agrement și închiriere';
+
+    protected static ?int $navigationSort = 1;
+
     /**
      * Scoped by hand rather than by Filament's tenancy: a space belongs to a
      * location, and only sometimes to an organization, so there is no

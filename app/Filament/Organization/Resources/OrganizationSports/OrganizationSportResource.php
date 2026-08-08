@@ -40,6 +40,10 @@ class OrganizationSportResource extends Resource
 
     protected static ?string $navigationLabel = 'Sporturi';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $schema): Schema
     {
         return $schema
