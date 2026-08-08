@@ -41,6 +41,10 @@ use Illuminate\Support\Str;
  * @property int|null $owner_user_id
  * @property-read string|null $logo_url
  * @property-read string|null $cover_url
+ * @property-read int|null $counties_count  only set by an explicit select alias
+ * @property-read int|null $courses_count  only set by an explicit withCount alias
+ * @property-read int|null $open_access_count  only set by an explicit withCount alias
+ * @property-read int|null $rental_count  only set by an explicit withCount alias
  */
 class Organization extends Model
 {

@@ -2,7 +2,11 @@
 
 namespace App\Filament\Admin\Resources\Organizations\Tables;
 
+use App\Enums\FacilityStatus;
+use App\Enums\LocationWay;
+use App\Enums\SpaceAccessMode;
 use App\Models\Location;
+use App\Models\Organization;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -19,7 +23,27 @@ class OrganizationsTable
             // Both counts come from the query, so they sort in SQL rather than
             // after the page has already been cut.
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->withCount('organizationLocations as locations_count')
+                ->withCount([
+                    'organizationLocations as locations_count',
+                    'organizationSports as courses_count',
+                    'services as services_count',
+                    // A space carries an access mode, and an interval may override
+                    // it — the hall rented by the hour that opens on Friday
+                    // evenings is both. Counted the same way the public pages read
+                    // it, or the admin would see a venue the site does not.
+                    'spaces as open_access_count' => fn (Builder $spaces) => $spaces
+                        ->where('spaces.status', FacilityStatus::Approved)
+                        ->where(fn (Builder $either) => $either
+                            ->where('spaces.access_mode', SpaceAccessMode::OpenAccess)
+                            ->orWhereHas('accessSlots', fn (Builder $slots) => $slots
+                                ->where('schedule_slots.access_mode', SpaceAccessMode::OpenAccess))),
+                    'spaces as rental_count' => fn (Builder $spaces) => $spaces
+                        ->where('spaces.status', FacilityStatus::Approved)
+                        ->where(fn (Builder $either) => $either
+                            ->where('spaces.access_mode', SpaceAccessMode::ExclusiveRental)
+                            ->orWhereHas('accessSlots', fn (Builder $slots) => $slots
+                                ->where('schedule_slots.access_mode', SpaceAccessMode::ExclusiveRental))),
+                ])
                 // Distinct, so the club with three halls in one town reads as
                 // the one-county operation it is.
                 ->addSelect(['counties_count' => Location::query()
@@ -41,6 +65,29 @@ class OrganizationsTable
                     ->label('Locații')
                     ->numeric()
                     ->sortable(),
+                // What it actually offers, in the words the public side uses.
+                // Only the kinds it has: an empty one is the absence of an offer,
+                // not a zero worth showing.
+                TextColumn::make('offers')
+                    ->label('Oferă')
+                    ->badge()
+                    ->state(fn (Organization $record): array => collect([
+                        LocationWay::Organised->label() => (int) $record->courses_count,
+                        LocationWay::OpenAccess->label() => (int) $record->open_access_count,
+                        LocationWay::Rental->label() => (int) $record->rental_count,
+                        'Servicii' => (int) $record->services_count,
+                    ])
+                        ->filter()
+                        ->map(fn (int $count, string $label): string => $count.' '.mb_strtolower($label))
+                        ->values()
+                        ->all())
+                    ->color(fn (string $state): string => match (true) {
+                        str_contains($state, 'cursuri') => 'success',
+                        str_contains($state, 'agrement') => 'warning',
+                        str_contains($state, 'închiriere') => 'info',
+                        default => 'gray',
+                    })
+                    ->placeholder('nimic publicat'),
                 TextColumn::make('owner_user_id')
                     ->numeric()
                     ->sortable(),
