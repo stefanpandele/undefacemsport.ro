@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import WeekSchedule from '@/components/sports/WeekSchedule.vue';
 import { gradientStyle } from '@/lib/gradients';
-import clubs from '@/routes/clubs';
+import organizations from '@/routes/organizations';
 import type { Person, LocationClub, ScheduleSlot } from '@/types/sports';
 
 const props = defineProps<{ club: LocationClub }>();
@@ -31,7 +31,7 @@ const remainingPhotos = computed(() =>
         class="mb-4 scroll-mt-24 rounded-[18px] border border-line bg-white p-5"
     >
         <Link
-            :href="clubs.show.url(club.slug)"
+            :href="organizations.show.url(club.slug)"
             class="group mb-3.5 flex cursor-pointer gap-3.5"
         >
             <div

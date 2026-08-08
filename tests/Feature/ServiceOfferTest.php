@@ -204,28 +204,28 @@ test('a practice has its own page, listing what it sells', function () {
         ->has('services')
         ->firstOrFail();
 
-    $this->get(route('practices.show', $practice->slug))->assertInertia(
+    $this->get(route('organizations.show', $practice->slug))->assertInertia(
         fn ($page) => $page
-            ->component('public/practices/Show')
-            ->where('practice.name', $practice->name)
-            ->has('practice.services', $practice->services()->count())
-            ->has('practice.specialties')
-            ->has('practice.people'),
+            ->component('public/organizations/Show')
+            ->where('organization.name', $practice->name)
+            ->has('organization.services', $practice->services()->count())
+            ->where('organization.tabs.0.key', 'servicii')
+            ->has('organization.people'),
     );
 });
 
-test('a club is not reachable at a practice URL, and the reverse', function () {
-    // A physiotherapist is not a club, and somebody looking for one is not
-    // looking for training.
+test('one address serves both, because one company can be both', function () {
+    // There used to be two URLs and a type deciding which one worked. The pool
+    // that also runs a swimming club broke that arrangement.
     $club = Organization::factory()->create();
-    $practice = Organization::factory()->practice()->create();
+    $practice = Organization::factory()->create();
 
-    $this->get(route('practices.show', $club->slug))->assertNotFound();
-    $this->get(route('clubs.show', $practice->slug))->assertNotFound();
+    $this->get(route('organizations.show', $club->slug))->assertOk();
+    $this->get(route('organizations.show', $practice->slug))->assertOk();
 });
 
 test('the specialties on the page are derived from the services, never claimed', function () {
-    $practice = Organization::factory()->practice()->create();
+    $practice = Organization::factory()->create();
     $offered = Specialty::factory()->create(['name' => 'Fizioterapie', 'slug' => 'fizioterapie']);
     Specialty::factory()->create(['name' => 'Podologie', 'slug' => 'podologie']);
 
@@ -234,25 +234,26 @@ test('the specialties on the page are derived from the services, never claimed',
         'specialty_id' => $offered->getKey(),
     ]);
 
-    $this->get(route('practices.show', $practice->slug))->assertInertia(
+    $this->get(route('organizations.show', $practice->slug))->assertInertia(
         fn ($page) => $page
-            // Only what it sells something for.
-            ->has('practice.specialties', 1)
-            ->where('practice.specialties.0.key', 'fizioterapie')
-            ->where('practice.specialties.0.serviceCount', 2),
+            // Only what it sells something for: the specialty rides on the
+            // service, so a page cannot claim one it has nothing behind.
+            ->has('organization.services', 2)
+            ->where('organization.services.0.specialty', 'Fizioterapie')
+            ->where('organization.services.1.specialty', 'Fizioterapie'),
     );
 });
 
-test('a practice with no services yet still has a page', function () {
-    $practice = Organization::factory()->practice()->create();
+test('an organization with nothing published still has a page, and no tabs', function () {
+    $practice = Organization::factory()->create();
 
-    $this->get(route('practices.show', $practice->slug))->assertInertia(
-        fn ($page) => $page->where('practice.services', [])->where('practice.specialties', []),
+    $this->get(route('organizations.show', $practice->slug))->assertInertia(
+        fn ($page) => $page->where('organization.services', [])->where('organization.tabs', []),
     );
 });
 
 test('the page names each person by their profession, not as a coach', function () {
-    $practice = Organization::factory()->practice()->create();
+    $practice = Organization::factory()->create();
     $practice->people()->create([
         'name' => 'Ioana Marinescu',
         'profession' => PersonProfession::Nutritionist,
@@ -260,8 +261,8 @@ test('the page names each person by their profession, not as a coach', function 
         'sort_order' => 0,
     ]);
 
-    $this->get(route('practices.show', $practice->slug))->assertInertia(
-        fn ($page) => $page->where('practice.people.0.profession', 'Nutriționist'),
+    $this->get(route('organizations.show', $practice->slug))->assertInertia(
+        fn ($page) => $page->where('organization.people.0.profession', 'Nutriționist'),
     );
 });
 

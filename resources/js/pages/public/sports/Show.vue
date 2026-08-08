@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import SiteNav from '@/components/SiteNav.vue';
 import { sportGradient } from '@/lib/gradients';
 import locations from '@/routes/locations';
-import practices from '@/routes/practices';
+import organizations from '@/routes/organizations';
 import sportRoutes from '@/routes/sports';
 
 type CityOption = {
@@ -343,7 +343,7 @@ const title = computed(() =>
                         <Link
                             v-for="clinic in care"
                             :key="clinic.slug"
-                            :href="practices.show.url({ slug: clinic.slug })"
+                            :href="organizations.show.url({ slug: clinic.slug }) + '#servicii'"
                             class="flex flex-col gap-1.5 rounded-2xl border-[1.5px] border-line bg-white px-4.5 py-4 transition hover:-translate-y-0.5 hover:border-grass"
                         >
                             <span class="font-archivo text-base font-extrabold">

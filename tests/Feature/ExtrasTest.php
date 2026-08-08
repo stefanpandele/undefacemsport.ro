@@ -179,11 +179,11 @@ test('the availableAt scope agrees with what the page shows', function () {
 
 /*
 |--------------------------------------------------------------------------
-| The club page
+| The organization page
 |--------------------------------------------------------------------------
 */
 
-test('the club page lists the extras below the programme', function () {
+test('the organization page sells its services in their own tab', function () {
     $studio = Organization::factory()->create(['slug' => 'pilates-studio']);
     $specialty = Specialty::factory()->create(['name' => 'Masaj sportiv', 'slug' => 'masaj-sportiv']);
 
@@ -195,12 +195,16 @@ test('the club page lists the extras below the programme', function () {
         'duration_minutes' => 30,
     ]);
 
-    $this->get(route('clubs.show', 'pilates-studio'))->assertInertia(
+    $this->get(route('organizations.show', 'pilates-studio'))->assertInertia(
         fn ($page) => $page
-            ->has('club.extras', 1)
-            ->where('club.extras.0.name', 'Masaj terapeutic')
-            ->where('club.extras.0.price', '120 lei')
-            ->where('club.extras.0.duration', '30 min'),
+            ->has('organization.services', 1)
+            ->where('organization.services.0.name', 'Masaj terapeutic')
+            ->where('organization.services.0.price', '120 lei')
+            ->where('organization.services.0.duration', '30 min')
+            // A studio with nothing but services gets exactly one tab, and it is
+            // the one its offer earned.
+            ->has('organization.tabs', 1)
+            ->where('organization.tabs.0.key', 'servicii'),
     );
 });
 
@@ -250,8 +254,8 @@ test('a benefit worded like a service is no longer guessed into a group', functi
         'sort_order' => 0,
     ]);
 
-    $this->get(route('clubs.show', 'clubul-x'))->assertInertia(function ($page) {
-        $detail = $page->toArray()['props']['club']['sportDetails']['inot'];
+    $this->get(route('organizations.show', 'clubul-x'))->assertInertia(function ($page) {
+        $detail = $page->toArray()['props']['organization']['courses'][0];
 
         expect($detail)->not->toHaveKey('beyondSport')
             // It stays a trust chip, which is what a benefit is.

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\PresentsOrganizations;
+use App\Concerns\PresentsSpaces;
 use App\Enums\ContactType;
-use App\Enums\OrganizationType;
+use App\Enums\FacilityStatus;
+use App\Enums\SpaceAccessMode;
 use App\Models\Facility;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -13,13 +15,16 @@ use App\Models\OrganizationSportBenefit;
 use App\Models\Person;
 use App\Models\ScheduleSlot;
 use App\Models\Service;
+use App\Models\Space;
+use App\Models\Sport;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ClubController extends Controller
+class OrganizationController extends Controller
 {
-    use PresentsOrganizations;
+    use PresentsOrganizations, PresentsSpaces;
 
     /**
      * Social contact types and the short badge shown for each on the profile.
@@ -54,16 +59,18 @@ class ClubController extends Controller
     ];
 
     /**
-     * Show a public club profile with its sports, people and per-location schedule.
+     * One organization, whatever it turns out to be.
+     *
+     * There is no second page and no type to route on: a pool that also runs a
+     * swimming club would otherwise need two addresses for one company. What it
+     * publishes decides which tabs exist, and the fragment decides which one
+     * opens — `/la/aqua#agrement` for somebody who arrived from the leisure
+     * listing.
      */
     public function show(string $slug): Response
     {
         $organization = Organization::query()
             ->where('slug', $slug)
-            // Clubs only. A venue or a practice has its own page, and serving one
-            // here would present it as something it is not — with a club's sports
-            // and schedule sections, both of which it has none of.
-            ->where('type', OrganizationType::Club)
             ->with([
                 'contacts',
                 'organizationSports.sport',
@@ -73,23 +80,31 @@ class ClubController extends Controller
                 'organizationSports.galleryImages',
                 'people.sports',
                 'services.specialty',
+                'services.person',
+                'services.sports',
                 'organizationLocations.location.facilities',
                 'organizationLocations.organizationLocationSports',
+                'organizationLocations.spaces.sport',
+                'organizationLocations.spaces.accessSlots',
                 'scheduleSlots.organizationLocationSport',
                 'scheduleSlots.ageGroup',
             ])
             ->firstOrFail();
 
-        return Inertia::render('public/clubs/Show', [
-            'club' => $this->presentClub($organization),
+        return Inertia::render('public/organizations/Show', [
+            'organization' => $this->present($organization),
         ]);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function presentClub(Organization $organization): array
+    private function present(Organization $organization): array
     {
+        $courses = $this->courses($organization);
+        $leisure = $this->leisure($organization);
+        $services = $this->services($organization);
+
         return [
             'slug' => $organization->slug,
             'name' => $organization->name,
@@ -97,25 +112,117 @@ class ClubController extends Controller
             'about' => $organization->description ?? '',
             'phone' => $this->phone($organization),
             'socials' => $this->socials($organization),
-            'sports' => $this->sports($organization),
-            'sportDetails' => $this->sportDetails($organization),
             'people' => $this->presentPeople($organization->people),
-            'locationsBySport' => $this->locationsBySport($organization),
-            // What the club sells one appointment at a time — the massage at a
-            // pilates studio. An extra alongside the programme, never a second
-            // reason to come, and never part of discovery.
-            'extras' => $this->extras($organization),
+            'locations' => $this->locations($organization),
+            // Only the tabs with something behind them. A tab that opens on an
+            // empty panel is a promise the page cannot keep.
+            'tabs' => array_values(array_filter([
+                $courses === [] ? null : ['key' => 'cursuri', 'label' => 'Cursuri'],
+                $leisure === [] ? null : ['key' => 'agrement', 'label' => 'Agrement'],
+                $services === [] ? null : ['key' => 'servicii', 'label' => 'Servicii'],
+            ])),
+            'courses' => $courses,
+            'leisure' => $leisure,
+            'services' => $services,
         ];
     }
 
     /**
-     * Paid extras that are not the sport: the studio's massage, the club's
-     * recovery session. Real offers with a price and a duration, rather than a
-     * chip somebody happened to word a certain way.
+     * The training programme: one entry per sport, with what it teaches and where.
      *
      * @return list<array<string, mixed>>
      */
-    private function extras(Organization $organization): array
+    private function courses(Organization $organization): array
+    {
+        $locationsBySport = $this->locationsBySport($organization);
+
+        return array_values($organization->organizationSports
+            ->sortBy('sort_order')
+            ->map(function (OrganizationSport $organizationSport) use ($organization, $locationsBySport): array {
+                $sport = $organizationSport->sport;
+                $highlights = $this->presentHighlights(
+                    $organizationSport,
+                    $this->sportHasAccessibleLocation($organization, $organizationSport->sport_id),
+                );
+
+                return [
+                    'key' => $sport->slug,
+                    'label' => $sport->translated_name,
+                    'icon' => (string) $sport->icon,
+                    'color' => $sport->color,
+                    'title' => 'Despre '.mb_strtolower($sport->translated_name).' la '.$organization->name,
+                    'trustChips' => $highlights['general'],
+                    'sessionFormat' => $highlights['sessionFormat'],
+                    'audience' => $highlights['audience'],
+                    'ages' => $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all(),
+                    'levels' => $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all(),
+                    'gallery' => $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all(),
+                    'locations' => $locationsBySport[$sport->slug] ?? [],
+                ];
+            })
+            ->values()
+            ->all());
+    }
+
+    /**
+     * The spaces this organization operates, grouped by the way you get in.
+     *
+     * Only what moderation has cleared, the same rule that decides whether the
+     * organization counts as a venue at all. A space can offer two ways in — open
+     * on Friday evenings, rented by the hour otherwise — so it appears under each.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function leisure(Organization $organization): array
+    {
+        /** @var list<array{space: Space, presence: OrganizationLocation}> $spaces */
+        $spaces = [];
+
+        foreach ($organization->organizationLocations as $presence) {
+            foreach ($presence->spaces as $space) {
+                if ($space->status === FacilityStatus::Approved) {
+                    $spaces[] = ['space' => $space, 'presence' => $presence];
+                }
+            }
+        }
+
+        return array_values(collect(SpaceAccessMode::cases())
+            ->map(function (SpaceAccessMode $mode) use ($spaces): ?array {
+                $matching = collect($spaces)->filter(
+                    fn (array $entry): bool => $entry['space']->accessModes()->contains($mode),
+                );
+
+                if ($matching->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'key' => $mode === SpaceAccessMode::OpenAccess ? 'liber' : 'inchiriere',
+                    'label' => $mode->label(),
+                    'verb' => $mode->verb(),
+                    'how' => $mode->description(),
+                    'spaces' => $matching
+                        ->map(fn (array $entry): array => $this->presentSpace($entry['space'], $mode) + [
+                            'sport' => $entry['space']->sport?->translated_name,
+                            'location' => $entry['presence']->location?->name,
+                            'locationSlug' => $entry['presence']->location?->slug,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all());
+    }
+
+    /**
+     * What it sells one appointment at a time: a consultation, a session, the
+     * massage at a pilates studio.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function services(Organization $organization): array
     {
         return array_values($organization->services
             ->sortBy('sort_order')
@@ -126,12 +233,43 @@ class ClubController extends Controller
                     'key' => (string) $service->getKey(),
                     'icon' => $specialty === null ? '💆' : (string) $specialty->icon,
                     'name' => $service->name,
-                    'specialty' => $specialty === null ? null : $specialty->translated_name,
+                    'specialty' => $specialty?->translated_name,
                     'price' => $service->priceLabel(),
+                    'priceNotes' => $service->price_notes,
                     'duration' => $service->durationLabel(),
                     'description' => $service->description ?? '',
+                    'person' => $service->person?->name,
+                    'sports' => $service->sports
+                        ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+                        ->map(fn (Sport $sport): array => [
+                            'key' => $sport->slug,
+                            'label' => $sport->translated_name,
+                            'icon' => (string) $sport->icon,
+                        ])
+                        ->values()
+                        ->all(),
                 ];
             })
+            ->values()
+            ->all());
+    }
+
+    /**
+     * Every address it operates from, whatever it does there.
+     *
+     * @return list<array{slug: string, name: string, address: string}>
+     */
+    private function locations(Organization $organization): array
+    {
+        return array_values($organization->organizationLocations
+            ->map(fn (OrganizationLocation $presence): ?array => $presence->location === null ? null : [
+                'slug' => $presence->location->slug,
+                'name' => $presence->location->name,
+                'address' => collect([$presence->location->address, $presence->location->city])
+                    ->filter()
+                    ->implode(', '),
+            ])
+            ->filter()
             ->values()
             ->all());
     }
@@ -163,53 +301,6 @@ class ClubController extends Controller
                 : null)
             ->filter()
             ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array{key: string, label: string, icon: string, color: string|null, locationCount: int}>
-     */
-    private function sports(Organization $organization): array
-    {
-        return $organization->organizationSports
-            ->sortBy('sort_order')
-            ->map(fn (OrganizationSport $organizationSport): array => [
-                'key' => $organizationSport->sport->slug,
-                'label' => $organizationSport->sport->translated_name,
-                'icon' => (string) $organizationSport->sport->icon,
-                'color' => $organizationSport->sport->color,
-                'locationCount' => $this->locationCountForSport($organization, $organizationSport->sport_id),
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    private function sportDetails(Organization $organization): array
-    {
-        return $organization->organizationSports
-            ->sortBy('sort_order')
-            ->mapWithKeys(function (OrganizationSport $organizationSport) use ($organization): array {
-                $highlights = $this->presentHighlights(
-                    $organizationSport,
-                    $this->sportHasAccessibleLocation($organization, $organizationSport->sport_id),
-                );
-
-                return [
-                    $organizationSport->sport->slug => [
-                        'icon' => (string) $organizationSport->sport->icon,
-                        'title' => 'Despre '.mb_strtolower($organizationSport->sport->translated_name).' la '.$organization->name,
-                        'trustChips' => $highlights['general'],
-                        'sessionFormat' => $highlights['sessionFormat'],
-                        'audience' => $highlights['audience'],
-                        'ages' => $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all(),
-                        'levels' => $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all(),
-                        'gallery' => $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all(),
-                    ],
-                ];
-            })
             ->all();
     }
 
@@ -296,13 +387,6 @@ class ClubController extends Controller
         }
 
         return $result;
-    }
-
-    private function locationCountForSport(Organization $organization, int $sportId): int
-    {
-        return $organization->organizationLocations
-            ->filter(fn (OrganizationLocation $organizationLocation): bool => $organizationLocation->organizationLocationSports->contains('sport_id', $sportId))
-            ->count();
     }
 
     /**

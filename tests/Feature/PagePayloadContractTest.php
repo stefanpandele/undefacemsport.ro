@@ -11,8 +11,9 @@ use App\Models\Sport;
  * blank in the browser while the whole suite stayed green.
  *
  * If one of these fails, rename on the other side too rather than editing the
- * list — `resources/js/types/sports.ts` for the location page, the `ClubProfile`
- * type in `resources/js/pages/public/clubs/Show.vue` for the club page.
+ * list — `resources/js/types/sports.ts` for the location page, the
+ * `OrganizationProfile` type in `resources/js/pages/public/organizations/Show.vue`
+ * for the organization page.
  */
 test('the club block a location renders carries the keys Vue reads', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
@@ -32,16 +33,16 @@ test('the club block a location renders carries the keys Vue reads', function ()
     ]);
 });
 
-test('the club page carries the keys Vue reads', function () {
+test('the organization page carries the keys Vue reads', function () {
     $organization = Organization::factory()->create(['slug' => 'clubul-test']);
     $organization->organizationSports()->create([
         'sport_id' => Sport::factory()->create(['slug' => 'inot'])->getKey(),
     ]);
 
-    $response = $this->get(route('clubs.show', 'clubul-test'));
+    $response = $this->get(route('organizations.show', 'clubul-test'));
 
-    expect(array_keys($response->viewData('page')['props']['club']))->toEqualCanonicalizing([
-        'slug', 'name', 'representative', 'about', 'phone', 'socials', 'sports',
-        'sportDetails', 'people', 'locationsBySport', 'extras',
+    expect(array_keys($response->viewData('page')['props']['organization']))->toEqualCanonicalizing([
+        'slug', 'name', 'representative', 'about', 'phone', 'socials', 'people',
+        'locations', 'tabs', 'courses', 'leisure', 'services',
     ]);
 });

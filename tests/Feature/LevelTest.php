@@ -125,17 +125,22 @@ test('a slot without a level is fine — it is optional, unlike the age group', 
     expect($slot->level)->toBeNull();
 });
 
-test('the levels a club offers reach the public club page', function () {
+test('the levels a club offers reach its public page', function () {
     $this->seed();
 
     $organizationSport = OrganizationSport::query()->has('levels')->with('sport')->first();
     $organization = $organizationSport->organization;
 
-    $this->get(route('clubs.show', $organization->slug))->assertInertia(
-        fn ($page) => $page->has(
-            'club.sportDetails.'.$organizationSport->sport->slug.'.levels',
-            $organizationSport->levels->count(),
-        ),
+    $this->get(route('organizations.show', $organization->slug))->assertInertia(
+        function ($page) use ($organization, $organizationSport) {
+            $courses = collect($page->toArray()['props']['organization']['courses']);
+            $course = $courses->firstWhere('key', $organizationSport->sport->slug);
+
+            expect($courses)->toHaveCount($organization->organizationSports()->count())
+                ->and($course['levels'])->toHaveCount($organizationSport->levels->count());
+
+            return $page;
+        },
     );
 });
 

@@ -532,6 +532,19 @@ a { color: var(--grass-deep); }
 </div>
 
 <div class="rule">
+    <p><span class="what">O organizație, o adresă: <code>/la/{slug}</code>.</span></p>
+    <p>
+        Fără prefix de categorie. <code>/cluburi/aqua</code> ar fi o afirmație
+        despre ce e Aqua, falsă pe jumătate pentru un bazin care ține și cursuri,
+        și îngheațată într-o adresă permanentă. Pentru vizitator, Aqua Junior nu e
+        „un club" — e Aqua Junior; categoria e felul în care ajunge la el, nu ceea
+        ce este. Segmentul neutru lasă și rădăcina site-ului liberă pentru rute
+        viitoare. Vechile <code>/cluburi/{slug}</code> și
+        <code>/specialisti/{slug}</code> redirecționează permanent.
+    </p>
+</div>
+
+<div class="rule">
     <p><span class="what">Calculat, niciodată stocat.</span></p>
     <p>
         O coloană ar rămâne în urmă. Bazinul își șterge ultimul spațiu cu intrare
@@ -685,19 +698,16 @@ a { color: var(--grass-deep); }
         </p>
     </div>
     <div class="card">
-        <div class="route"><span class="path">/cluburi/{slug}</span></div>
-        <h3>Un club</h3>
+        <div class="route"><span class="path">/la/{slug}</span></div>
+        <h3>O organizație</h3>
         <p>
-            Sporturi predate, grupe de vârstă și niveluri, antrenori cu bio, orar
-            săptămânal, locații, galerie, contact.
-        </p>
-    </div>
-    <div class="card">
-        <div class="route"><span class="path">/specialisti/{slug}</span></div>
-        <h3>Un cabinet</h3>
-        <p>
-            Servicii cu durată și preț, filtrabile pe specialitate, fiecare cu
-            sporturile pentru care e oferit. Echipa și locațiile.
+            Un tab pentru fiecare fel de ofertă, și numai pentru cele publicate:
+            <strong>Cursuri</strong> — sporturi, grupe, niveluri, orar pe locație;
+            <strong>Agrement</strong> — spațiile, grupate după cum intri, cu preț
+            și program; <strong>Servicii</strong> — ce se vinde pe programare.
+            Echipa și adresele stau sub taburi, pentru că sunt ale organizației,
+            nu ale unei oferte. Fragmentul alege tabul: <code>#agrement</code>
+            aterizează direct acolo.
         </p>
     </div>
     <div class="card">

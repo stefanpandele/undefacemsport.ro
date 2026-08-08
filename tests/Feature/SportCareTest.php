@@ -245,7 +245,7 @@ test('a city with a clinic and no club is still offered in the picker', function
     );
 });
 
-test('the practice page shows which athletes each service is for', function () {
+test('the organization page shows which athletes each service is for', function () {
     $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal', 'icon' => '⚽']);
     $clinic = Organization::factory()->practice()->create();
 
@@ -254,9 +254,9 @@ test('the practice page shows which athletes each service is for', function () {
         'name' => 'Recuperare post-accidentare',
     ])->sports()->sync([$football->getKey()]);
 
-    $this->get(route('practices.show', $clinic->slug))->assertInertia(
+    $this->get(route('organizations.show', $clinic->slug))->assertInertia(
         fn ($page) => $page
-            ->has('practice.services.0.sports', 1)
-            ->where('practice.services.0.sports.0.label', 'Fotbal'),
+            ->has('organization.services.0.sports', 1)
+            ->where('organization.services.0.sports.0.label', 'Fotbal'),
     );
 });
