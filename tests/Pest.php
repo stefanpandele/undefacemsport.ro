@@ -68,6 +68,13 @@ function clubAt(Location $location, Sport $sport, string $name): Organization
 {
     $club = Organization::factory()->create(['name' => $name]);
 
+    // The programme itself, not only its presence at an address: what makes an
+    // organization a club is that it teaches, and `organization_sport` is where
+    // it says so.
+    // firstOrCreate: a test that goes on to configure the programme itself would
+    // otherwise trip the unique index.
+    $club->organizationSports()->firstOrCreate(['sport_id' => $sport->getKey()]);
+
     $presence = OrganizationLocation::create([
         'organization_id' => $club->getKey(),
         'location_id' => $location->getKey(),

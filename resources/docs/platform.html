@@ -504,17 +504,17 @@ a { color: var(--grass-deep); }
 <tr>
     <td><strong>Club</strong></td>
     <td>Un program de antrenamente: grupe, antrenori, orar recurent.</td>
-    <td>Indexul de cluburi</td>
+    <td><code>/cluburi</code></td>
 </tr>
 <tr>
     <td><strong>Bază sportivă</strong></td>
     <td>Un spațiu aprobat la moderare — bazin, teren, sală. Publicarea lui e afirmația că cineva poate intra.</td>
-    <td>Indexul de baze sportive, prin locație</td>
+    <td><code>/baze-sportive</code>, ca loc</td>
 </tr>
 <tr>
     <td><strong>Cabinet</strong></td>
     <td>Un serviciu vândut pe programare: consultație, ședință, evaluare.</td>
-    <td>Indexul de specialiști</td>
+    <td><code>/specialisti</code></td>
 </tr>
 </tbody>
 </table>
@@ -677,6 +677,32 @@ a { color: var(--grass-deep); }
         <p>
             Fiecare sport cu acoperirea lui — câte locații, cluburi și orașe. Filtrul
             de județ vine primul și schimbă cifrele, nu doar lista.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/cluburi</span></div>
+        <h3>Cine te învață</h3>
+        <p>
+            Toți cei care predau, oricare ar fi restul ofertei lor. Filtre pe județ
+            și sport. Duce la <code>/la/{slug}#cursuri</code>.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/baze-sportive</span></div>
+        <h3>Unde poți intra singur</h3>
+        <p>
+            Listă de <strong>locuri</strong>, nu de firme: cine administrează bazinul
+            nu contează pentru cine vrea să înoate după serviciu, iar terenul de
+            cartier n-are pe nimeni în spate. Fiecare card arată cum intri și de la
+            ce preț.
+        </p>
+    </div>
+    <div class="card">
+        <div class="route"><span class="path">/specialisti</span></div>
+        <h3>Unde te recuperezi</h3>
+        <p>
+            Toți cei care vând îngrijire medicală sportivilor, cu filtre pe județ și
+            specialitate. Duce la <code>/la/{slug}#servicii</code>.
         </p>
     </div>
     <div class="card">
@@ -1023,12 +1049,6 @@ a { color: var(--grass-deep); }
 
 <div class="gap-item">
     <p><span class="what">Motor de rezervări.</span> Platforma arată program, preț și contact. Rezervarea efectivă se face în afara ei — e un produs în sine.</p>
-</div>
-<div class="gap-item">
-    <p><span class="what">Răsfoirea recuperării medicale.</span> Cabinetele se găsesc doar prin pagina unui sport într-un oraș. Nu există încă index propriu cu alegere de județ și sport.</p>
-</div>
-<div class="gap-item">
-    <p><span class="what">Index de cabinete.</span> Există pagina unui cabinet, nu și lista lor.</p>
 </div>
 <div class="gap-item">
     <p><span class="what">Filtru pe tip de organizație în explorare.</span> Se filtrează după mod de acces, nu după cine e în spate.</p>

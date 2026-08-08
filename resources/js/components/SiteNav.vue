@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { trackEvent } from '@/lib/gtm';
 import { explore, login, pricing, register } from '@/routes';
+import directory from '@/routes/directory';
 import organizationApplication from '@/routes/organization-application';
 import sportRoutes from '@/routes/sports';
 
@@ -30,6 +31,11 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 const links = [
     { label: 'Explorează', href: explore.url(), icon: '🔎' },
     { label: 'Sporturi', href: sportRoutes.index.url(), icon: '🏅' },
+    // The three ways in, each its own thread: who teaches, where you can walk
+    // in, and who patches you up afterwards.
+    { label: 'Cluburi', href: directory.clubs.url(), icon: '🏆' },
+    { label: 'Baze sportive', href: directory.venues.url(), icon: '🏟️' },
+    { label: 'Recuperare', href: directory.practices.url(), icon: '🩺' },
 ];
 
 const sectionLabel =

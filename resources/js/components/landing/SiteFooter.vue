@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { explore } from '@/routes';
+import directory from '@/routes/directory';
 import organizationApplication from '@/routes/organization-application';
+import sportRoutes from '@/routes/sports';
 
 const columns = [
     {
         h: 'Platformă',
         links: [
-            { label: 'Locații', href: '#' },
-            { label: 'Sporturi', href: '#' },
-            { label: 'Cluburi', href: '#' },
-            { label: 'Hartă', href: '#' },
+            { label: 'Explorează', href: explore.url() },
+            { label: 'Sporturi', href: sportRoutes.index.url() },
+            { label: 'Cluburi', href: directory.clubs.url() },
+            { label: 'Baze sportive', href: directory.venues.url() },
+            { label: 'Recuperare', href: directory.practices.url() },
         ],
     },
     {

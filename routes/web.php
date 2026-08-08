@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnafLookupController;
+use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
@@ -18,6 +19,12 @@ Route::get('sporturi/{slug}/{city?}', [SportController::class, 'show'])->name('s
 Route::get('preturi', PricingController::class)->name('pricing');
 Route::get('explorare', [ExploreController::class, 'index'])->name('explore');
 Route::get('locatii/{slug}', [LocationController::class, 'show'])->name('locations.show');
+
+// The three ways in, as browsable lists. Two list organizations and one lists
+// places, because that is what the visitor is choosing in each case.
+Route::get('cluburi', [DirectoryController::class, 'clubs'])->name('directory.clubs');
+Route::get('baze-sportive', [DirectoryController::class, 'venues'])->name('directory.venues');
+Route::get('specialisti', [DirectoryController::class, 'practices'])->name('directory.practices');
 
 // A preposition rather than a category: the same company can teach, rent out a
 // pool and employ a physiotherapist, and no single noun is true of it. What it

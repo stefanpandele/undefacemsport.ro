@@ -15,10 +15,10 @@ function clubTeaching(Location $location, Sport $sport, string $name, array $lev
 {
     $club = clubAt($location, $sport, $name);
 
-    $club->organizationSports()->create([
-        'sport_id' => $sport->getKey(),
-        'sort_order' => 0,
-    ])->levels()->sync(collect($levels)->map->getKey()->all());
+    $club->organizationSports()
+        ->firstOrCreate(['sport_id' => $sport->getKey()], ['sort_order' => 0])
+        ->levels()
+        ->sync(collect($levels)->map->getKey()->all());
 
     return $club;
 }
