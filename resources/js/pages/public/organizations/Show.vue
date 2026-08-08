@@ -79,6 +79,35 @@ type OrganizationService = {
     sports: { key: string; label: string; icon: string }[];
 };
 
+/** One address, with everything on offer at it. */
+type CountyLocation = {
+    slug: string;
+    name: string;
+    address: string;
+    city: string;
+    facilities: { icon: string; label: string }[];
+    sports: {
+        key: string;
+        label: string;
+        icon: string;
+        color: string | null;
+        ways: {
+            key: string;
+            label: string;
+            how: string;
+            schedule: ScheduleDay[];
+            spaces: LeisureSpace[];
+        }[];
+    }[];
+    extras: { key: string; icon: string; name: string; detail: string | null }[];
+};
+
+type County = {
+    key: string;
+    label: string;
+    locations: CountyLocation[];
+};
+
 type OrganizationProfile = {
     slug: string;
     name: string;
@@ -88,6 +117,7 @@ type OrganizationProfile = {
     socials: { label: string; url: string }[];
     people: OrganizationPerson[];
     locations: { slug: string; name: string; address: string }[];
+    counties: County[];
     tabs: { key: string; label: string }[];
     courses: Course[];
     leisure: LeisureWay[];
@@ -114,6 +144,34 @@ onMounted(() => {
 function selectTab(key: string) {
     activeTab.value = key;
     history.replaceState(null, '', `#${key}`);
+}
+
+/**
+ * Where before what. An organization with halls in three counties cannot be read
+ * as one list — nobody attends a course two counties away — so the page asks
+ * which county first, then narrows down to a single timetable.
+ */
+const openCounty = ref<string | null>(
+    props.organization.counties.length === 1
+        ? props.organization.counties[0].key
+        : null,
+);
+const openLocation = ref<string | null>(null);
+const openSport = ref<string | null>(null);
+
+function toggleCounty(key: string) {
+    openCounty.value = openCounty.value === key ? null : key;
+    openLocation.value = null;
+    openSport.value = null;
+}
+
+function toggleLocation(slug: string) {
+    openLocation.value = openLocation.value === slug ? null : slug;
+    openSport.value = null;
+}
+
+function toggleSport(key: string) {
+    openSport.value = openSport.value === key ? null : key;
 }
 
 const activeCourse = ref(props.organization.courses[0]?.key ?? '');
@@ -236,6 +294,213 @@ const sectionTitle = 'mb-3.5 font-archivo text-[19px] font-extrabold';
                     </div>
                 </div>
             </div>
+
+
+            <!-- Unde, înainte de ce. Județele în ordinea în care organizația și-a
+                 adăugat prezențele, apoi locație, sport și program. -->
+            <section v-if="organization.counties.length" class="pt-6">
+                <h2 :class="sectionTitle">Unde ne găsești</h2>
+
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <button
+                        v-for="county in organization.counties"
+                        :key="county.key"
+                        type="button"
+                        :aria-expanded="openCounty === county.key"
+                        class="rounded-full border-[1.5px] px-4 py-2 text-[13.5px] font-semibold transition"
+                        :class="
+                            openCounty === county.key
+                                ? 'border-grass-deep bg-grass-deep text-white'
+                                : 'border-line bg-white text-sage hover:border-grass'
+                        "
+                        @click="toggleCounty(county.key)"
+                    >
+                        {{ county.label }}
+                        <span class="font-jetbrains text-[11px] opacity-75">
+                            {{ county.locations.length }}
+                        </span>
+                    </button>
+                </div>
+
+                <template
+                    v-for="county in organization.counties"
+                    :key="`c-${county.key}`"
+                >
+                    <div v-if="openCounty === county.key" class="flex flex-col gap-2.5">
+                        <div
+                            v-for="loc in county.locations"
+                            :key="loc.slug"
+                            class="rounded-2xl border border-line bg-white"
+                        >
+                            <button
+                                type="button"
+                                :aria-expanded="openLocation === loc.slug"
+                                class="flex w-full items-start justify-between gap-3 p-4.5 text-left"
+                                @click="toggleLocation(loc.slug)"
+                            >
+                                <span class="min-w-0">
+                                    <span class="block font-archivo text-[15.5px] font-extrabold">
+                                        {{ loc.name }}
+                                    </span>
+                                    <span class="mt-0.5 block font-jetbrains text-[11px] text-sage">
+                                        📍 {{ loc.address }}
+                                    </span>
+                                    <span class="mt-2 flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="sport in loc.sports"
+                                            :key="sport.key"
+                                            class="rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-white"
+                                            :style="{ background: sportGradient(sport.color) }"
+                                        >
+                                            {{ sport.icon }} {{ sport.label }}
+                                        </span>
+                                        <span
+                                            v-for="extra in loc.extras"
+                                            :key="extra.key"
+                                            class="rounded-lg border border-line bg-[#f7f8f6] px-2.5 py-1 text-[11.5px] font-semibold text-sage"
+                                        >
+                                            {{ extra.icon }} {{ extra.name }}
+                                        </span>
+                                    </span>
+                                </span>
+                                <span
+                                    v-if="loc.facilities.length"
+                                    class="shrink-0 font-jetbrains text-[11px] font-semibold whitespace-nowrap text-sage"
+                                >
+                                    {{ loc.facilities.length }} dotări
+                                </span>
+                            </button>
+
+                            <div
+                                v-if="openLocation === loc.slug"
+                                class="border-t border-line px-4.5 py-4"
+                            >
+                                <div v-if="loc.facilities.length" class="mb-4">
+                                    <div
+                                        class="mb-1.5 font-jetbrains text-[10px] font-semibold tracking-[0.08em] text-sage uppercase"
+                                    >
+                                        Dotări
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="facility in loc.facilities"
+                                            :key="facility.label"
+                                            class="rounded-lg border border-line bg-[#f2f5ef] px-2.5 py-1 text-[11.5px] font-semibold text-sage"
+                                        >
+                                            {{ facility.icon }} {{ facility.label }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div v-if="loc.extras.length" class="mb-4">
+                                    <div
+                                        class="mb-1.5 font-jetbrains text-[10px] font-semibold tracking-[0.08em] text-sage uppercase"
+                                    >
+                                        Și, la fața locului
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <span
+                                            v-for="extra in loc.extras"
+                                            :key="extra.key"
+                                            class="flex justify-between gap-3 text-[13px]"
+                                        >
+                                            <span>{{ extra.icon }} {{ extra.name }}</span>
+                                            <span class="font-jetbrains text-sage">
+                                                {{ extra.detail ?? 'preț nespecificat' }}
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="mb-1.5 font-jetbrains text-[10px] font-semibold tracking-[0.08em] text-sage uppercase"
+                                >
+                                    Sporturi aici
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <div
+                                        v-for="sport in loc.sports"
+                                        :key="sport.key"
+                                        class="rounded-xl border border-line"
+                                    >
+                                        <button
+                                            type="button"
+                                            :aria-expanded="openSport === sport.key"
+                                            class="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left"
+                                            @click="toggleSport(sport.key)"
+                                        >
+                                            <span class="text-[14px] font-semibold">
+                                                {{ sport.icon }} {{ sport.label }}
+                                            </span>
+                                            <span class="flex flex-wrap justify-end gap-1.5">
+                                                <span
+                                                    v-for="way in sport.ways"
+                                                    :key="way.key"
+                                                    class="rounded-md bg-[#eaf6ef] px-2 py-0.5 text-[10.5px] font-bold text-grass-deep"
+                                                >
+                                                    {{ way.label }}
+                                                </span>
+                                            </span>
+                                        </button>
+
+                                        <div
+                                            v-if="openSport === sport.key"
+                                            class="border-t border-line px-3.5 py-3"
+                                        >
+                                            <div
+                                                v-for="way in sport.ways"
+                                                :key="`${sport.key}-${way.key}`"
+                                                class="mb-4 last:mb-0"
+                                            >
+                                                <div class="mb-0.5 text-[13.5px] font-bold">
+                                                    {{ way.label }}
+                                                </div>
+                                                <p class="mb-2 text-[12.5px] text-sage">
+                                                    {{ way.how }}
+                                                </p>
+
+                                                <WeekSchedule
+                                                    v-if="way.schedule.length"
+                                                    :schedule="way.schedule"
+                                                    :people="organization.people"
+                                                    @open-coach="openCoach"
+                                                />
+
+                                                <div
+                                                    v-for="space in way.spaces"
+                                                    :key="space.id"
+                                                    class="mb-2 rounded-xl bg-[#f7f8f6] px-3.5 py-2.5 last:mb-0"
+                                                >
+                                                    <div class="flex justify-between gap-3">
+                                                        <span class="text-[13.5px] font-semibold">
+                                                            {{ space.name }}
+                                                        </span>
+                                                        <span class="font-jetbrains text-[13px] font-semibold">
+                                                            {{ space.price ?? 'preț nespecificat' }}
+                                                        </span>
+                                                    </div>
+                                                    <div
+                                                        class="mt-1.5 grid grid-cols-2 gap-x-4 text-[12.5px] sm:grid-cols-4"
+                                                    >
+                                                        <span
+                                                            v-for="day in space.week"
+                                                            :key="day.day"
+                                                            class="flex justify-between gap-2"
+                                                        >
+                                                            <span class="text-sage">{{ day.day }}</span>
+                                                            <span>{{ day.hours }}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </section>
 
             <!-- What it offers. One tab per kind, and only the kinds it has —
                  a tab opening on an empty panel is a promise the page cannot

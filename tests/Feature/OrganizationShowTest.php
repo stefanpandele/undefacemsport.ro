@@ -1,10 +1,13 @@
 <?php
 
+use App\Enums\FacilityStatus;
+use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Organization;
 use App\Models\OrganizationLocationSport;
 use App\Models\ScheduleSlot;
+use App\Models\Space;
 use App\Models\Sport;
 
 test('the organization page renders its courses, people and schedule', function () {
@@ -92,4 +95,76 @@ test('the addresses these pages used to live at still work', function () {
 
     $this->get('/cluburi/aqua-junior')->assertRedirect('/la/aqua-junior');
     $this->get('/specialisti/aqua-junior')->assertRedirect('/la/aqua-junior');
+});
+
+test('the page opens on where, county by county', function () {
+    // An organization with halls in two counties cannot be read as one list of
+    // offers: nobody attends a course two counties away.
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot', 'icon' => '🏊']);
+    $organization = Organization::factory()->create(['slug' => 'multi-judet']);
+    $organization->organizationSports()->create(['sport_id' => $sport->id]);
+
+    $organization->syncLocation(
+        ['county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. A 1', 'name' => 'Bazinul Brașov'],
+        [$sport->id],
+    );
+    $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Bazinul Cluj'],
+        [$sport->id],
+    );
+
+    $this->get('/la/multi-judet')->assertInertia(fn ($page) => $page
+        ->has('organization.counties', 2)
+        // In the order the presences were added, not alphabetical.
+        ->where('organization.counties.0.label', 'Brașov')
+        ->where('organization.counties.1.label', 'Cluj')
+        ->has('organization.counties.0.locations', 1)
+        ->where('organization.counties.0.locations.0.name', 'Bazinul Brașov')
+        ->where('organization.counties.0.locations.0.sports.0.key', 'inot')
+        ->where('organization.counties.0.locations.0.sports.0.ways.0.key', 'cursuri')
+    );
+});
+
+test('a sport reached only through a space still shows up at its address', function () {
+    // The pool that sells tickets without teaching: the sport is here because a
+    // space is here, not because anybody runs a programme.
+    $sport = Sport::factory()->create(['slug' => 'tenis', 'name' => 'Tenis']);
+    $organization = Organization::factory()->create(['slug' => 'baza-tenis']);
+
+    $presence = $organization->syncLocation(
+        ['county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. C 3', 'name' => 'Baza Tenis'],
+    );
+
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'sport_id' => $sport->getKey(),
+        'access_mode' => SpaceAccessMode::ExclusiveRental,
+        'status' => FacilityStatus::Approved,
+    ]);
+
+    $this->get('/la/baza-tenis')->assertInertia(fn ($page) => $page
+        ->has('organization.counties.0.locations.0.sports', 1)
+        ->where('organization.counties.0.locations.0.sports.0.key', 'tenis')
+        ->where('organization.counties.0.locations.0.sports.0.ways.0.key', 'inchiriere')
+    );
+});
+
+test('a sauna is an extra at its address, never a sport', function () {
+    $organization = Organization::factory()->create(['slug' => 'cu-sauna']);
+    $presence = $organization->syncLocation(
+        ['county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. D 4', 'name' => 'Baza cu saună'],
+    );
+
+    Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'sport_id' => null,
+        'name' => 'Saună',
+        'status' => FacilityStatus::Approved,
+    ]);
+
+    $this->get('/la/cu-sauna')->assertInertia(fn ($page) => $page
+        ->where('organization.counties.0.locations.0.sports', [])
+        ->has('organization.counties.0.locations.0.extras', 1)
+        ->where('organization.counties.0.locations.0.extras.0.name', 'Saună')
+    );
 });

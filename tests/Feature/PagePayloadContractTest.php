@@ -43,6 +43,6 @@ test('the organization page carries the keys Vue reads', function () {
 
     expect(array_keys($response->viewData('page')['props']['organization']))->toEqualCanonicalizing([
         'slug', 'name', 'representative', 'about', 'phone', 'socials', 'people',
-        'locations', 'tabs', 'courses', 'leisure', 'services',
+        'locations', 'counties', 'tabs', 'courses', 'leisure', 'services',
     ]);
 });

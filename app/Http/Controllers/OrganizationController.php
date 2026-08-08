@@ -11,6 +11,7 @@ use App\Enums\SpaceAccessMode;
 use App\Models\Facility;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
+use App\Models\OrganizationLocationSport;
 use App\Models\OrganizationSport;
 use App\Models\OrganizationSportBenefit;
 use App\Models\Person;
@@ -18,6 +19,8 @@ use App\Models\ScheduleSlot;
 use App\Models\Service;
 use App\Models\Space;
 use App\Models\Sport;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -83,7 +86,7 @@ class OrganizationController extends Controller
                 'services.person',
                 'services.sports',
                 'organizationLocations.location.facilities',
-                'organizationLocations.organizationLocationSports',
+                'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.spaces.sport',
                 'organizationLocations.spaces.accessSlots',
                 'scheduleSlots.organizationLocationSport',
@@ -114,6 +117,7 @@ class OrganizationController extends Controller
             'socials' => $this->socials($organization),
             'people' => $this->presentPeople($organization->people),
             'locations' => $this->locations($organization),
+            'counties' => $this->counties($organization),
             // The same three words the badges and the listings use, plus the
             // services. Only the tabs with something behind them: a tab that
             // opens on an empty panel is a promise the page cannot keep.
@@ -150,6 +154,185 @@ class OrganizationController extends Controller
         }
 
         return $tabs;
+    }
+
+    /**
+     * Where this organization works, county first.
+     *
+     * An organization with halls in three counties cannot be read as one list of
+     * offers: nobody attends a course two counties away, so the first question on
+     * its page is which of them you are asking about. In the order the presences
+     * were added, because that is the order it built itself in and no ranking we
+     * invented would mean more.
+     *
+     * Everything below is carried in the same payload — county, location, sport,
+     * way in and schedule. It is one organization's data, not a catalogue, and a
+     * round trip per level would be four waits to answer one question.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function counties(Organization $organization): array
+    {
+        $byCounty = $organization->organizationLocations
+            ->sortBy('id')
+            ->filter(fn (OrganizationLocation $presence): bool => filled($presence->location?->county))
+            ->groupBy(fn (OrganizationLocation $presence): string => (string) $presence->location->county);
+
+        return array_values($byCounty
+            ->map(fn (Collection $presences, string $county): array => [
+                'key' => Str::slug($county),
+                'label' => $county,
+                'locations' => array_values($presences
+                    ->map(fn (OrganizationLocation $presence): array => $this->locationDetail($organization, $presence))
+                    ->all()),
+            ])
+            ->all());
+    }
+
+    /**
+     * One address, with everything on offer at it.
+     *
+     * @return array<string, mixed>
+     */
+    private function locationDetail(Organization $organization, OrganizationLocation $presence): array
+    {
+        $location = $presence->location;
+        $spaces = $presence->spaces->where('status', FacilityStatus::Approved);
+
+        return [
+            'slug' => (string) $location?->slug,
+            'name' => (string) $location?->name,
+            'address' => collect([$location?->address, $location?->city])->filter()->implode(', '),
+            'city' => (string) $location?->city,
+            'facilities' => $location === null ? [] : $location->facilities
+                ->where('status', FacilityStatus::Approved)
+                ->sortBy('sort_order')
+                ->map(fn (Facility $facility): array => [
+                    'icon' => $facility->icon ?? '🛠',
+                    'label' => $facility->name,
+                ])
+                ->values()
+                ->all(),
+            'sports' => $this->sportsAt($organization, $presence, $spaces),
+            // Paid things that are not a sport: the sauna you buy a ticket for,
+            // the massage somebody gives you. Their own list, because they answer
+            // "what else can I get here" rather than "where do I play".
+            'extras' => $this->extrasAt($organization, $presence, $spaces),
+        ];
+    }
+
+    /**
+     * The sports on offer at one address, each with the ways into it.
+     *
+     * Both sides count: a sport is here because the organization teaches it here,
+     * or because it operates a space for it here, or both — the pool that runs a
+     * swimming club and sells tickets for the same water.
+     *
+     * @param  Collection<int, Space>  $spaces
+     * @return list<array<string, mixed>>
+     */
+    private function sportsAt(Organization $organization, OrganizationLocation $presence, Collection $spaces): array
+    {
+        /** @var SupportCollection<int, Sport> $sports */
+        $sports = collect($presence->organizationLocationSports
+            ->map(fn (OrganizationLocationSport $presenceSport): ?Sport => $presenceSport->sport)
+            ->filter()
+            ->all())
+            ->merge($spaces
+                ->map(fn (Space $space): ?Sport => $space->sport)
+                ->filter()
+                ->all());
+
+        return array_values($sports
+            ->unique('id')
+            ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+            ->map(fn (Sport $sport): array => [
+                'key' => $sport->slug,
+                'label' => $sport->translated_name,
+                'icon' => (string) $sport->icon,
+                'color' => $sport->color,
+                'ways' => $this->waysAt($organization, $presence, $spaces, $sport),
+            ])
+            ->values()
+            ->all());
+    }
+
+    /**
+     * How you get into one sport at one address, with the timetable for each.
+     *
+     * @param  Collection<int, Space>  $spaces
+     * @return list<array<string, mixed>>
+     */
+    private function waysAt(Organization $organization, OrganizationLocation $presence, Collection $spaces, Sport $sport): array
+    {
+        $ways = [];
+
+        if ($presence->organizationLocationSports->contains('sport_id', $sport->getKey())) {
+            $ways[] = [
+                'key' => LocationWay::Organised->value,
+                'label' => LocationWay::Organised->label(),
+                'how' => LocationWay::Organised->description(),
+                'schedule' => $this->schedule($organization, $presence, $sport->getKey()),
+                'spaces' => [],
+            ];
+        }
+
+        $forSport = $spaces->where('sport_id', $sport->getKey());
+
+        foreach ([SpaceAccessMode::OpenAccess, SpaceAccessMode::ExclusiveRental] as $mode) {
+            $matching = $forSport->filter(
+                fn (Space $space): bool => $space->accessModes()->contains($mode),
+            );
+
+            if ($matching->isEmpty()) {
+                continue;
+            }
+
+            $ways[] = [
+                'key' => LocationWay::forAccessMode($mode)->value,
+                'label' => LocationWay::forAccessMode($mode)->label(),
+                'how' => LocationWay::forAccessMode($mode)->description(),
+                'schedule' => [],
+                'spaces' => $matching
+                    ->map(fn (Space $space): array => $this->presentSpace($space, $mode))
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        return $ways;
+    }
+
+    /**
+     * What is sold here beside the sport: a sport-less space is the sauna, a
+     * service is the massage.
+     *
+     * @param  Collection<int, Space>  $spaces
+     * @return list<array<string, mixed>>
+     */
+    private function extrasAt(Organization $organization, OrganizationLocation $presence, Collection $spaces): array
+    {
+        $sauna = $spaces
+            ->whereNull('sport_id')
+            ->map(fn (Space $space): array => [
+                'key' => 'space-'.$space->getKey(),
+                'icon' => '🧖',
+                'name' => $space->name,
+                'detail' => $space->priceFromLabel(),
+            ]);
+
+        $services = $organization->services
+            // A service pinned to another branch is not on offer here.
+            ->filter(fn (Service $service): bool => $service->organization_location_id === null
+                || $service->organization_location_id === $presence->getKey())
+            ->map(fn (Service $service): array => [
+                'key' => 'service-'.$service->getKey(),
+                'icon' => $service->specialty === null ? '💆' : (string) $service->specialty->icon,
+                'name' => $service->name,
+                'detail' => $service->priceLabel(),
+            ]);
+
+        return array_values($sauna->concat($services)->values()->all());
     }
 
     /**
