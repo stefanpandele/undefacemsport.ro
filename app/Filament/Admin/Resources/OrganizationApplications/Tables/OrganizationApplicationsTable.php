@@ -84,8 +84,8 @@ class OrganizationApplicationsTable
                     ->requiresConfirmation()
                     ->modalHeading('Aprobă cererea')
                     ->modalDescription(fn (OrganizationApplication $record): string => 'Se creează organizația „'.$record->name
-                        .'", pe planul gratuit, fără nimic publicat încă. Nu se creează niciun cont de utilizator, '
-                        .'deci solicitantul nu se poate autentifica.')
+                        .'" pe planul gratuit, iar '.$record->contact_email.' devine proprietarul ei. '
+                        .'Primește pe e-mail un link de setare a parolei.')
                     ->visible(fn (OrganizationApplication $record): bool => $record->isPending())
                     ->action(function (OrganizationApplication $record): void {
                         $reviewer = Filament::auth()->user();
@@ -109,7 +109,7 @@ class OrganizationApplicationsTable
                         Notification::make()
                             ->success()
                             ->title('Cererea a fost aprobată')
-                            ->body('Organizația „'.$organization->name.'" a fost creată.')
+                            ->body('Organizația „'.$organization->name.'" a fost creată, iar proprietarul a primit e-mailul.')
                             ->send();
                     }),
                 Action::make('reject')
@@ -120,7 +120,7 @@ class OrganizationApplicationsTable
                     ->schema([
                         Textarea::make('rejection_reason')
                             ->label('Motivul respingerii')
-                            ->helperText('Ce anume nu e în regulă. Solicitantul are dreptul să știe ce să corecteze.')
+                            ->helperText('Pleacă pe e-mail către solicitant, exact așa cum îl scrii.')
                             ->required()
                             ->maxLength(1000)
                             ->rows(4),
@@ -138,6 +138,7 @@ class OrganizationApplicationsTable
                         Notification::make()
                             ->success()
                             ->title('Cererea a fost respinsă')
+                            ->body('Solicitantul a primit motivul pe e-mail.')
                             ->send();
                     }),
                 ViewAction::make(),

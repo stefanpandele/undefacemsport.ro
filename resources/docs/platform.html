@@ -826,6 +826,17 @@ a { color: var(--grass-deep); }
 </p>
 
 <div class="rule">
+    <p><span class="what">Contul de contact e reutilizat, nu recreat.</span></p>
+    <p>
+        Dacă adresa din cerere are deja un cont — omul s-a înscris ca vizitator în
+        lunile dintre cerere și analiză — acela devine proprietar. Un al doilea rând
+        pe aceeași adresă ar fi un login pe care nu-l poate folosi nimeni. Tot de
+        aici vine și diferența dintre cele două e-mailuri de aprobare: cine are deja
+        parolă nu e trimis să-și facă una nouă.
+    </p>
+</div>
+
+<div class="rule">
     <p><span class="what">Prima logare: ce poți publica, nu ce ești.</span></p>
     <p>
         Primul lucru de pe tablou e o listă cu cele trei feluri de ofertă, scrise în
@@ -878,8 +889,9 @@ a { color: var(--grass-deep); }
         <p>
             Cererile venite din formularul public, cu datele firmei de la ANAF, în
             trei tabale: în așteptare, aprobate, respinse. La aprobare se creează
-            organizația cu numele și datele de firmă din cerere, pe planul gratuit
-            și fără nimic publicat. Respingerea cere obligatoriu un motiv.
+            organizația pe planul gratuit, persoana de contact devine proprietarul
+            ei și primește pe e-mail un link de setare a parolei. Respingerea cere
+            un motiv, care pleacă la solicitant exact așa cum a fost scris.
         </p>
     </div>
     <div class="card">
@@ -1082,9 +1094,6 @@ a { color: var(--grass-deep); }
 </div>
 <div class="gap-item">
     <p><span class="what">Filtru pe tip de organizație în explorare.</span> Se filtrează după mod de acces, nu după cine e în spate.</p>
-</div>
-<div class="gap-item">
-    <p><span class="what">Contul proprietarului.</span> Aprobarea creează organizația, nu și utilizatorul care o administrează. Solicitantul nu se poate autentifica până când cineva nu îi atașează un cont — nu există încă invitație pe e-mail, nici notificare că cererea a fost aprobată sau respinsă. Motivul respingerii se scrie și se păstrează, dar deocamdată nu pleacă nicăieri.</p>
 </div>
 <div class="gap-item">
     <p><span class="what">Teste de browser.</span> Nimic nu execută template-urile Vue. Două redenumiri au lăsat pagini publice goale cu toată suita verde: una a schimbat cheile pe care le citesc componentele, alta a mutat controllerul fără directorul de pagini. Sunt fixate acum și cheile de payload, și existența fișierului pentru fiecare pagină pe care aplicația o randează — dar nici unul nu înlocuiește randarea reală.</p>

@@ -503,6 +503,12 @@ class Organization extends Model
             if (is_null($organization->owner_user_id)) {
                 $organization->owner()->associate($user);
                 $organization->save();
+
+                // The row above is a second instance, locked for the update. The
+                // caller is still holding this one, and would go on believing the
+                // organization has no owner.
+                $this->owner_user_id = $organization->owner_user_id;
+                $this->syncOriginalAttribute('owner_user_id');
             }
         });
     }
