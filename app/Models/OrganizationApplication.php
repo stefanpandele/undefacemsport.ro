@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use Database\Factories\OrganizationApplicationFactory;
 use DomainException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 /**
  * @property int $id
  * @property string $name
- * @property OrganizationType $type
  * @property string $fiscal_code
  * @property string|null $company_name
  * @property bool|null $is_vat_payer
@@ -46,7 +44,6 @@ class OrganizationApplication extends Model
      */
     protected $fillable = [
         'name',
-        'type',
         'fiscal_code',
         'company_name',
         'address',
@@ -65,7 +62,6 @@ class OrganizationApplication extends Model
     {
         return [
             'status' => OrganizationApplicationStatus::class,
-            'type' => OrganizationType::class,
             'is_vat_payer' => 'boolean',
             'reviewed_at' => 'datetime',
         ];
@@ -80,9 +76,9 @@ class OrganizationApplication extends Model
      * Turn the request into a real account holder.
      *
      * Everything the organization starts life with comes from the request: the
-     * name and type the applicant declared, and the company details ANAF
-     * returned. It opens on the free plan with no owner — the applicant still
-     * has no way in until somebody attaches a user.
+     * name, and the company details ANAF returned. It opens on the free plan
+     * with no owner — the applicant still has no way in until somebody attaches
+     * a user, and nothing yet published, so it has no public page either.
      *
      * The created organization is kept on the request so a second approval is
      * impossible and so the queue can show what each decision produced.
@@ -106,7 +102,6 @@ class OrganizationApplication extends Model
             $organization = Organization::create([
                 'name' => $this->name,
                 'slug' => Organization::uniqueSlug($this->name, $this->city),
-                'type' => $this->type,
                 'company_name' => $this->company_name,
                 'fiscal_code' => $this->fiscal_code,
                 'is_vat_payer' => $this->is_vat_payer,

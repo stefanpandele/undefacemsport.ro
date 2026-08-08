@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\OrganizationType;
 use App\Enums\Plan;
 use App\Models\Organization;
 use Illuminate\Database\Seeder;
@@ -23,26 +22,12 @@ class OrganizationSeeder extends Seeder
      */
     private const TARGET = [
         Plan::Free->value => 10,
-        Plan::Pro->value => 18,
+        // 18 for the programmes, 18 more for the spaces and services the later
+        // seeders hand out — an organization on Pro can publish several of
+        // either under its plan limit.
+        Plan::Pro->value => 36,
         Plan::Premium->value => 8,
     ];
-
-    /**
-     * Venue organizations: companies that operate a place and sell access to it,
-     * rather than running training programmes. Without them nothing would seed a
-     * managed space, because every organization until now was a club.
-     *
-     * On Pro, so each can publish several spaces under its plan limit.
-     */
-    private const VENUE_TARGET = 10;
-
-    /**
-     * Practices: clinics and lone practitioners. Created here rather than
-     * alongside their services, so OrganizationUserSeeder — which runs next —
-     * gives them members on the first pass. Created later, they would gain
-     * members only on a second seeding, which is a re-run that changes data.
-     */
-    private const PRACTICE_TARGET = 8;
 
     /**
      * Top the demo clubs up to the target mix. They start ownerless;
@@ -54,11 +39,9 @@ class OrganizationSeeder extends Seeder
      */
     public function run(): void
     {
-        // Counted per type: a venue also sits on a plan, and letting it count
-        // towards the club mix would silently starve the two-clubs-per-city
-        // density the location page is built on.
+        // All of them, on every plan. What each one turns into is decided later,
+        // by whichever seeder hands it an offer — none of them is anything yet.
         $existing = Organization::query()
-            ->where('type', OrganizationType::Club)
             ->selectRaw('plan, count(*) as total')
             ->groupBy('plan')
             ->pluck('total', 'plan');
@@ -71,22 +54,6 @@ class OrganizationSeeder extends Seeder
             }
 
             Organization::factory()->count($missing)->create(['plan' => Plan::from($plan)]);
-        }
-
-        $missingVenues = self::VENUE_TARGET - Organization::query()
-            ->where('type', OrganizationType::Venue)
-            ->count();
-
-        if ($missingVenues > 0) {
-            Organization::factory()->venue()->count($missingVenues)->create(['plan' => Plan::Pro]);
-        }
-
-        $missingPractices = self::PRACTICE_TARGET - Organization::query()
-            ->where('type', OrganizationType::Practice)
-            ->count();
-
-        if ($missingPractices > 0) {
-            Organization::factory()->practice()->count($missingPractices)->create(['plan' => Plan::Pro]);
         }
     }
 }

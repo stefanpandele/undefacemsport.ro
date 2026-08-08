@@ -53,7 +53,7 @@ test('a practitioner names the sports they treat, and it never makes them a club
     $this->seed();
 
     $treating = Service::query()
-        ->whereHas('organization', fn ($query) => $query->where('type', OrganizationType::Practice))
+        ->whereHas('organization', fn ($query) => $query->doesntHave('organizationSports'))
         ->has('sports')
         ->with('sports')
         ->get();
@@ -65,7 +65,7 @@ test('a practitioner names the sports they treat, and it never makes them a club
 
     $treating->flatMap->sports->unique('id')->each(function (Sport $sport) use ($reach): void {
         $clubs = Organization::query()
-            ->where('type', OrganizationType::Club)
+            ->has('organizationSports')
             ->whereHas('organizationSports', fn ($query) => $query->where('sport_id', $sport->getKey()))
             ->whereHas('organizationLocations')
             ->count();
@@ -119,7 +119,7 @@ test('a service can be left open on who provides it', function () {
 });
 
 test('a service outlives the person who used to provide it', function () {
-    $practice = Organization::factory()->practice()->create();
+    $practice = Organization::factory()->create();
     $person = $practice->people()->create([
         'name' => 'Ioana Marinescu',
         'profession' => PersonProfession::Physiotherapist,
@@ -143,7 +143,7 @@ test('a service outlives the person who used to provide it', function () {
 */
 
 test('a free practice can publish three services then hits its limit', function () {
-    $practice = Organization::factory()->practice()->create(); // free: services limit 3
+    $practice = Organization::factory()->create(); // free: services limit 3
 
     expect($practice->canAddService())->toBeTrue();
 
@@ -167,17 +167,17 @@ function practiceContext(Organization $organization): User
     return $member;
 }
 
-test('services are open to every type, because type is identity and not permission', function () {
+test('services are open to every organization, whatever else it publishes', function () {
     // A pilates studio sells massage, a hotel sells it beside the pool. Gating
     // this to practices contradicted the rule the whole model rests on and left a
     // studio unable to publish what it actually sells.
-    practiceContext(Organization::factory()->practice()->create());
+    practiceContext(Organization::factory()->create());
     expect(ServiceResource::canAccess())->toBeTrue();
 
     practiceContext(Organization::factory()->create());
     expect(ServiceResource::canAccess())->toBeTrue();
 
-    practiceContext(Organization::factory()->venue()->create());
+    practiceContext(Organization::factory()->create());
     expect(ServiceResource::canAccess())->toBeTrue();
 });
 
@@ -200,8 +200,8 @@ test('a practice has its own page, listing what it sells', function () {
     $this->seed();
 
     $practice = Organization::query()
-        ->where('type', OrganizationType::Practice)
-        ->has('services')
+        ->offering(OrganizationType::Practice)
+        ->doesntHave('organizationSports')
         ->firstOrFail();
 
     $this->get(route('organizations.show', $practice->slug))->assertInertia(
@@ -275,7 +275,9 @@ test('the page names each person by their profession, not as a coach', function 
 test('seeding gives every practice something to sell', function () {
     $this->seed();
 
-    $practices = Organization::where('type', OrganizationType::Practice)
+    $practices = Organization::query()
+        ->offering(OrganizationType::Practice)
+        ->doesntHave('organizationSports')
         ->withCount('services', 'people')
         ->get();
 
@@ -292,7 +294,9 @@ test('the seeded practices include lone practitioners, not only clinics', functi
     // right too.
     $this->seed();
 
-    $solo = Organization::where('type', OrganizationType::Practice)
+    $solo = Organization::query()
+        ->offering(OrganizationType::Practice)
+        ->doesntHave('organizationSports')
         ->withCount('people')
         ->get()
         ->filter(fn (Organization $practice): bool => $practice->people_count === 1);
@@ -304,7 +308,7 @@ test('no seeded practice person is filed as a coach', function () {
     $this->seed();
 
     $practicePeople = Person::query()
-        ->whereHas('organization', fn ($query) => $query->where('type', OrganizationType::Practice))
+        ->whereHas('organization', fn ($query) => $query->doesntHave('organizationSports'))
         ->get();
 
     expect($practicePeople)->not->toBeEmpty()
@@ -330,13 +334,18 @@ test('re-running the practice seeder sells nothing twice', function () {
         ->and(Person::count())->toBe($people);
 });
 
-test('practices never leak into the club numbers', function () {
+test('selling a service never adds to the club numbers', function () {
+    // The headline says "cluburi", so only the organizations that actually teach
+    // somewhere may count towards it.
     $this->seed();
 
     $this->get(route('home'))->assertInertia(
         fn ($page) => $page->where(
             'stats.clubs',
-            Organization::where('type', OrganizationType::Club)->whereHas('organizationLocations')->count(),
+            Organization::query()
+                ->whereHas('organizationLocations', fn ($presences) => $presences
+                    ->whereHas('organizationLocationSports'))
+                ->count(),
         ),
     );
 });

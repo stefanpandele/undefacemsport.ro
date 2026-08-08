@@ -98,7 +98,7 @@ test('a hotel lists its sauna and its massage under one heading', function () {
     // Two models behind one section, because the visitor does not care whether
     // they are buying a space or somebody's time.
     $location = Location::factory()->create(['slug' => 'hotel-test']);
-    $hotel = Organization::factory()->venue()->create(['name' => 'Hotel Test']);
+    $hotel = Organization::factory()->create(['name' => 'Hotel Test']);
 
     OrganizationLocation::create([
         'organization_id' => $hotel->getKey(),
@@ -124,7 +124,7 @@ test('a hotel lists its sauna and its massage under one heading', function () {
 test('a service pinned to another branch is not on offer here', function () {
     $here = Location::factory()->create(['slug' => 'aici']);
     $elsewhere = Location::factory()->create();
-    $clinic = Organization::factory()->practice()->create();
+    $clinic = Organization::factory()->create();
 
     $herePresence = OrganizationLocation::create([
         'organization_id' => $clinic->getKey(),
@@ -163,7 +163,7 @@ test('a service pinned to another branch is not on offer here', function () {
 
 test('the availableAt scope agrees with what the page shows', function () {
     $location = Location::factory()->create();
-    $clinic = Organization::factory()->practice()->create();
+    $clinic = Organization::factory()->create();
     $presence = OrganizationLocation::create([
         'organization_id' => $clinic->getKey(),
         'location_id' => $location->getKey(),

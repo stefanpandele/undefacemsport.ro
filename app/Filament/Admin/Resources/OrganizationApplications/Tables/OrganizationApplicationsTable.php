@@ -3,7 +3,6 @@
 namespace App\Filament\Admin\Resources\OrganizationApplications\Tables;
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use App\Models\User;
 use DomainException;
@@ -18,7 +17,6 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class OrganizationApplicationsTable
@@ -29,16 +27,6 @@ class OrganizationApplicationsTable
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
-                TextColumn::make('type')
-                    ->label('Tip')
-                    ->badge()
-                    ->formatStateUsing(fn (OrganizationType $state): string => $state->label())
-                    ->color(fn (OrganizationType $state): string => match ($state) {
-                        OrganizationType::Club => 'success',
-                        OrganizationType::Venue => 'warning',
-                        OrganizationType::Practice => 'info',
-                    })
-                    ->sortable(),
                 TextColumn::make('fiscal_code')
                     ->searchable(),
                 TextColumn::make('company_name')
@@ -87,9 +75,6 @@ class OrganizationApplicationsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->label('Tip')
-                    ->options(OrganizationType::options()),
             ])
             ->recordActions([
                 Action::make('approve')
@@ -99,8 +84,8 @@ class OrganizationApplicationsTable
                     ->requiresConfirmation()
                     ->modalHeading('Aprobă cererea')
                     ->modalDescription(fn (OrganizationApplication $record): string => 'Se creează organizația „'.$record->name
-                        .'" de tip '.$record->type->label().', pe planul gratuit. Nu se creează niciun cont de utilizator, '
-                        .'deci solicitantul încă nu se poate autentifica.')
+                        .'", pe planul gratuit, fără nimic publicat încă. Nu se creează niciun cont de utilizator, '
+                        .'deci solicitantul nu se poate autentifica.')
                     ->visible(fn (OrganizationApplication $record): bool => $record->isPending())
                     ->action(function (OrganizationApplication $record): void {
                         $reviewer = Filament::auth()->user();

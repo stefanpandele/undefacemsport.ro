@@ -380,7 +380,7 @@ function spacePanelContext(Organization $organization): User
 test('spaces are open to a venue and to a club alike', function () {
     // Renting out dead hours does not make a club a different kind of
     // organization, so this resource is deliberately not club-gated.
-    spacePanelContext(Organization::factory()->venue()->create());
+    spacePanelContext(Organization::factory()->create());
     expect(SpaceResource::canAccess())->toBeTrue();
 
     spacePanelContext(Organization::factory()->create());
@@ -388,7 +388,7 @@ test('spaces are open to a venue and to a club alike', function () {
 });
 
 test('a venue sees the spaces at its own locations and the public ones there', function () {
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $presence = presenceFor($venue);
     spacePanelContext($venue);
 
@@ -408,7 +408,7 @@ test('a venue sees the spaces at its own locations and the public ones there', f
 });
 
 test('the ownership toggle decides whether a space becomes the organization own', function () {
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $presence = presenceFor($venue);
     spacePanelContext($venue);
 

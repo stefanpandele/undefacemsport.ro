@@ -23,7 +23,7 @@ use Livewire\Livewire;
  */
 function venueAt(Location $location): array
 {
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $member = User::factory()->create();
     $venue->addMember($member);
 
@@ -88,7 +88,7 @@ test('a place that already has an editor cannot be claimed again', function () {
     [, $presence] = venueAt($location);
 
     $location->forceFill([
-        'claimed_by_organization_id' => Organization::factory()->venue()->create()->getKey(),
+        'claimed_by_organization_id' => Organization::factory()->create()->getKey(),
         'claimed_at' => now(),
     ])->save();
 
@@ -98,8 +98,8 @@ test('a place that already has an editor cannot be claimed again', function () {
 
 test('approving hands over the place and refuses the rivals', function () {
     $location = Location::factory()->create();
-    $winner = Organization::factory()->venue()->create();
-    $rival = Organization::factory()->venue()->create();
+    $winner = Organization::factory()->create();
+    $rival = Organization::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
 
     $claim = LocationClaim::create([
@@ -137,7 +137,7 @@ test('rejecting changes nothing about the place', function () {
 
 test('an organization cannot approve its own claim by mass assignment', function () {
     $location = Location::factory()->create();
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
 
     $claim = LocationClaim::create([
@@ -167,7 +167,7 @@ test('the pen holder can rename the place, and the old URL keeps working', funct
     ]);
     $oldSlug = $location->slug;
 
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $venue->syncLocation([
         'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazin fara nume bun',
     ]);
@@ -228,7 +228,7 @@ test('a club at the place keeps proposing corrections, and its own data', functi
     $sport = Sport::factory()->create();
     $club = clubAt($location, $sport, 'CS Test');
 
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $location->forceFill([
         'claimed_by_organization_id' => $venue->getKey(),
         'claimed_at' => now(),
@@ -249,7 +249,7 @@ test('a club at the place keeps proposing corrections, and its own data', functi
 
 test('a place outlives the company that held its pen', function () {
     $location = Location::factory()->create();
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
 
     $location->forceFill([
         'claimed_by_organization_id' => $venue->getKey(),

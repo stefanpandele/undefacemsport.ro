@@ -11,7 +11,7 @@ use Database\Seeders\SpaceSeeder;
 test('seeding gives every venue something to sell', function () {
     $this->seed();
 
-    $venues = Organization::where('type', OrganizationType::Venue)->withCount('spaces')->get();
+    $venues = Organization::query()->offering(OrganizationType::Venue)->withCount('spaces')->get();
 
     expect($venues)->not->toBeEmpty();
 

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\OrganizationType;
 use App\Enums\PersonProfession;
 use App\Models\Location;
 use App\Models\Organization;
@@ -16,6 +15,12 @@ use Illuminate\Support\Collection;
 
 class PracticeSeeder extends Seeder
 {
+    /**
+     * How many of the organizations left after the programmes and the spaces
+     * become clinics and lone practitioners.
+     */
+    private const PRACTICE_TARGET = 8;
+
     /**
      * What each practice sells, by specialty slug: name, minutes, price.
      *
@@ -96,10 +101,23 @@ class PracticeSeeder extends Seeder
 
         // The practices themselves come from OrganizationSeeder, so the user
         // seeder has already given them members. This only gives them an offer.
+        // Topped up rather than taken: the showcase studio already sells a
+        // massage, and counting from zero would push the fixture one over.
+        $missing = self::PRACTICE_TARGET - Organization::query()
+            ->has('services')
+            ->doesntHave('organizationSports')
+            ->count();
+
+        if ($missing < 1) {
+            return;
+        }
+
         Organization::query()
-            ->where('type', OrganizationType::Practice)
             ->doesntHave('services')
+            ->doesntHave('organizationSports')
+            ->doesntHave('spaces')
             ->orderBy('id')
+            ->limit($missing)
             ->get()
             ->each(function (Organization $practice, int $index) use ($specialties, $locations): void {
                 // A lone practitioner every third one: the PFA case is the common

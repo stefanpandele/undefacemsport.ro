@@ -2,11 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\OrganizationType;
 use App\Rules\TurnstileToken;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreOrganizationApplicationRequest extends FormRequest
 {
@@ -25,7 +23,6 @@ class StoreOrganizationApplicationRequest extends FormRequest
     {
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_column(OrganizationType::cases(), 'value'))],
             'fiscal_code' => ['required', 'string', 'unique:organizations,fiscal_code', 'max:50'],
             'contact_name' => ['required', 'string', 'max:255'],
             'contact_email' => ['required', 'email', 'unique:users,email', 'max:255'],
@@ -48,8 +45,6 @@ class StoreOrganizationApplicationRequest extends FormRequest
         return [
             'name.required' => __('organization_application.validation.name.required'),
             'name.max' => __('organization_application.validation.name.max'),
-            'type.required' => __('organization_application.validation.type.required'),
-            'type.in' => __('organization_application.validation.type.invalid'),
             'fiscal_code.required' => __('organization_application.validation.fiscal_code.required'),
             'fiscal_code.max' => __('organization_application.validation.fiscal_code.max'),
             'contact_name.required' => __('organization_application.validation.contact_name.required'),

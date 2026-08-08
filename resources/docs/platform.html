@@ -722,11 +722,11 @@ a { color: var(--grass-deep); }
         <div class="route"><span class="path">/organization-application</span></div>
         <h3>Cerere de cont</h3>
         <p>
-            Formularul public de înregistrare. Primul pas e tipul — club, bază
-            sportivă sau cabinet — pentru că el decide ce resurse are contul după
-            aprobare, iar un admin care citește doar numele firmei nu îl poate
-            ghici. Urmează verificarea firmei după CUI la ANAF (denumire, adresă,
-            plătitor de TVA) și protecție anti-bot.
+            Formularul public de înregistrare: nume, CUI, contact. Nu întreabă ce
+            fel de organizație ești, pentru că nimeni nu ține minte răspunsul —
+            devii club, bază sportivă sau cabinet publicând, nu declarând. Verifică
+            firma după CUI la ANAF (denumire, adresă, plătitor de TVA) și are
+            protecție anti-bot.
         </p>
     </div>
 </div>
@@ -778,7 +778,8 @@ a { color: var(--grass-deep); }
 
 <p>
     Panou multi-tenant cu {{ account.resources }} resurse: un utilizator poate ține de mai multe
-    organizații și comută între ele. Ce vede depinde de tipul organizației și de planul plătit.
+    organizații și comută între ele. Toate resursele sunt deschise tuturor; doar planul
+    plătit limitează cât se poate publica din fiecare.
 </p>
 
 <div class="scroller">
@@ -819,10 +820,10 @@ a { color: var(--grass-deep); }
         <span class="tag">Cereri de cont</span>
         <h3>Aprobare organizații</h3>
         <p>
-            Cererile venite din formularul public, cu tipul declarat de solicitant
-            și datele firmei de la ANAF, în trei tabale: în așteptare, aprobate,
-            respinse. La aprobare se creează organizația, cu numele, tipul și
-            datele de firmă din cerere. Respingerea cere obligatoriu un motiv.
+            Cererile venite din formularul public, cu datele firmei de la ANAF, în
+            trei tabale: în așteptare, aprobate, respinse. La aprobare se creează
+            organizația cu numele și datele de firmă din cerere, pe planul gratuit
+            și fără nimic publicat. Respingerea cere obligatoriu un motiv.
         </p>
     </div>
     <div class="card">
@@ -1039,7 +1040,7 @@ a { color: var(--grass-deep); }
     <p><span class="what">Teste de browser.</span> Nimic nu execută template-urile Vue. Două redenumiri au lăsat pagini publice goale cu toată suita verde: una a schimbat cheile pe care le citesc componentele, alta a mutat controllerul fără directorul de pagini. Sunt fixate acum și cheile de payload, și existența fișierului pentru fiecare pagină pe care aplicația o randează — dar nici unul nu înlocuiește randarea reală.</p>
 </div>
 <div class="gap-item">
-    <p><span class="what">Inconsecvențe cunoscute.</span> Sporturile, orarul și persoanele sunt încă restricționate la cluburi, deși ofertele ar trebui să fie aditive. Eticheta tipului „club" spune „Club sportiv", ceea ce e greșit pentru un studio de pilates.</p>
+    <p><span class="what">Onboarding în panou.</span> Acum că orice organizație poate publica orice, prima logare nu îndrumă pe nimeni: nu există „adaugă ofertă" cu cele trei feluri, iar cine intră prima oară vede o listă de resurse fără să știe cu care începe.</p>
 </div>
 </section>
 
@@ -1070,8 +1071,9 @@ a { color: var(--grass-deep); }
         <span class="tag">Date de test</span>
         <h3>Fixtură de dezvoltare</h3>
         <p>
-            {{ seed.clubs }} de cluburi pe cele trei planuri, {{ seed.venues }} baze sportive și
-            {{ seed.practices }} cabinete, plus organizațiile de prezentare — cu locații partajate,
+            {{ seed.organizations }} de organizații pe cele trei planuri, dintre care
+            {{ seed.clubs }} primesc un program, {{ seed.venues }} primesc spații și
+            {{ seed.practices }} primesc servicii — cu locații partajate,
             spații administrate și publice, orare și servicii. Seedarea e idempotentă.
         </p>
     </div>

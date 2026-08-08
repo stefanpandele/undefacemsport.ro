@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\OrganizationType;
 use App\Models\Location;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -15,7 +14,7 @@ use App\Models\Sport;
  */
 function clinicFor(Location $location, Specialty $specialty, string $name, array $sports, ?float $price = 250): Organization
 {
-    $clinic = Organization::factory()->practice()->create(['name' => $name]);
+    $clinic = Organization::factory()->create(['name' => $name]);
 
     OrganizationLocation::create([
         'organization_id' => $clinic->getKey(),
@@ -217,7 +216,7 @@ test('every seeded practice service says which athletes it is for', function () 
 
     $unticked = Service::query()
         ->doesntHave('sports')
-        ->whereHas('organization', fn ($query) => $query->where('type', OrganizationType::Practice))
+        ->whereHas('organization', fn ($query) => $query->doesntHave('organizationSports'))
         ->pluck('name');
 
     expect(Service::query()->has('sports')->count())->toBeGreaterThan(0)
@@ -247,7 +246,7 @@ test('a city with a clinic and no club is still offered in the picker', function
 
 test('the organization page shows which athletes each service is for', function () {
     $football = Sport::factory()->create(['slug' => 'fotbal', 'name' => 'Fotbal', 'icon' => '⚽']);
-    $clinic = Organization::factory()->practice()->create();
+    $clinic = Organization::factory()->create();
 
     Service::factory()->create([
         'organization_id' => $clinic->getKey(),

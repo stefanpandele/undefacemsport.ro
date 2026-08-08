@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Illuminate\Database\Seeder;
 
@@ -19,9 +18,7 @@ class OrganizationApplicationSeeder extends Seeder
             return;
         }
 
-        OrganizationApplication::factory()->ofType(OrganizationType::Club)->count(4)->create();
-        OrganizationApplication::factory()->ofType(OrganizationType::Venue)->count(2)->create();
-        OrganizationApplication::factory()->ofType(OrganizationType::Practice)->count(2)->create();
+        OrganizationApplication::factory()->count(8)->create();
         OrganizationApplication::factory()->approved()->count(3)->create();
         OrganizationApplication::factory()->rejected()->count(2)->create();
     }

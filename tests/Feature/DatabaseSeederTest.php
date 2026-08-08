@@ -10,11 +10,15 @@ use Illuminate\Support\Facades\DB;
 test('seeding creates clubs, each with a master and members', function () {
     $this->seed();
 
-    // 36 demo clubs + the 2 known login clubs + 10 venues + 8 practices.
+    // 54 demo organizations plus the 2 known login ones. What each turns into is
+    // decided by the offer it is handed, not by anything stored on it.
     expect(Organization::count())->toBe(56)
-        ->and(Organization::where('type', OrganizationType::Club)->count())->toBe(38)
-        ->and(Organization::where('type', OrganizationType::Venue)->count())->toBe(10)
-        ->and(Organization::where('type', OrganizationType::Practice)->count())->toBe(8);
+        ->and(Organization::query()->offering(OrganizationType::Club)->count())->toBe(38)
+        ->and(Organization::query()->offering(OrganizationType::Venue)->count())->toBe(10)
+        // Nine, not eight: the showcase pilates studio sells a massage, so it is
+        // a club and a practice at once — which is the whole point of reading the
+        // answer off the offers.
+        ->and(Organization::query()->offering(OrganizationType::Practice)->count())->toBe(9);
 
     Organization::with('owner', 'users')->get()->each(function (Organization $organization): void {
         expect($organization->owner)->not->toBeNull()
@@ -71,9 +75,9 @@ test('every seeded location gets a slug', function () {
 test('seeding gives clubs a public profile to show', function () {
     $this->seed();
 
-    // Clubs only: a venue has no sports, no age groups and no coaches, and
+    // Whoever teaches: a venue has no sports, no age groups and no coaches, and
     // inventing them would be inventing an offer it does not make.
-    Organization::where('type', OrganizationType::Club)
+    Organization::query()->offering(OrganizationType::Club)
         ->with('organizationSports', 'organizationLocations', 'people', 'contacts')
         ->get()
         ->each(function (Organization $organization): void {
@@ -94,10 +98,9 @@ test('every seeded city holds at least two clubs, so a hall can be shared', func
 
     $clubsPerCity = DB::table('organization_location')
         ->join('locations', 'locations.id', '=', 'organization_location.location_id')
-        ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
-        // Clubs only, or a seeded venue would prop the count up and the invariant
-        // this test exists to guard would stop being guarded.
-        ->where('organizations.type', OrganizationType::Club)
+        // Presences that teach, or a seeded venue would prop the count up and the
+        // invariant this test exists to guard would stop being guarded.
+        ->join('organization_location_sport', 'organization_location_sport.organization_location_id', '=', 'organization_location.id')
         ->groupBy('locations.city')
         ->selectRaw('locations.city, count(distinct organization_location.organization_id) as clubs')
         ->pluck('clubs', 'city');
@@ -134,9 +137,9 @@ test('seeding tops up a database that already holds a few clubs', function () {
 
     $this->seed();
 
-    expect(Organization::where('type', OrganizationType::Club)->count())->toBe(38);
+    expect(Organization::query()->offering(OrganizationType::Club)->count())->toBe(38);
 
-    Organization::where('type', OrganizationType::Club)->with('organizationSports')->get()->each(
+    Organization::query()->offering(OrganizationType::Club)->with('organizationSports')->get()->each(
         fn (Organization $organization) => expect($organization->organizationSports)->not->toBeEmpty(),
     );
 });

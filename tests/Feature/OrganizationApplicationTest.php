@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Illuminate\Support\Facades\Http;
 
@@ -9,7 +8,6 @@ function validApplicationPayload(array $overrides = []): array
 {
     return array_merge([
         'name' => 'Clubul Sportiv Test',
-        'type' => 'club',
         'fiscal_code' => 'RO12345678',
         'contact_name' => 'Ion Popescu',
         'contact_email' => 'ion@example.com',
@@ -70,34 +68,6 @@ it('shows the organization application form', function () {
     $this->get(route('organization-application.create'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('public/OrganizationApplication/Create'));
-});
-
-it('offers every organization type on the form', function () {
-    $this->get(route('organization-application.create'))
-        ->assertInertia(fn ($page) => $page->where('types', ['club', 'venue', 'practice']));
-});
-
-it('stores the kind of organization the applicant picked', function (string $type) {
-    fakeAnafFound();
-
-    $this->post(route('organization-application.store'), validApplicationPayload(['type' => $type]))
-        ->assertRedirect(route('organization-application.create'));
-
-    expect(OrganizationApplication::sole()->type)->toBe(OrganizationType::from($type));
-})->with(['club', 'venue', 'practice']);
-
-it('refuses a type that is not one of the three', function () {
-    $this->post(route('organization-application.store'), validApplicationPayload(['type' => 'hotel']))
-        ->assertSessionHasErrors('type');
-
-    expect(OrganizationApplication::count())->toBe(0);
-});
-
-it('does not fall back to club when no type is picked', function () {
-    $this->post(route('organization-application.store'), validApplicationPayload(['type' => '']))
-        ->assertSessionHasErrors('type');
-
-    expect(OrganizationApplication::count())->toBe(0);
 });
 
 it('stores a pending organization application with company details resolved from anaf', function () {
@@ -195,7 +165,7 @@ it('stores an application even when anaf is unreachable', function () {
 
 it('requires the mandatory fields', function () {
     $this->post(route('organization-application.store'), [])
-        ->assertSessionHasErrors(['name', 'type', 'fiscal_code', 'contact_name', 'contact_email']);
+        ->assertSessionHasErrors(['name', 'fiscal_code', 'contact_name', 'contact_email']);
 
     expect(OrganizationApplication::count())->toBe(0);
 });

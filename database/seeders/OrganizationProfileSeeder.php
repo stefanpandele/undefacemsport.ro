@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\ContactRole;
 use App\Enums\ContactType;
-use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Level;
@@ -21,6 +20,14 @@ use Illuminate\Support\Collection;
 
 class OrganizationProfileSeeder extends Seeder
 {
+    /**
+     * How many of the seeded organizations get a training programme — the demo
+     * mix plus the two known login accounts. The rest stay blank for the seeders
+     * that follow, so the fixture ends up with venues and practices rather than
+     * clubs that also happen to rent out a hall.
+     */
+    private const CLUB_TARGET = 38;
+
     /**
      * Romanian names, so the demo data reads like the real thing — the global
      * faker locale is en_US and is shared with every other factory.
@@ -113,12 +120,27 @@ class OrganizationProfileSeeder extends Seeder
             $city => $sports->shuffle()->take(min(6, $sports->count()))->values(),
         ]);
 
+        // Whatever is still blank, up to the club target. What is left over goes
+        // to SpaceSeeder and PracticeSeeder, which run after this one — an
+        // organization becomes a club by being handed a programme, not by having
+        // been marked one.
+        // Topped up rather than taken: OrganizationAccessSeeder has already given
+        // the showcase studio its sport, and counting from zero here would push
+        // the fixture one club over every time.
+        $missing = self::CLUB_TARGET - Organization::query()->has('organizationSports')->count();
+
+        if ($missing < 1) {
+            return;
+        }
+
         Organization::query()
-            // Clubs only. A venue has no sports, no age groups and no coaches —
-            // giving it a training programme would be inventing an offer it does
-            // not make. Its spaces come from SpaceSeeder instead.
-            ->where('type', OrganizationType::Club)
             ->doesntHave('organizationSports')
+            ->doesntHave('services')
+            // Skipped on a re-run: by then the venues have their spaces, and
+            // handing them a programme would invent an offer they never made.
+            ->doesntHave('spaces')
+            ->orderBy('id')
+            ->limit($missing)
             ->get()
             ->each(function (Organization $organization, int $index) use ($ageGroups, $levels, $venuesByCity, $cities, $pools): void {
                 // Round-robin over cities, two clubs at a time. Handing out one

@@ -21,14 +21,13 @@ use Illuminate\Support\Str;
 /**
  * The account holder: a legal entity with a plan, staff and an approval flow.
  * The same thing whether it runs training programmes, rents out pitches, or
- * treats athletes — `type` says which, and only decides the public URL and the
- * shape of the public page. What may be published is additive, so a club that
- * owns its hall can also rent it out without a second account.
+ * treats athletes — nothing records which, because `offers()` reads it back from
+ * what has been published. One address, `/la/{slug}`, whatever it turns out to
+ * be.
  *
  * @property int $id
  * @property string $name
  * @property string $slug
- * @property OrganizationType $type
  * @property string|null $company_name
  * @property string|null $fiscal_code
  * @property bool|null $is_vat_payer
@@ -52,7 +51,6 @@ class Organization extends Model
     protected $fillable = [
         'name',
         'slug',
-        'type',
         'company_name',
         'fiscal_code',
         'is_vat_payer',
@@ -65,15 +63,12 @@ class Organization extends Model
     ];
 
     /**
-     * Mirrors the column defaults, so a freshly created organization reports its
-     * type and plan without having to be refreshed from the database.
+     * Mirrors the column default, so a freshly created organization reports its
+     * plan without having to be refreshed from the database.
      *
      * @var array<string, string>
      */
-    protected $attributes = [
-        'type' => OrganizationType::Club->value,
-        'plan' => Plan::Free->value,
-    ];
+    protected $attributes = ['plan' => Plan::Free->value];
 
     /**
      * @return array<string, string>
@@ -83,7 +78,6 @@ class Organization extends Model
         return [
             'is_vat_payer' => 'boolean',
             'plan' => Plan::class,
-            'type' => OrganizationType::class,
         ];
     }
 

@@ -100,7 +100,7 @@ function spaceAt(
     $presence = null;
 
     if ($managed) {
-        $venue = Organization::factory()->venue()->create();
+        $venue = Organization::factory()->create();
         $presence = OrganizationLocation::create([
             'organization_id' => $venue->getKey(),
             'location_id' => $location->getKey(),

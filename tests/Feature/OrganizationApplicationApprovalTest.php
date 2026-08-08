@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use App\Enums\Plan;
 use App\Filament\Admin\Resources\OrganizationApplications\Pages\ListOrganizationApplications;
 use App\Models\Organization;
@@ -14,7 +13,6 @@ function pendingApplication(array $overrides = []): OrganizationApplication
 {
     return OrganizationApplication::factory()->create(array_merge([
         'name' => 'Baza Sportivă Olimpia',
-        'type' => OrganizationType::Venue,
         'company_name' => 'OLIMPIA SPORT SRL',
         'fiscal_code' => 'RO12345678',
         'is_vat_payer' => true,
@@ -32,7 +30,6 @@ it('creates the organization from the request when approved', function () {
     $organization = $application->approve($reviewer);
 
     expect($organization->name)->toBe('Baza Sportivă Olimpia')
-        ->and($organization->type)->toBe(OrganizationType::Venue)
         ->and($organization->company_name)->toBe('OLIMPIA SPORT SRL')
         ->and($organization->fiscal_code)->toBe('RO12345678')
         ->and($organization->is_vat_payer)->toBeTrue()
@@ -40,12 +37,6 @@ it('creates the organization from the request when approved', function () {
         ->and($organization->county)->toBe('Brașov')
         ->and($organization->city)->toBe('Brașov');
 });
-
-it('carries the declared type onto the organization', function (OrganizationType $type) {
-    $organization = pendingApplication(['type' => $type])->approve(User::factory()->create());
-
-    expect($organization->type)->toBe($type);
-})->with(OrganizationType::cases());
 
 it('opens the organization on the free plan with no owner yet', function () {
     $organization = pendingApplication()->approve(User::factory()->create());
