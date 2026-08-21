@@ -15,6 +15,7 @@ use Database\Seeders\PracticeSeeder;
 use Database\Seeders\SpaceSeeder;
 use Database\Seeders\SpecialtySeeder;
 use Database\Seeders\SportSeeder;
+use Database\Seeders\SurfaceSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
@@ -144,6 +145,7 @@ class BuildDocumentation extends Command
             'specialties.count' => $this->seederCount(SpecialtySeeder::class, 'SPECIALTIES'),
             'facilities.count' => $this->seederCount(FacilitySeeder::class, 'FACILITIES'),
             'levels.count' => $this->seederCount(LevelSeeder::class, 'LEVELS'),
+            'surfaces.count' => $this->seederCount(SurfaceSeeder::class, 'SURFACES'),
             'ageGroups.count' => $this->seederCount(AgeGroupSeeder::class, 'GROUPS'),
             'counties.count' => (string) count((array) config('counties')),
 

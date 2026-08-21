@@ -12,6 +12,7 @@ use App\Models\Location;
 use App\Models\Organization;
 use App\Models\Space;
 use App\Models\Sport;
+use App\Models\Surface;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -97,16 +98,21 @@ class SpaceResource extends Resource
                         ->sortBy(fn (Sport $sport): string => $sport->translated_name)
                         ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
                         ->all())
-                    ->searchable(),
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('surface_id', null)),
+                Select::make('surface_id')
+                    ->label('Suprafață')
+                    ->options(fn ($get): array => Surface::optionsFor($get('sport_id')))
+                    // Hidden rather than empty: a sport with no surfaces is one
+                    // nobody asks the question about, and an empty select would
+                    // invite an answer that does not exist.
+                    ->visible(fn ($get): bool => Surface::optionsFor($get('sport_id')) !== []),
                 TextInput::make('capacity')
                     ->label('Capacitate')
                     ->helperText('Informativ: 6 culoare, 2 terenuri.')
                     ->numeric()
                     ->minValue(1),
-                TextInput::make('surface')
-                    ->label('Suprafață')
-                    ->placeholder('Gazon sintetic, parchet, tartan')
-                    ->maxLength(255),
                 Toggle::make('is_indoor')
                     ->label('Acoperit'),
                 Toggle::make('has_floodlights')

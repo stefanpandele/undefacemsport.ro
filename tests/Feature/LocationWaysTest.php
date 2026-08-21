@@ -69,7 +69,7 @@ test('a club card carries nothing about the venue programme', function () {
         $club = collect($page->toArray()['props']['location']['clubs'])->firstWhere('name', 'CS Delfinul');
 
         expect(json_encode($club))
-            ->not->toContain('Acces liber')
+            ->not->toContain('Acces individual')
             ->not->toContain('45 lei');
 
         return $page;
@@ -87,6 +87,19 @@ test('the day view belongs to the location, not to a sport section', function ()
             ->has('location.day')
             ->has('location.day.rows', 1)
             ->where('location.day.rows.0.bars.0.start', 7),
+    );
+});
+
+test('a free court says so once, not twice', function () {
+    // "Acces liber, gratuit" said the same thing in two ways, and the first half
+    // was the word that made a paid pool look free.
+    $location = Location::factory()->create(['slug' => 'parc']);
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+
+    spaceAt($location, $sport, SpaceAccessMode::OpenAccess, 0, managed: false);
+
+    $this->get(route('locations.show', 'parc'))->assertInertia(
+        fn ($page) => $page->where('location.day.rows.0.bars.0.label', 'Gratuit'),
     );
 });
 

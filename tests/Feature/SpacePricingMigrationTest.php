@@ -19,10 +19,34 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Undo the move, so the tables are back in the shape the old code wrote.
+ *
+ * Counted from the migrations table rather than hardcoded to one step: every
+ * migration written after this one has to come off first, and there will be
+ * more of them.
  */
 function rollBackPricingMove(): void
 {
-    Artisan::call('migrate:rollback', ['--step' => 1]);
+    $id = DB::table('migrations')
+        ->where('migration', '2026_08_21_204632_move_space_pricing_onto_tariffs')
+        ->value('id');
+
+    Artisan::call('migrate:rollback', [
+        '--step' => DB::table('migrations')->where('id', '>=', $id)->count(),
+    ]);
+}
+
+/**
+ * Run just this migration, rather than every pending one.
+ *
+ * The migration under test is the only thing these tests are about, and driving
+ * it directly keeps later migrations — which also rebuild `spaces` — out of the
+ * result.
+ */
+function applyPricingMove(): void
+{
+    $migration = require database_path('migrations/2026_08_21_204632_move_space_pricing_onto_tariffs.php');
+
+    $migration->up();
 }
 
 /**
@@ -72,7 +96,7 @@ test('an interval that said nothing inherits the price the space used to carry',
     $spaceId = oldSpace();
     oldSlot($spaceId);
 
-    Artisan::call('migrate');
+    applyPricingMove();
 
     $tariff = DB::table('schedule_slots')->where('space_id', $spaceId)->first();
 
@@ -97,7 +121,7 @@ test('an interval on another way in does not walk off with the base price', func
         'access_mode' => SpaceAccessMode::OpenAccess->value,
     ]);
 
-    Artisan::call('migrate');
+    applyPricingMove();
 
     $tariff = DB::table('schedule_slots')->where('space_id', $spaceId)->first();
 
@@ -112,7 +136,7 @@ test('a space that never had hours keeps its price, as a tariff without them', f
     rollBackPricingMove();
     $spaceId = oldSpace(['price' => 0, 'price_unit' => null, 'price_notes' => null]);
 
-    Artisan::call('migrate');
+    applyPricingMove();
 
     $tariffs = DB::table('schedule_slots')->where('space_id', $spaceId)->get();
 
@@ -131,10 +155,8 @@ test('a second attempt after a half-applied one finishes the job', function () {
     $spaceId = oldSpace();
     oldSlot($spaceId);
 
-    $migration = require database_path('migrations/2026_08_21_204632_move_space_pricing_onto_tariffs.php');
-
-    $migration->up();
-    $migration->up();
+    applyPricingMove();
+    applyPricingMove();
 
     $tariffs = DB::table('schedule_slots')->where('space_id', $spaceId)->get();
 
@@ -148,7 +170,7 @@ test('the foreign key keeps an index once the composite one is gone', function (
     rollBackPricingMove();
     oldSpace();
 
-    Artisan::call('migrate');
+    applyPricingMove();
 
     expect(Schema::hasIndex('spaces', 'spaces_location_id_index'))->toBeTrue()
         ->and(Schema::hasIndex('spaces', 'spaces_location_id_access_mode_index'))->toBeFalse();
@@ -158,7 +180,7 @@ test('the space keeps nothing about how you get in or what it costs', function (
     rollBackPricingMove();
     oldSpace();
 
-    Artisan::call('migrate');
+    applyPricingMove();
 
     foreach (['access_mode', 'price', 'price_unit', 'price_notes'] as $column) {
         expect(Schema::hasColumn('spaces', $column))->toBeFalse("spaces still has {$column}");

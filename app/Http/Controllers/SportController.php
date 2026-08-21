@@ -12,6 +12,7 @@ use App\Models\Service;
 use App\Models\Space;
 use App\Models\Specialty;
 use App\Models\Sport;
+use App\Models\Surface;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -66,6 +67,12 @@ class SportController extends Controller
         $levels = $city === null ? [] : $this->levelsInCity($sport, $city);
         $level = collect($levels)->firstWhere('slug', Str::slug($request->string('nivel')->trim()->toString()));
 
+        // The mirror of the level filter: a level narrows a programme, a surface
+        // narrows a court. Clay or hard is the first thing a tennis player asks,
+        // and for most sports the question is never put at all.
+        $surfaces = $city === null ? [] : $this->surfacesInCity($sport, $city);
+        $surface = collect($surfaces)->firstWhere('slug', Str::slug($request->string('suprafata')->trim()->toString()));
+
         return Inertia::render('public/sports/Show', [
             'sport' => [
                 'key' => $sport->slug,
@@ -76,8 +83,12 @@ class SportController extends Controller
             'city' => $city,
             'cities' => $cities,
             'levels' => $levels,
-            'filters' => ['level' => $level['slug'] ?? null],
-            'ways' => $city === null ? [] : $this->waysInCity($sport, $city, $level['id'] ?? null),
+            'surfaces' => $surfaces,
+            'filters' => [
+                'level' => $level['slug'] ?? null,
+                'surface' => $surface['slug'] ?? null,
+            ],
+            'ways' => $city === null ? [] : $this->waysInCity($sport, $city, $level['id'] ?? null, $surface['id'] ?? null),
             // Not a way to play the sport — a way to keep playing it. Separate
             // section, because an injured footballer is not looking for a pitch.
             'care' => $city === null ? [] : $this->careInCity($sport, $city),
@@ -168,6 +179,33 @@ class SportController extends Controller
                 'id' => $level->getKey(),
                 'name' => $level->name,
                 'slug' => Str::slug($level->name),
+            ])
+            ->all());
+    }
+
+    /**
+     * The surfaces actually available for this sport in this city, in order.
+     *
+     * Read from the courts rather than from the vocabulary: offering "iarbă" in
+     * a city with no grass court would be offering a dead end, and a sport whose
+     * spaces nobody has answered for gets no filter at all rather than an empty
+     * one.
+     *
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    private function surfacesInCity(Sport $sport, string $city): array
+    {
+        return array_values(Surface::query()
+            ->whereHas('spaces', fn (BuilderContract $spaces) => $spaces
+                ->where('sport_id', $sport->getKey())
+                ->where('status', FacilityStatus::Approved)
+                ->whereHas('location', fn (BuilderContract $locations) => $locations->where('city', $city)))
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (Surface $surface): array => [
+                'id' => $surface->getKey(),
+                'name' => $surface->name,
+                'slug' => Str::slug($surface->name),
             ])
             ->all());
     }
@@ -268,15 +306,19 @@ class SportController extends Controller
      *
      * @return list<array{key: string, label: string, description: string, locations: list<array<string, mixed>>}>
      */
-    private function waysInCity(Sport $sport, string $city, ?int $levelId = null): array
+    private function waysInCity(Sport $sport, string $city, ?int $levelId = null, ?int $surfaceId = null): array
     {
         return array_values(collect(LocationWay::cases())
             // A level is a property of an organised programme. Filtering by one
             // and still listing rentable courts would answer a question nobody
             // asked, so the other two ways drop out entirely.
             ->filter(fn (LocationWay $way): bool => $levelId === null || $way === LocationWay::Organised)
-            ->map(function (LocationWay $way) use ($sport, $city, $levelId): array {
-                $locations = $this->locationsQuery($sport, $way, $levelId)
+            // A surface is a property of a court, and the exact mirror: filtering
+            // by one drops the organised programme, whose spaces are not what is
+            // being sold.
+            ->filter(fn (LocationWay $way): bool => $surfaceId === null || $way !== LocationWay::Organised)
+            ->map(function (LocationWay $way) use ($sport, $city, $levelId, $surfaceId): array {
+                $locations = $this->locationsQuery($sport, $way, $levelId, $surfaceId)
                     ->where('locations.city', $city)
                     ->select('locations.*')
                     ->distinct()
@@ -301,7 +343,7 @@ class SportController extends Controller
      *
      * @return Builder<Location>
      */
-    private function locationsQuery(Sport $sport, LocationWay $way, ?int $levelId = null): Builder
+    private function locationsQuery(Sport $sport, LocationWay $way, ?int $levelId = null, ?int $surfaceId = null): Builder
     {
         $mode = $way->accessMode();
 
@@ -328,6 +370,7 @@ class SportController extends Controller
             fn (BuilderContract $spaces) => $spaces
                 ->where('status', FacilityStatus::Approved)
                 ->where('sport_id', $sport->getKey())
+                ->when($surfaceId, fn (BuilderContract $played) => $played->where('surface_id', $surfaceId))
                 ->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
                     ->where('kind', ScheduleSlotKind::Access)
                     ->where('access_mode', $mode)),

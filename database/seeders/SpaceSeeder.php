@@ -174,6 +174,8 @@ class SpaceSeeder extends Seeder
             return;
         }
 
+        $this->giveSurface($space);
+
         $mode = SpaceAccessMode::from($blueprint['mode']);
         $unit = PriceUnit::from($blueprint['unit']);
 
@@ -272,6 +274,26 @@ class SpaceSeeder extends Seeder
                 $this->slot($space, null, $day, '07:00', $blueprint['floodlights'] ? '22:00' : '20:00', 0);
             }
         }
+    }
+
+    /**
+     * Give the court a surface, where its sport is one anybody asks about.
+     *
+     * Spread by id rather than always taking the first, so a city ends up with
+     * clay courts and hard courts both — otherwise the filter would have nothing
+     * to narrow and the fixture could not show it working.
+     */
+    private function giveSurface(Space $space): void
+    {
+        $surfaces = $space->sport?->surfaces;
+
+        if ($surfaces === null || $surfaces->isEmpty()) {
+            return;
+        }
+
+        $space->forceFill([
+            'surface_id' => $surfaces[$space->getKey() % $surfaces->count()]->getKey(),
+        ])->save();
     }
 
     private function slot(

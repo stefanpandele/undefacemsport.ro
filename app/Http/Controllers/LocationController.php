@@ -341,9 +341,13 @@ class LocationController extends Controller
                     ->map(fn (array $interval): array => [
                         'start' => (int) substr($interval['start'], 0, 2),
                         'end' => (int) substr($interval['end'], 0, 2),
+                        // `priceFromLabel()` already says "Gratuit" for a free
+                        // space, so there is nothing to add — and the phrase this
+                        // replaces said it twice, the first half being the word
+                        // that made a paid pool look free.
                         'label' => $space->accessModes()->count() > 1
                             ? $space->name
-                            : ($space->isFree() ? 'Acces liber, gratuit' : (string) $space->priceFromLabel()),
+                            : (string) $space->priceFromLabel(),
                     ])
                     ->values();
 

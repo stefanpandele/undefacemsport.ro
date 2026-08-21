@@ -97,6 +97,20 @@ class Sport extends Model
             ->withTimestamps();
     }
 
+    /**
+     * What this sport is plausibly played on, in the order a player weighs it.
+     *
+     * Empty for most sports, and that is the useful part: nobody asks what a
+     * pool is surfaced with, so the question is never put to them.
+     *
+     * @return BelongsToMany<Surface, $this>
+     */
+    public function surfaces(): BelongsToMany
+    {
+        return $this->belongsToMany(Surface::class, 'sport_surface')
+            ->orderBy('surfaces.sort_order');
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';

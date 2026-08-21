@@ -11,6 +11,7 @@ use App\Filament\Admin\Resources\Spaces\Pages\ManageSpaces;
 use App\Models\Location;
 use App\Models\Space;
 use App\Models\Sport;
+use App\Models\Surface;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -86,14 +87,17 @@ class SpaceResource extends Resource
                         ->sortBy(fn (Sport $sport): string => $sport->translated_name)
                         ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
                         ->all())
-                    ->searchable(),
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('surface_id', null)),
+                Select::make('surface_id')
+                    ->label('Suprafață')
+                    ->options(fn ($get): array => Surface::optionsFor($get('sport_id')))
+                    ->visible(fn ($get): bool => Surface::optionsFor($get('sport_id')) !== []),
                 TextInput::make('capacity')
                     ->label('Capacitate')
                     ->numeric()
                     ->minValue(1),
-                TextInput::make('surface')
-                    ->label('Suprafață')
-                    ->maxLength(255),
                 Toggle::make('is_indoor')
                     ->label('Acoperit'),
                 Toggle::make('has_floodlights')

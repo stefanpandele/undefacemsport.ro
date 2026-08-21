@@ -751,9 +751,11 @@ a { color: var(--grass-deep); }
         <div class="route"><span class="path">/sporturi/{sport}/{oraș?}</span></div>
         <h3>Un sport într-un oraș</h3>
         <p>
-            Întâi alegi orașul, apoi vezi modurile de a juca, cu filtru pe nivel. Sub
-            ele, secțiunea de recuperare: oricine vinde un serviciu medical bifat
-            pentru acest sport.
+            Întâi alegi orașul, apoi vezi modurile de a juca, cu filtru pe nivel și
+            pe suprafață. Cele două se exclud, fiindcă privesc lucruri diferite:
+            nivelul e al unui program, suprafața e a unui teren. Sub ele, secțiunea
+            de recuperare: oricine vinde un serviciu medical bifat pentru acest
+            sport.
         </p>
     </div>
     <div class="card">
@@ -1089,6 +1091,22 @@ a { color: var(--grass-deep); }
         </p>
     </div>
     <div class="card">
+        <span class="tag">Dotări</span>
+        <h3>Întrebarea apare doar unde are răspuns</h3>
+        <p>
+            Suprafața e o taxonomie legată de sport, nu un câmp de text. Alegi
+            tenis și primești zgură, iarbă sau hard; alegi înot și câmpul nu
+            apare, fiindcă nimeni nu întreabă cu ce e placat un bazin. Nu apare
+            nici la squash: terenurile sunt toate de parchet, iar un selector cu
+            o singură opțiune cere o decizie deja luată — aceeași regulă ca la
+            selectorul de mod de acces. Legătura rămâne în vocabular, așa că în
+            ziua în care apare a doua suprafață, apare și întrebarea. Text liber
+            ar fi produs „gazon sintetic", „sintetic" și „Gazon Sintetic" ca trei
+            răspunsuri la o întrebare, iar filtrul de pe pagina sportului n-ar fi
+            putut exista.
+        </p>
+    </div>
+    <div class="card">
         <span class="tag">Recuperare</span>
         <h3>Sportul e o afirmație, nu o deducție</h3>
         <p>
@@ -1114,6 +1132,7 @@ a { color: var(--grass-deep); }
 <tr><td><strong>Specialități</strong></td><td class="num">{{ specialties.count }}</td><td>Fizioterapie, kinetoterapie, medicină sportivă, nutriție, masaj, recuperare, psihologie, podologie. Taxonomie separată de sporturi.</td></tr>
 <tr><td><strong>Grupe de vârstă</strong></td><td class="num">{{ ageGroups.count }}</td><td>De la 0–2 ani la seniori, plus grupele adaptate pentru persoane cu dizabilități. Pentru cine e grupa.</td></tr>
 <tr><td><strong>Niveluri</strong></td><td class="num">{{ levels.count }}</td><td>Inițiere, grupă de copii, amatori, avansați, performanță. Cât de departe a ajuns grupa — axă separată de vârstă.</td></tr>
+<tr><td><strong>Suprafețe</strong></td><td class="num">{{ surfaces.count }}</td><td>Zgură, iarbă, hard, gazon sintetic, parchet, tartan, beton. Legate de sporturile care se joacă pe ele — un bazin nu e legat de niciuna.</td></tr>
 <tr><td><strong>Facilități</strong></td><td class="num">{{ facilities.count }}</td><td>Parcare, vestiare, dușuri, acces pentru persoane cu dizabilități, tribună și altele.</td></tr>
 <tr><td><strong>Județe și localități</strong></td><td class="num">{{ counties.count }}</td><td>Toate județele, cu localitățile aferente, pentru adrese și filtre.</td></tr>
 </tbody>

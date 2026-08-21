@@ -18,10 +18,18 @@ enum SpaceAccessMode: string
     case OpenAccess = 'open_access';
     case ExclusiveRental = 'exclusive_rental';
 
+    /**
+     * What the operator picks in the form.
+     *
+     * "Acces liber" read as *free of charge* rather than *without booking*, so a
+     * pool with a 25-lei ticket looked like the wrong option. The distinction
+     * that actually matters is whether you buy a place for yourself or take the
+     * whole space, and "individual" says that without colliding with "gratuit".
+     */
     public function label(): string
     {
         return match ($this) {
-            self::OpenAccess => 'Acces liber',
+            self::OpenAccess => 'Acces individual',
             self::ExclusiveRental => 'Închiriere exclusivă',
         };
     }

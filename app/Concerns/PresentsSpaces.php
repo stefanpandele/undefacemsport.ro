@@ -34,7 +34,7 @@ trait PresentsSpaces
             'capacity' => $space->capacity,
             'isIndoor' => $space->is_indoor,
             'hasFloodlights' => $space->has_floodlights,
-            'surface' => $space->surface,
+            'surface' => $space->surface?->name,
             'openNow' => $space->openAt(null, $mode),
             'closesAt' => $space->closesAt(null, $mode),
             'lastVerified' => $space->last_verified_at?->diffForHumans(),

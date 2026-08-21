@@ -39,7 +39,7 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property int|null $capacity
  * @property bool|null $is_indoor
  * @property bool|null $has_floodlights
- * @property string|null $surface
+ * @property int|null $surface_id
  * @property FacilityStatus $status
  * @property Carbon|null $last_verified_at
  * @property int $sort_order
@@ -111,7 +111,7 @@ class Space extends Model
         'capacity',
         'is_indoor',
         'has_floodlights',
-        'surface',
+        'surface_id',
         'sort_order',
     ];
 
@@ -443,6 +443,16 @@ class Space extends Model
     public function sport(): BelongsTo
     {
         return $this->belongsTo(Sport::class);
+    }
+
+    /**
+     * What it is played on, when the sport is one anybody asks that about.
+     *
+     * @return BelongsTo<Surface, $this>
+     */
+    public function surface(): BelongsTo
+    {
+        return $this->belongsTo(Surface::class);
     }
 
     /**
