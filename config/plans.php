@@ -29,6 +29,14 @@ return [
     | apart. PLACEHOLDERS until real billing exists.
     */
 
+    /*
+    | `spaces` counts offers, not rows: one sport at one address, however many
+    | courts stand there. A padel club names every court because indoor and
+    | outdoor are a real choice, and charging each of them would price the honest
+    | page higher than a vague one — then show a visitor five courts out of
+    | eleven, which is not a smaller page but a false one.
+    */
+
     Plan::Free->value => [
         'price' => 0,
         'tagline' => 'Pentru un club cu un singur sport, la o singură sală.',

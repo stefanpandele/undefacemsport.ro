@@ -210,16 +210,63 @@ class Organization extends Model
     }
 
     /**
-     * Whether the organization can add another space under its plan's `spaces`
-     * limit.
+     * How many distinct things the organization sells access to, counted as one
+     * sport at one address rather than one row per court.
+     *
+     * Every court is its own row — indoor and outdoor padel are a real choice, so
+     * "Teren 6 outdoor" has to be nameable. But eleven courts are eleven bricks
+     * of one offer, and charging each against the plan would price the honest
+     * page higher than a vague one, then show a visitor five courts out of
+     * eleven: not a smaller page, a false one.
      *
      * Only the spaces it operates count — `spaces()` goes through
      * `organization_location`, so a park court declared for everyone's benefit is
-     * never charged against the quota.
+     * never charged against the quota either.
+     *
+     * Counted over a subquery rather than with `count(distinct a, b)`, which
+     * MariaDB accepts and SQLite does not.
      */
-    public function canAddSpace(): bool
+    public function spaceOfferCount(): int
     {
-        return $this->withinPlanLimit('spaces', $this->spaces()->count());
+        $offers = $this->spaces()
+            ->select('spaces.location_id', 'spaces.sport_id')
+            ->distinct()
+            ->toBase();
+
+        return DB::query()->fromSub($offers, 'offers')->count();
+    }
+
+    /**
+     * Whether the organization can add another space under its plan's `spaces`
+     * limit.
+     *
+     * Given a location and sport it already sells, always: that court is another
+     * unit of something already paid for. The arguments are optional because the
+     * dashboard asks the question before any of it is known.
+     */
+    public function canAddSpace(?int $locationId = null, ?int $sportId = null): bool
+    {
+        if ($locationId !== null && $this->sellsSpaceAt($locationId, $sportId)) {
+            return true;
+        }
+
+        return $this->withinPlanLimit('spaces', $this->spaceOfferCount());
+    }
+
+    /**
+     * Whether this sport at this address is already on offer — a null sport being
+     * the sauna, which is its own kind of offer.
+     */
+    private function sellsSpaceAt(int $locationId, ?int $sportId): bool
+    {
+        return $this->spaces()
+            ->where('spaces.location_id', $locationId)
+            ->when(
+                $sportId === null,
+                fn ($spaces) => $spaces->whereNull('spaces.sport_id'),
+                fn ($spaces) => $spaces->where('spaces.sport_id', $sportId),
+            )
+            ->exists();
     }
 
     /**

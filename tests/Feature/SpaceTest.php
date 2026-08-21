@@ -7,6 +7,7 @@ use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Filament\Admin\Resources\Spaces\Pages\ManageSpaces;
 use App\Filament\Admin\Resources\Spaces\SpaceResource as AdminSpaceResource;
+use App\Filament\Organization\Resources\Spaces\Pages\ManageSpaces as ManageOrganizationSpaces;
 use App\Filament\Organization\Resources\Spaces\SpaceResource;
 use App\Models\Facility;
 use App\Models\Location;
@@ -330,6 +331,62 @@ test('a free organization can operate one space then hits its limit', function (
     expect($organization->canAddSpace())->toBeFalse();
 });
 
+test('eleven courts at one address are one offer, not eleven', function () {
+    // A padel club lists every court by name, because indoor and outdoor are a
+    // real choice. Charging each of them against the plan would price the honest
+    // page higher than a vague one, and show a visitor 5 courts out of 11 — not
+    // a smaller page, a false one.
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $presence = presenceFor($organization);
+    $padel = Sport::factory()->create();
+
+    foreach (range(1, 11) as $number) {
+        Space::factory()->rental()->create([
+            'location_id' => $presence->location_id,
+            'organization_location_id' => $presence->getKey(),
+            'sport_id' => $padel->getKey(),
+            'name' => 'Teren '.$number,
+        ]);
+    }
+
+    expect($organization->spaces()->count())->toBe(11)
+        ->and($organization->spaceOfferCount())->toBe(1)
+        // Another court of the same sport, at the same address, is a twelfth unit
+        // of something already paid for.
+        ->and($organization->canAddSpace($presence->location_id, $padel->getKey()))->toBeTrue();
+});
+
+test('a second sport at the same address is a second offer', function () {
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $presence = presenceFor($organization);
+    $padel = Sport::factory()->create();
+    $squash = Sport::factory()->create();
+
+    Space::factory()->rental()->create([
+        'location_id' => $presence->location_id,
+        'organization_location_id' => $presence->getKey(),
+        'sport_id' => $padel->getKey(),
+    ]);
+
+    expect($organization->spaceOfferCount())->toBe(1)
+        ->and($organization->canAddSpace($presence->location_id, $squash->getKey()))->toBeFalse();
+});
+
+test('the same sport at a second address is a second offer', function () {
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $here = presenceFor($organization);
+    $there = presenceFor($organization);
+    $padel = Sport::factory()->create();
+
+    Space::factory()->rental()->create([
+        'location_id' => $here->location_id,
+        'organization_location_id' => $here->getKey(),
+        'sport_id' => $padel->getKey(),
+    ]);
+
+    expect($organization->canAddSpace($there->location_id, $padel->getKey()))->toBeFalse();
+});
+
 test('a public space never counts against the quota', function () {
     // Putting a park court on the map is a contribution, not an asset. Charging
     // it against the plan would penalise the organization for the favour.
@@ -528,3 +585,121 @@ function tariff(
         'end_time' => $end,
     ]);
 }
+
+/*
+|--------------------------------------------------------------------------
+| Adding many courts at once
+|--------------------------------------------------------------------------
+*/
+
+test('one submit creates a numbered court per unit, sharing the tariffs', function () {
+    // Six squash courts are six rows, and typing six identical forms is the cost
+    // of that rule. The generator pays it once.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+    $squash = Sport::factory()->create();
+
+    $first = SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'sport_id' => $squash->getKey(),
+        'name' => 'Teren',
+        'quantity' => 6,
+        'is_indoor' => true,
+        'tariffs' => [
+            [
+                'access_mode' => SpaceAccessMode::ExclusiveRental->value,
+                'price' => 80,
+                'price_unit' => PriceUnit::Hour->value,
+                'days' => [Weekday::Monday->value, Weekday::Tuesday->value],
+                'start_time' => '08:00',
+                'end_time' => '18:00',
+            ],
+        ],
+    ], null, $venue);
+
+    $courts = Space::query()->where('location_id', $presence->location_id)->orderBy('id')->get();
+
+    expect($courts)->toHaveCount(6)
+        ->and($courts->pluck('name')->all())->toBe([
+            'Teren 1', 'Teren 2', 'Teren 3', 'Teren 4', 'Teren 5', 'Teren 6',
+        ])
+        ->and($first->name)->toBe('Teren 1')
+        ->and($courts->every(fn (Space $court): bool => $court->is_indoor === true))->toBeTrue()
+        // One tariff row per day ticked, on every court.
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(12)
+        ->and($courts->first()->accessSlots->pluck('day_of_week')->map(
+            fn (Weekday $day): int => $day->value,
+        )->all())->toBe([Weekday::Monday->value, Weekday::Tuesday->value]);
+});
+
+test('a tariff with no day ticked is still written once', function () {
+    // The park court: the price is known, the timetable is not.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+
+    SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'name' => 'Masa',
+        'quantity' => 3,
+        'tariffs' => [
+            ['access_mode' => SpaceAccessMode::OpenAccess->value, 'price' => 0, 'days' => []],
+        ],
+    ], null, $venue);
+
+    expect(Space::count())->toBe(3)
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(3)
+        ->and(Space::query()->orderBy('id')->first()->accessSlots->first()->day_of_week)->toBeNull();
+});
+
+test('generating one court leaves its name unnumbered', function () {
+    // "Bazin de înot 1" would be a lie about there being a second.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+
+    SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'name' => 'Bazin de înot',
+        'quantity' => 1,
+        'tariffs' => [
+            ['access_mode' => SpaceAccessMode::OpenAccess->value, 'price' => 25, 'days' => []],
+        ],
+    ], null, $venue);
+
+    expect(Space::query()->value('name'))->toBe('Bazin de înot');
+});
+
+test('a venue adds six courts from the spaces screen in one submit', function () {
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+    $squash = Sport::factory()->create();
+    spacePanelContext($venue);
+
+    Livewire::test(ManageOrganizationSpaces::class)
+        ->mountAction('createMany')
+        ->set('mountedActions.0.data.location_id', $presence->location_id)
+        ->set('mountedActions.0.data.is_operated_by_us', true)
+        ->set('mountedActions.0.data.name', 'Teren')
+        ->set('mountedActions.0.data.quantity', 6)
+        ->set('mountedActions.0.data.sport_id', $squash->getKey())
+        ->set('mountedActions.0.data.tariffs', [
+            [
+                'access_mode' => SpaceAccessMode::ExclusiveRental->value,
+                'price' => 80,
+                'price_unit' => PriceUnit::Hour->value,
+                'days' => [Weekday::Monday->value, Weekday::Tuesday->value, Weekday::Wednesday->value],
+                'start_time' => '08:00',
+                'end_time' => '18:00',
+            ],
+        ])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect(Space::count())->toBe(6)
+        ->and(Space::query()->pluck('name')->last())->toBe('Teren 6')
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(18)
+        // Six courts of one sport at one address: one offer, whatever the plan.
+        ->and($venue->spaceOfferCount())->toBe(1);
+});
