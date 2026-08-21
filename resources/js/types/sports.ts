@@ -87,6 +87,8 @@ export type SpaceOffer = {
     surface: string | null;
     openNow: boolean;
     closesAt: string | null;
+    /** False when no tariff names its hours — unknown, not closed all week. */
+    hoursKnown: boolean;
     lastVerified: string | null;
     today: SpaceInterval[];
     week: { day: string; hours: string }[];

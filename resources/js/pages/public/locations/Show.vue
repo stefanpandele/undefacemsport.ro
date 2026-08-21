@@ -543,7 +543,17 @@ function goToClub(key: string) {
                                 </ul>
                             </div>
 
-                            <details class="mt-3.5">
+                            <!-- Nobody keeps a timetable for a park court. Saying so
+                                 beats seven rows of "închis", which claims a
+                                 closing nobody announced. -->
+                            <p
+                                v-if="!space.hoursKnown"
+                                class="mt-3.5 font-jetbrains text-[11px] tracking-[0.04em] text-sage"
+                            >
+                                Program neprecizat
+                            </p>
+
+                            <details v-else class="mt-3.5">
                                 <summary
                                     class="cursor-pointer font-jetbrains text-[11px] font-bold tracking-[0.08em] text-sage uppercase"
                                 >

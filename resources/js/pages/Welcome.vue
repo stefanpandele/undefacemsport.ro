@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import CityNumbers from '@/components/landing/CityNumbers.vue';
 import AccountCta from '@/components/landing/AccountCta.vue';
+import CityNumbers from '@/components/landing/CityNumbers.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import HowItWorks from '@/components/landing/HowItWorks.vue';
 import PopularSports from '@/components/landing/PopularSports.vue';

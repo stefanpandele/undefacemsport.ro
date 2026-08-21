@@ -16,8 +16,12 @@ use LogicException;
  * One weekly interval, of one of two kinds.
  *
  * A `training` belongs to a club's sport at a location, for an age group, run by
- * a person — and may say which space it happens in. An `access` interval belongs
- * to a space and means you may turn up then, optionally at its own price.
+ * a person — and may say which space it happens in. An `access` interval is a
+ * space's tariff: how you get in, what it costs, and when that applies.
+ *
+ * A tariff may leave the weekday and the hours empty, which means nobody knows
+ * the timetable — the park hoop is free whenever it is light. Only a tariff may:
+ * a training with no hour is a session nobody can turn up to.
  *
  * They share a table because they share a shape, which is what lets one query
  * answer "what is happening near me right now" across both.
@@ -27,12 +31,13 @@ use LogicException;
  * @property int|null $organization_id
  * @property int|null $organization_location_sport_id
  * @property int|null $space_id
- * @property Weekday $day_of_week
- * @property string $start_time
- * @property string $end_time
+ * @property Weekday|null $day_of_week
+ * @property string|null $start_time
+ * @property string|null $end_time
  * @property string|null $price
  * @property SpaceAccessMode|null $access_mode
  * @property PriceUnit|null $price_unit
+ * @property string|null $price_notes
  * @property int|null $age_group_id
  * @property int|null $level_id
  * @property int|null $person_id
@@ -55,6 +60,7 @@ class ScheduleSlot extends Model
         'price',
         'access_mode',
         'price_unit',
+        'price_notes',
         'age_group_id',
         'level_id',
         'person_id',
@@ -83,78 +89,59 @@ class ScheduleSlot extends Model
     }
 
     /**
-     * How you get in during this interval — its own answer, or the space's.
+     * Whether this interval names a weekday and a time range.
+     *
+     * A tariff without them prices a space whose timetable nobody knows, and the
+     * page has to say that rather than draw an empty week.
      */
-    public function accessMode(): ?SpaceAccessMode
+    public function hasHours(): bool
     {
-        return $this->access_mode ?? $this->space?->access_mode;
+        return $this->day_of_week !== null
+            && $this->start_time !== null
+            && $this->end_time !== null;
     }
 
     /**
-     * What this interval costs.
-     *
-     * A price is only inherited from the space when the way in is the same. An
-     * open-gym evening in a hall that is otherwise booked by the hour must not
-     * quietly borrow the hourly rate — 25 lei a head and 180 lei an hour are not
-     * the same number wearing a different label.
+     * What this interval costs, as a number rather than the decimal string the
+     * cast hands back. Null means nobody has said — never that it is free.
      */
     public function effectivePrice(): ?float
     {
-        if ($this->price !== null) {
-            return (float) $this->price;
-        }
-
-        $space = $this->space;
-
-        if ($space === null) {
-            return null;
-        }
-
-        if ($this->access_mode !== null && $this->access_mode !== $space->access_mode) {
-            return null;
-        }
-
-        return $space->price === null ? null : (float) $space->price;
+        return $this->price === null ? null : (float) $this->price;
     }
 
     /**
-     * The unit that price is in: its own, the space's when the way in matches,
-     * else whatever the mode implies.
+     * The unit that price is in: its own, else whatever the way in implies —
+     * an entry for a walk-in, an hour for a booking.
      */
     public function effectivePriceUnit(): ?PriceUnit
     {
-        if ($this->price_unit !== null) {
-            return $this->price_unit;
-        }
-
-        $mode = $this->accessMode();
-        $space = $this->space;
-
-        if ($space === null) {
-            return $mode?->defaultPriceUnit();
-        }
-
-        if ($this->access_mode === null || $this->access_mode === $space->access_mode) {
-            return $space->price_unit ?? $mode?->defaultPriceUnit();
-        }
-
-        return $mode?->defaultPriceUnit();
+        return $this->price_unit ?? $this->access_mode?->defaultPriceUnit();
     }
 
     /**
-     * Each kind needs its own anchor, and the database cannot say so: both
-     * columns are nullable because neither kind uses both. A slot with neither
-     * would be an interval belonging to nothing, invisible everywhere and
-     * impossible to explain.
+     * Each kind needs its own anchor, and the database cannot say so: every one
+     * of these columns is nullable because no kind uses them all.
+     *
+     * A slot with no anchor would be an interval belonging to nothing, invisible
+     * everywhere and impossible to explain. A tariff with no way in would price
+     * a door nobody was told how to open, and a training with no weekday would
+     * be a session nobody can turn up to.
      */
     protected static function booted(): void
     {
         static::saving(function (self $slot): void {
             $missing = match ($slot->kind) {
-                ScheduleSlotKind::Training => $slot->organization_location_sport_id === null
-                    ? 'organization_location_sport_id'
-                    : null,
-                ScheduleSlotKind::Access => $slot->space_id === null ? 'space_id' : null,
+                ScheduleSlotKind::Training => match (true) {
+                    $slot->organization_location_sport_id === null => 'organization_location_sport_id',
+                    ! $slot->hasHours() => 'day_of_week, start_time and end_time',
+                    default => null,
+                },
+                ScheduleSlotKind::Access => match (true) {
+                    $slot->space_id === null => 'space_id',
+                    $slot->access_mode === null => 'access_mode',
+                    default => null,
+                },
             };
 
             if ($missing !== null) {

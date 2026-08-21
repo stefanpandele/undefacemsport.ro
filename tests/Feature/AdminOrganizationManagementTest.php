@@ -98,9 +98,8 @@ test('the organizations table says what each one offers, and in what quantity', 
         [$sport->getKey()],
     );
 
-    Space::factory()->for($presence, 'organizationLocation')->create([
+    Space::factory()->openAccess()->for($presence, 'organizationLocation')->create([
         'location_id' => $presence->location_id,
-        'access_mode' => SpaceAccessMode::OpenAccess,
         'status' => FacilityStatus::Approved,
     ]);
     Service::factory()->for($club)->count(2)->create();
@@ -117,16 +116,15 @@ test('the organizations table says what each one offers, and in what quantity', 
 });
 
 test('a hall rented by the hour that opens on friday evenings counts as both', function () {
-    // The access mode lives on the space and may be overridden per interval. The
-    // admin has to see the same two ways in the public pages show.
+    // A space is offered whichever ways its tariffs say. The admin has to see the
+    // same two ways in the public pages show.
     $club = Organization::factory()->create();
     $presence = $club->syncLocation(
         ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Sala B'],
     );
 
-    $hall = Space::factory()->for($presence, 'organizationLocation')->create([
+    $hall = Space::factory()->rental()->for($presence, 'organizationLocation')->create([
         'location_id' => $presence->location_id,
-        'access_mode' => SpaceAccessMode::ExclusiveRental,
         'status' => FacilityStatus::Approved,
     ]);
 
@@ -154,9 +152,8 @@ test('a space still waiting for moderation is not offered to the admin either', 
         ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. C 3', 'name' => 'Sala C'],
     );
 
-    Space::factory()->for($presence, 'organizationLocation')->create([
+    Space::factory()->openAccess()->for($presence, 'organizationLocation')->create([
         'location_id' => $presence->location_id,
-        'access_mode' => SpaceAccessMode::OpenAccess,
         'status' => FacilityStatus::Pending,
     ]);
 

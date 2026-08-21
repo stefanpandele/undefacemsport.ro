@@ -27,22 +27,18 @@ class OrganizationsTable
                     'organizationLocations as locations_count',
                     'organizationSports as courses_count',
                     'services as services_count',
-                    // A space carries an access mode, and an interval may override
-                    // it — the hall rented by the hour that opens on Friday
-                    // evenings is both. Counted the same way the public pages read
-                    // it, or the admin would see a venue the site does not.
+                    // A space is offered whichever ways its tariffs say — the hall
+                    // rented by the hour that opens on Friday evenings is both.
+                    // Counted the way the public pages read it, or the admin would
+                    // see a venue the site does not.
                     'spaces as open_access_count' => fn (Builder $spaces) => $spaces
                         ->where('spaces.status', FacilityStatus::Approved)
-                        ->where(fn (Builder $either) => $either
-                            ->where('spaces.access_mode', SpaceAccessMode::OpenAccess)
-                            ->orWhereHas('accessSlots', fn (Builder $slots) => $slots
-                                ->where('schedule_slots.access_mode', SpaceAccessMode::OpenAccess))),
+                        ->whereHas('accessSlots', fn (Builder $slots) => $slots
+                            ->where('schedule_slots.access_mode', SpaceAccessMode::OpenAccess)),
                     'spaces as rental_count' => fn (Builder $spaces) => $spaces
                         ->where('spaces.status', FacilityStatus::Approved)
-                        ->where(fn (Builder $either) => $either
-                            ->where('spaces.access_mode', SpaceAccessMode::ExclusiveRental)
-                            ->orWhereHas('accessSlots', fn (Builder $slots) => $slots
-                                ->where('schedule_slots.access_mode', SpaceAccessMode::ExclusiveRental))),
+                        ->whereHas('accessSlots', fn (Builder $slots) => $slots
+                            ->where('schedule_slots.access_mode', SpaceAccessMode::ExclusiveRental)),
                 ])
                 // Distinct, so the club with three halls in one town reads as
                 // the one-county operation it is.

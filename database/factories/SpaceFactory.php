@@ -19,8 +19,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class SpaceFactory extends Factory
 {
     /**
-     * A managed, open-access space by default — the commonest case, a pool or a
-     * gym somebody sells entry to.
+     * A managed space with no tariff yet — a room somebody has entered but not
+     * yet said how you get into. States add the tariff, because a price without
+     * a way in is not a thing this model can hold.
      *
      * @return array<string, mixed>
      */
@@ -30,12 +31,17 @@ class SpaceFactory extends Factory
             'location_id' => Location::factory(),
             'organization_location_id' => OrganizationLocation::factory(),
             'name' => 'Bazin '.fake()->unique()->numberBetween(1, 100000),
-            'access_mode' => SpaceAccessMode::OpenAccess,
-            'price' => 45,
-            'price_unit' => PriceUnit::Entry,
             'status' => FacilityStatus::Approved,
             'sort_order' => 0,
         ];
+    }
+
+    /**
+     * Sold by the entry, hours unstated — the commonest case, a pool or a gym.
+     */
+    public function openAccess(float $price = 45): static
+    {
+        return $this->tariff(SpaceAccessMode::OpenAccess, $price, PriceUnit::Entry);
     }
 
     /**
@@ -43,11 +49,9 @@ class SpaceFactory extends Factory
      */
     public function unmanaged(): static
     {
-        return $this->state(fn (): array => [
-            'organization_location_id' => null,
-            'price' => 0,
-            'price_unit' => null,
-        ]);
+        return $this
+            ->state(fn (): array => ['organization_location_id' => null])
+            ->tariff(SpaceAccessMode::OpenAccess, 0);
     }
 
     /**
@@ -55,11 +59,25 @@ class SpaceFactory extends Factory
      */
     public function rental(float $pricePerHour = 120): static
     {
-        return $this->state(fn (): array => [
-            'access_mode' => SpaceAccessMode::ExclusiveRental,
-            'price' => $pricePerHour,
-            'price_unit' => PriceUnit::Hour,
-        ]);
+        return $this->tariff(SpaceAccessMode::ExclusiveRental, $pricePerHour, PriceUnit::Hour);
+    }
+
+    /**
+     * One tariff with no hours: the way in and the price are known, the
+     * timetable is not.
+     */
+    public function tariff(SpaceAccessMode $mode, ?float $price, ?PriceUnit $unit = null): static
+    {
+        return $this->afterCreating(function (Space $space) use ($mode, $price, $unit): void {
+            ScheduleSlot::create([
+                'kind' => ScheduleSlotKind::Access,
+                'organization_id' => $space->organizationLocation?->organization_id,
+                'space_id' => $space->getKey(),
+                'access_mode' => $mode,
+                'price' => $price,
+                'price_unit' => $unit,
+            ]);
+        });
     }
 
     public function pending(): static
@@ -73,23 +91,31 @@ class SpaceFactory extends Factory
     }
 
     /**
-     * Give the space opening hours. Same interval every day unless told otherwise,
-     * because most venues do exactly that.
+     * Give the space a tariff with real hours, the same interval every day unless
+     * told otherwise, because most venues do exactly that.
      *
      * @param  list<Weekday>|null  $days
      */
-    public function openDaily(string $start = '07:00', string $end = '22:00', ?array $days = null, ?float $price = null): static
-    {
-        return $this->afterCreating(function (Space $space) use ($start, $end, $days, $price): void {
+    public function openDaily(
+        string $start = '07:00',
+        string $end = '22:00',
+        ?array $days = null,
+        ?float $price = null,
+        SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+        ?PriceUnit $unit = null,
+    ): static {
+        return $this->afterCreating(function (Space $space) use ($start, $end, $days, $price, $mode, $unit): void {
             foreach ($days ?? Weekday::cases() as $day) {
                 ScheduleSlot::create([
                     'kind' => ScheduleSlotKind::Access,
                     'organization_id' => $space->organizationLocation?->organization_id,
                     'space_id' => $space->getKey(),
+                    'access_mode' => $mode,
                     'day_of_week' => $day,
                     'start_time' => $start,
                     'end_time' => $end,
                     'price' => $price,
+                    'price_unit' => $unit,
                 ]);
             }
         });

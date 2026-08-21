@@ -104,11 +104,11 @@ test('a hotel lists its sauna and its massage under one heading', function () {
         'organization_id' => $hotel->getKey(),
         'location_id' => $location->getKey(),
     ]);
-    Space::factory()->unmanaged()->create([
+    Space::factory()->tariff(SpaceAccessMode::OpenAccess, 50)->create([
         'location_id' => $location->getKey(),
+        'organization_location_id' => null,
         'name' => 'Saună',
         'sport_id' => null,
-        'price' => 50,
     ]);
     Service::factory()->create([
         'organization_id' => $hotel->getKey(),

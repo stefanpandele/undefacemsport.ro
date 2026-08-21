@@ -5,8 +5,8 @@ import SiteNav from '@/components/SiteNav.vue';
 import LocationsMap from '@/components/sports/LocationsMap.vue';
 import { sportGradient } from '@/lib/gradients';
 import { explore } from '@/routes';
-import organizationApplication from '@/routes/organization-application';
 import locationRoutes from '@/routes/locations';
+import organizationApplication from '@/routes/organization-application';
 
 type ExploreLocation = {
     slug: string;

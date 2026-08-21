@@ -29,8 +29,8 @@ trait PresentsSpaces
             'operator' => $space->organizationLocation?->organization->name,
             'unmanaged' => ! $space->isManaged(),
             'price' => $space->priceFromLabel($mode),
-            'priceNotes' => $space->price_notes,
-            'isFree' => $space->isFree(),
+            'priceNotes' => $space->priceNotesFor($mode),
+            'isFree' => $space->isFree($mode),
             'capacity' => $space->capacity,
             'isIndoor' => $space->is_indoor,
             'hasFloodlights' => $space->has_floodlights,
@@ -38,6 +38,9 @@ trait PresentsSpaces
             'openNow' => $space->openAt(null, $mode),
             'closesAt' => $space->closesAt(null, $mode),
             'lastVerified' => $space->last_verified_at?->diffForHumans(),
+            // Nobody keeps a timetable for a park court. Saying so beats a week of
+            // "închis", which is a claim nobody made.
+            'hoursKnown' => $space->hasKnownHours($mode),
             'today' => $space->hoursByDay($mode)[$today] ?? [],
             'week' => $this->weekHours($space, $mode),
         ];
@@ -45,12 +48,17 @@ trait PresentsSpaces
 
     /**
      * Opening hours as a week, one row per day, closed days included so a visitor
-     * can see the shape of the week rather than infer it from gaps.
+     * can see the shape of the week rather than infer it from gaps. Empty when no
+     * tariff names its hours — an unknown timetable is not seven closed days.
      *
      * @return list<array{day: string, hours: string}>
      */
     protected function weekHours(Space $space, SpaceAccessMode $mode): array
     {
+        if (! $space->hasKnownHours($mode)) {
+            return [];
+        }
+
         $byDay = $space->hoursByDay($mode);
 
         return array_values(collect(Weekday::cases())

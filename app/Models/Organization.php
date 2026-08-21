@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\FacilityStatus;
 use App\Enums\OrganizationType;
 use App\Enums\Plan;
+use App\Enums\ScheduleSlotKind;
 use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -436,6 +437,21 @@ class Organization extends Model
     public function scheduleSlots(): HasMany
     {
         return $this->hasMany(ScheduleSlot::class);
+    }
+
+    /**
+     * Only the sessions the organization teaches.
+     *
+     * A tariff is credited to whoever wrote it, so a club that rents out its dead
+     * hours owns intervals that are not trainings and have no club sport behind
+     * them. Anything drawing a timetable wants this relation, not the one above.
+     *
+     * @return HasMany<ScheduleSlot, $this>
+     */
+    public function trainingSlots(): HasMany
+    {
+        return $this->hasMany(ScheduleSlot::class)
+            ->where('kind', ScheduleSlotKind::Training);
     }
 
     /**

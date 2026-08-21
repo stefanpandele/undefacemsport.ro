@@ -579,10 +579,11 @@ a { color: var(--grass-deep); }
         <span class="tag">Acces la spațiu</span>
         <h3>Bazin, teren, sală</h3>
         <p>
-            Un spațiu fizic cu program și preț. Poate fi agrement (intri și
-            plătești bilet) sau închiriere exclusivă (iei tot terenul, pe oră).
+            Un spațiu fizic și tarifele lui. Un tarif spune cum se intră, cât
+            costă și când — agrement (intri și plătești bilet) sau închiriere
+            exclusivă (iei tot terenul, pe oră).
         </p>
-        <p class="mono" style="font-size:12px">spaces → schedule_slots</p>
+        <p class="mono" style="font-size:12px">spaces → schedule_slots (tarife)</p>
     </div>
     <div class="card">
         <span class="tag">Serviciu</span>
@@ -597,12 +598,37 @@ a { color: var(--grass-deep); }
 
 <h3 style="margin-top:30px">Spațiul poate exista fără operator</h3>
 <p>
-    Coșul de baschet dintr-un parc e un spațiu real, cu program și preț zero, pe
-    care nu-l administrează nimeni. De aceea legătura spațiului către organizație e
+    Coșul de baschet dintr-un parc e un spațiu real, gratuit, pe care nu-l
+    administrează nimeni. De aceea legătura spațiului către organizație e
     opțională: adminul îl poate introduce singur, iar dacă mâine o firmă începe
     să-l închirieze, se completează doar o coloană — spațiul nu se recreează și nu
     dispare când operatorul pleacă.
 </p>
+
+<div class="rule">
+    <p><span class="what">Spațiul e o cameră; tariful spune cum se intră și cât costă.</span></p>
+    <p>
+        Un rând de tarif poartă modul de acces, prețul, unitatea și intervalul în
+        care se aplică. Sala de squash cu 80 lei ora până la 18:00 și 110 după
+        are două tarife, nu un preț de bază plus o excepție. Spațiul nu mai are
+        nicio coloană de preț — un fapt scris în două locuri e un fapt care poate
+        să se contrazică, iar cine citea formularul trebuia să știe care câștigă.
+    </p>
+    <p>
+        Sala închiriată cu ora care ține open-gym vinerea seara rămâne un singur
+        spațiu cu două tarife, iar fiecare listare o găsește prin tariful ei.
+    </p>
+</div>
+
+<div class="rule">
+    <p><span class="what">Program necunoscut nu înseamnă închis.</span></p>
+    <p>
+        Un tarif își poate lăsa ziua și orele goale: prețul coșului din parc se
+        știe, orarul nu — nimeni nu ține unul. Pagina scrie „program neprecizat",
+        fiindcă șapte rânduri de „închis" ar fi o afirmație pe care n-a făcut-o
+        nimeni.
+    </p>
+</div>
 </section>
 
 <section id="axa">
@@ -865,7 +891,7 @@ a { color: var(--grass-deep); }
 <tr><td><strong>Sporturi</strong></td><td>Ce predă, cu grupe de vârstă, niveluri, beneficii, galerie.</td><td>Cursuri</td></tr>
 <tr><td><strong>Orar</strong></td><td>Intervale săptămânale pe sport, locație, grupă și nivel.</td><td>Cursuri</td></tr>
 <tr><td><strong>Persoane</strong></td><td>Cele {{ professions.count }} profesii — antrenor, medic, fizioterapeut, nutriționist — cu bio, foto și sporturi.</td><td>Cursuri</td></tr>
-<tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli: mod de acces, preț pe unitate, program, preț pe interval.</td><td>Agrement și închiriere</td></tr>
+<tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli — ce sunt, plus tarifele: cum se intră, cât costă, când.</td><td>Agrement și închiriere</td></tr>
 <tr><td><strong>Servicii</strong></td><td>Consultații și ședințe: durată, preț, persoană, filială și sporturile vizate.</td><td>Servicii</td></tr>
 </tbody>
 </table>
@@ -912,10 +938,9 @@ a { color: var(--grass-deep); }
             Și ce oferă, numărat pe feluri: „3 cursuri · 2 agrement · 1 servicii",
             în aceleași cuvinte ca partea publică, cu felurile lipsă absente în loc
             de zero. Sala închiriată cu ora care ține open-gym vinerea seara apare
-            la ambele, fiindcă numărătoarea citește și suprascrierile de interval —
-            altfel adminul ar vedea altceva decât vizitatorul. Ruperea pe locații și
-            sporturi stă pe pagina organizației, unde tabelul de locații e grupat pe
-            județ.
+            la ambele, fiindcă numărătoarea citește tarifele — aceeași sursă pe care
+            o citește și vizitatorul. Ruperea pe locații și sporturi stă pe pagina
+            organizației, unde tabelul de locații e grupat pe județ.
         </p>
     </div>
     <div class="card">

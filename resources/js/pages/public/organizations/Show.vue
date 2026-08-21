@@ -53,6 +53,8 @@ type LeisureSpace = {
     surface: string | null;
     openNow: boolean;
     closesAt: string | null;
+    /** False when no tariff names its hours — unknown, not closed all week. */
+    hoursKnown: boolean;
     week: { day: string; hours: string }[];
 };
 
@@ -479,7 +481,14 @@ const sectionTitle = 'mb-3.5 font-archivo text-[19px] font-extrabold';
                                                             {{ space.price ?? 'preț nespecificat' }}
                                                         </span>
                                                     </div>
+                                                    <p
+                                                        v-if="!space.hoursKnown"
+                                                        class="mt-1.5 text-[12.5px] text-sage"
+                                                    >
+                                                        Program neprecizat
+                                                    </p>
                                                     <div
+                                                        v-else
                                                         class="mt-1.5 grid grid-cols-2 gap-x-4 text-[12.5px] sm:grid-cols-4"
                                                     >
                                                         <span
@@ -809,7 +818,12 @@ const sectionTitle = 'mb-3.5 font-archivo text-[19px] font-extrabold';
                             {{ space.priceNotes }}
                         </p>
 
+                        <p v-if="!space.hoursKnown" class="text-[12.5px] text-sage">
+                            Program neprecizat
+                        </p>
+
                         <div
+                            v-else
                             class="grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] sm:grid-cols-4"
                         >
                             <div

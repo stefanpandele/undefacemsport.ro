@@ -89,8 +89,8 @@ class OrganizationController extends Controller
                 'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.spaces.sport',
                 'organizationLocations.spaces.accessSlots',
-                'scheduleSlots.organizationLocationSport',
-                'scheduleSlots.ageGroup',
+                'trainingSlots.organizationLocationSport',
+                'trainingSlots.ageGroup',
             ])
             ->firstOrFail();
 
@@ -605,7 +605,7 @@ class OrganizationController extends Controller
     private function schedule(Organization $organization, OrganizationLocation $organizationLocation, int $sportId): array
     {
         return $this->presentWeek(
-            $organization->scheduleSlots->filter(
+            $organization->trainingSlots->filter(
                 fn (ScheduleSlot $slot): bool => $slot->organizationLocationSport->organization_location_id === $organizationLocation->id
                     && $slot->organizationLocationSport->sport_id === $sportId,
             ),

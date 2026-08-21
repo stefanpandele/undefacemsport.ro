@@ -62,10 +62,22 @@ test('a space goes away with the location it is at', function () {
 |--------------------------------------------------------------------------
 */
 
-test('an unpriced space is unknown, not free', function () {
-    $space = Space::factory()->create(['price' => null]);
+test('a space with no tariff at all has nothing to say about price', function () {
+    // Not free, not priced: nobody has written a tariff yet, and the page must
+    // not invent one.
+    $space = Space::factory()->create();
 
     expect($space->isFree())->toBeFalse()
+        ->and($space->priceFrom())->toBeNull()
+        ->and($space->priceFromLabel())->toBeNull()
+        ->and($space->accessModes())->toBeEmpty();
+});
+
+test('an unpriced tariff is unknown, not free', function () {
+    $space = Space::factory()->create();
+    tariff($space, SpaceAccessMode::OpenAccess, null);
+
+    expect($space->load('accessSlots')->isFree())->toBeFalse()
         ->and($space->priceFrom())->toBeNull()
         ->and($space->priceFromLabel())->toBeNull();
 });
@@ -86,32 +98,43 @@ test('the unit formats the amount the way it is written on the door', function (
 });
 
 test('a single price is quoted plainly, without "de la"', function () {
-    $space = Space::factory()->create(['price' => 45, 'price_unit' => PriceUnit::Entry]);
+    $space = Space::factory()->openAccess(45)->create();
 
     expect($space->priceFromLabel())->toBe('45 lei / intrare');
 });
 
-test('a varying price is quoted from its cheapest interval', function () {
-    // A pool charging less in the morning must not advertise the afternoon rate,
-    // which would be wrong for half the day.
-    $space = Space::factory()->create(['price' => 45, 'price_unit' => PriceUnit::Entry]);
+test('a varying price is quoted from its cheapest tariff', function () {
+    // The squash hall: one rate until six, a higher one for the evening. The card
+    // must not advertise the evening rate, which is wrong all morning.
+    $space = Space::factory()->create();
 
-    slot($space, Weekday::Monday, '07:00', '12:00', 35);
-    slot($space, Weekday::Monday, '12:00', '22:00', 45);
+    slot($space, Weekday::Monday, '08:00', '18:00', 80, SpaceAccessMode::ExclusiveRental);
+    slot($space, Weekday::Monday, '18:00', '21:00', 110, SpaceAccessMode::ExclusiveRental);
 
     $space->load('accessSlots');
 
     expect($space->hasVaryingPrice())->toBeTrue()
-        ->and($space->priceFrom())->toBe(35.0)
-        ->and($space->priceFromLabel())->toBe('de la 35 lei / intrare');
+        ->and($space->priceFrom())->toBe(80.0)
+        ->and($space->priceFromLabel())->toBe('de la 80 lei / oră');
 });
 
 test('the price unit falls back to what the access mode implies', function () {
-    $rental = Space::factory()->rental(180)->create(['price_unit' => null]);
+    $rental = Space::factory()->rental(180)->create();
 
     expect($rental->priceFromLabel())->toBe('180 lei / oră')
         ->and(SpaceAccessMode::OpenAccess->defaultPriceUnit())->toBe(PriceUnit::Entry)
         ->and(SpaceAccessMode::ExclusiveRental->defaultPriceUnit())->toBe(PriceUnit::Hour);
+});
+
+test('a tariff with no hours means the programme is unknown, not closed', function () {
+    // The park hoop an admin put on the map: the price is known, the timetable is
+    // not. Seven rows saying "închis" would be a claim nobody made.
+    $hoop = Space::factory()->unmanaged()->create();
+
+    expect($hoop->hoursByDay())->toBeEmpty()
+        ->and($hoop->hasKnownHours())->toBeFalse()
+        ->and($hoop->priceFromLabel())->toBe('Gratuit')
+        ->and($hoop->accessModes()->all())->toBe([SpaceAccessMode::OpenAccess]);
 });
 
 /*
@@ -121,16 +144,12 @@ test('the price unit falls back to what the access mode implies', function () {
 */
 
 test('a hall booked by the hour can also run open-gym evenings', function () {
-    // One physical hall, two ways in. Two rows for the same thing would show up
-    // twice on the page, which is why the mode can sit on the interval.
-    $hall = Space::factory()->rental(180)->create(['name' => 'Sala mare']);
+    // One physical hall, two ways in. Two space rows for the same thing would show
+    // up twice on the page, which is why the way in sits on the tariff.
+    $hall = Space::factory()->create(['name' => 'Sala mare']);
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', 25);
-    $openGym->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-        'price_unit' => PriceUnit::Entry,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -143,13 +162,10 @@ test('a hall booked by the hour can also run open-gym evenings', function () {
 });
 
 test('each way in is priced in its own unit, never borrowing the other', function () {
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-        'price_unit' => PriceUnit::Entry,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -157,36 +173,39 @@ test('each way in is priced in its own unit, never borrowing the other', functio
         ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBe('25 lei / intrare');
 });
 
-test('an interval on another way in does not inherit the base price', function () {
+test('an unpriced tariff stays unknown next to a priced one', function () {
     // 180 lei an hour must never be quoted as the price of an open-gym ticket.
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', null);
-    $openGym->forceFill(['access_mode' => SpaceAccessMode::OpenAccess])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', null, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
-    expect($openGym->refresh()->effectivePrice())->toBeNull()
-        ->and($hall->priceFrom(SpaceAccessMode::OpenAccess))->toBeNull()
-        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBeNull();
+    expect($hall->priceFrom(SpaceAccessMode::OpenAccess))->toBeNull()
+        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBeNull()
+        ->and($hall->priceFromLabel(SpaceAccessMode::ExclusiveRental))->toBe('180 lei / oră');
 });
 
-test('an interval without its own mode simply follows the space', function () {
+test('a tariff must say how you get in', function () {
+    // The way in lives here and nowhere else, so a tariff without one would be an
+    // interval nobody could be told how to use.
     $space = Space::factory()->create();
-    $plain = slot($space, Weekday::Monday, '07:00', '22:00', null);
 
-    expect($plain->accessMode())->toBe(SpaceAccessMode::OpenAccess)
-        ->and($plain->effectivePrice())->toBe(45.0)
-        ->and($space->load('accessSlots')->accessModes()->all())->toBe([SpaceAccessMode::OpenAccess]);
+    expect(fn () => ScheduleSlot::create([
+        'kind' => ScheduleSlotKind::Access,
+        'space_id' => $space->getKey(),
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '07:00',
+        'end_time' => '22:00',
+    ]))->toThrow(LogicException::class, 'access_mode');
 });
 
 test('opening hours can be asked for one way in at a time', function () {
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -470,17 +489,42 @@ function presenceFor(Organization $organization): OrganizationLocation
 }
 
 /**
- * An access interval on a space.
+ * A tariff on a space, limited to one interval of one day.
  */
-function slot(Space $space, Weekday $day, string $start, string $end, ?float $price): ScheduleSlot
-{
+function slot(
+    Space $space,
+    Weekday $day,
+    string $start,
+    string $end,
+    ?float $price,
+    SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+    ?PriceUnit $unit = null,
+): ScheduleSlot {
+    return tariff($space, $mode, $price, $unit, $day, $start, $end);
+}
+
+/**
+ * A tariff on a space: how you get in, what it costs, and when — the hours left
+ * out when nobody knows them.
+ */
+function tariff(
+    Space $space,
+    SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+    ?float $price = null,
+    ?PriceUnit $unit = null,
+    ?Weekday $day = null,
+    ?string $start = null,
+    ?string $end = null,
+): ScheduleSlot {
     return ScheduleSlot::create([
         'kind' => ScheduleSlotKind::Access,
         'organization_id' => $space->organizationLocation?->organization_id,
         'space_id' => $space->getKey(),
+        'access_mode' => $mode,
+        'price' => $price,
+        'price_unit' => $unit,
         'day_of_week' => $day,
         'start_time' => $start,
         'end_time' => $end,
-        'price' => $price,
     ]);
 }

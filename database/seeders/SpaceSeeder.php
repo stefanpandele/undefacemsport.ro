@@ -165,9 +165,6 @@ class SpaceSeeder extends Seeder
             [
                 'organization_location_id' => $presenceId,
                 'sport_id' => $blueprint['sport'] === null ? null : $sports->get($blueprint['sport']),
-                'access_mode' => SpaceAccessMode::from($blueprint['mode']),
-                'price' => $blueprint['price'],
-                'price_unit' => PriceUnit::from($blueprint['unit']),
                 'capacity' => $blueprint['capacity'],
                 'is_indoor' => $blueprint['indoor'],
             ],
@@ -177,6 +174,9 @@ class SpaceSeeder extends Seeder
             return;
         }
 
+        $mode = SpaceAccessMode::from($blueprint['mode']);
+        $unit = PriceUnit::from($blueprint['unit']);
+
         $days = $blueprint['days'] === null
             ? Weekday::cases()
             : array_map(fn (int $day): Weekday => Weekday::from($day), $blueprint['days']);
@@ -185,13 +185,13 @@ class SpaceSeeder extends Seeder
             // A cheaper morning where the venue has one, which is what makes the
             // public page say "de la 35 lei" instead of quoting the afternoon rate.
             if ($blueprint['morning_price'] !== null) {
-                $this->slot($space, $organizationId, $day, $blueprint['start'], '12:00', $blueprint['morning_price']);
-                $this->slot($space, $organizationId, $day, '12:00', $blueprint['end'], $blueprint['price']);
+                $this->slot($space, $organizationId, $day, $blueprint['start'], '12:00', $blueprint['morning_price'], $mode, $unit);
+                $this->slot($space, $organizationId, $day, '12:00', $blueprint['end'], $blueprint['price'], $mode, $unit);
 
                 continue;
             }
 
-            $this->slot($space, $organizationId, $day, $blueprint['start'], $blueprint['end'], null);
+            $this->slot($space, $organizationId, $day, $blueprint['start'], $blueprint['end'], $blueprint['price'], $mode, $unit);
         }
 
         if (isset($blueprint['open_gym'])) {
@@ -252,8 +252,6 @@ class SpaceSeeder extends Seeder
                 [
                     'organization_location_id' => null,
                     'sport_id' => $sportId,
-                    'access_mode' => SpaceAccessMode::OpenAccess,
-                    'price' => 0,
                     'is_indoor' => $blueprint['indoor'],
                     'has_floodlights' => $blueprint['floodlights'],
                 ],
@@ -269,15 +267,23 @@ class SpaceSeeder extends Seeder
                     : now()->subMonths($blueprint['verified_months_ago']),
             ])->save();
 
-            // Dawn to dusk, every day. Nobody locks a park.
+            // Dawn to dusk, every day, free. Nobody locks a park.
             foreach (Weekday::cases() as $day) {
-                $this->slot($space, null, $day, '07:00', $blueprint['floodlights'] ? '22:00' : '20:00', null);
+                $this->slot($space, null, $day, '07:00', $blueprint['floodlights'] ? '22:00' : '20:00', 0);
             }
         }
     }
 
-    private function slot(Space $space, ?int $organizationId, Weekday $day, string $start, string $end, ?float $price): void
-    {
+    private function slot(
+        Space $space,
+        ?int $organizationId,
+        Weekday $day,
+        string $start,
+        string $end,
+        ?float $price,
+        SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+        ?PriceUnit $unit = null,
+    ): void {
         ScheduleSlot::updateOrCreate(
             [
                 'kind' => ScheduleSlotKind::Access,
@@ -289,6 +295,8 @@ class SpaceSeeder extends Seeder
                 'organization_id' => $organizationId,
                 'end_time' => $end,
                 'price' => $price,
+                'access_mode' => $mode,
+                'price_unit' => $unit,
             ],
         );
     }

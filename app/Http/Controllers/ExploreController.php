@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\FacilityStatus;
 use App\Enums\LocationWay;
+use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\Facility;
@@ -183,7 +184,9 @@ class ExploreController extends Controller
                 'spaces',
                 fn (BuilderContract $spaces) => $spaces
                     ->where('status', FacilityStatus::Approved)
-                    ->where('access_mode', $way?->accessMode()),
+                    ->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                        ->where('kind', ScheduleSlotKind::Access)
+                        ->where('access_mode', $way?->accessMode())),
             ))
             ->when($search, fn (Builder $query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when($sport, fn (Builder $query) => $query->whereHas(

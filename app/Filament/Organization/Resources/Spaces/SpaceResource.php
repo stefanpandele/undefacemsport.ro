@@ -98,33 +98,6 @@ class SpaceResource extends Resource
                         ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
                         ->all())
                     ->searchable(),
-                Select::make('access_mode')
-                    ->label('Cum se intră')
-                    ->options(SpaceAccessMode::options())
-                    ->default(SpaceAccessMode::OpenAccess)
-                    ->live()
-                    ->afterStateUpdated(function (mixed $state, $set): void {
-                        $mode = is_string($state) ? SpaceAccessMode::tryFrom($state) : null;
-
-                        if ($mode instanceof SpaceAccessMode) {
-                            $set('price_unit', $mode->defaultPriceUnit()->value);
-                        }
-                    })
-                    ->required(),
-                TextInput::make('price')
-                    ->label('Preț')
-                    ->helperText('0 pentru gratuit. Gol înseamnă că nu se știe, și pagina spune asta.')
-                    ->numeric()
-                    ->minValue(0)
-                    ->step('0.01'),
-                Select::make('price_unit')
-                    ->label('Pe')
-                    ->options(PriceUnit::options()),
-                TextInput::make('price_notes')
-                    ->label('Notă la preț')
-                    ->placeholder('Abonament 380 lei / 10 intrări')
-                    ->maxLength(255)
-                    ->columnSpanFull(),
                 TextInput::make('capacity')
                     ->label('Capacitate')
                     ->helperText('Informativ: 6 culoare, 2 terenuri.')
@@ -139,40 +112,51 @@ class SpaceResource extends Resource
                 Toggle::make('has_floodlights')
                     ->label('Nocturnă'),
                 Repeater::make('accessSlots')
-                    ->label('Program')
-                    ->helperText('Câte un interval pe zi. O zi fără interval înseamnă închis. Un interval poate avea alt mod de acces decât spațiul — o sală închiriată pe oră care ține open-gym vinerea seara.')
+                    ->label('Tarife')
+                    ->helperText('Un rând spune cum se intră, cât costă și când. Aceeași zi poate avea mai multe — un tarif până la 18:00 și altul seara. Lasă ziua și orele goale dacă programul nu e cunoscut; o zi fără niciun tarif înseamnă închis.')
                     ->relationship()
                     ->schema([
-                        Select::make('day_of_week')
-                            ->label('Zi')
-                            ->options(Weekday::options())
-                            ->required(),
-                        TimePicker::make('start_time')
-                            ->label('De la')
-                            ->seconds(false)
-                            ->required(),
-                        TimePicker::make('end_time')
-                            ->label('Până la')
-                            ->seconds(false)
-                            ->required(),
                         Select::make('access_mode')
                             ->label('Cum se intră')
-                            ->helperText('Gol = ca spațiul.')
                             ->options(SpaceAccessMode::options())
-                            ->placeholder('Ca spațiul'),
+                            ->default(SpaceAccessMode::OpenAccess)
+                            ->live()
+                            ->afterStateUpdated(function (mixed $state, $set): void {
+                                $mode = is_string($state) ? SpaceAccessMode::tryFrom($state) : null;
+
+                                if ($mode instanceof SpaceAccessMode) {
+                                    $set('price_unit', $mode->defaultPriceUnit()->value);
+                                }
+                            })
+                            ->required(),
                         TextInput::make('price')
-                            ->label('Preț pe interval')
-                            ->helperText('Gol = prețul de bază.')
+                            ->label('Preț')
+                            ->helperText('0 pentru gratuit. Gol înseamnă că nu se știe, și pagina spune asta.')
                             ->numeric()
                             ->minValue(0)
                             ->step('0.01'),
                         Select::make('price_unit')
                             ->label('Pe')
                             ->options(PriceUnit::options())
-                            ->placeholder('Ca spațiul'),
+                            ->placeholder(fn ($get): string => static::impliedUnit($get('access_mode'))),
+                        Select::make('day_of_week')
+                            ->label('Zi')
+                            ->options(Weekday::options())
+                            ->placeholder('Nu se știe'),
+                        TimePicker::make('start_time')
+                            ->label('De la')
+                            ->seconds(false),
+                        TimePicker::make('end_time')
+                            ->label('Până la')
+                            ->seconds(false),
+                        TextInput::make('price_notes')
+                            ->label('Notă la preț')
+                            ->placeholder('Abonament 380 lei / 10 intrări')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
                     ])
                     ->columns(3)
-                    ->addActionLabel('Adaugă interval')
+                    ->addActionLabel('Adaugă tarif')
                     // The relationship's `where kind` never reaches an insert, and
                     // the model defaults a slot to `training`, so both have to be
                     // set here or the hours would be filed as trainings.
@@ -183,8 +167,19 @@ class SpaceResource extends Resource
     }
 
     /**
-     * Every slot the repeater writes is a space's own opening hours, credited to
-     * the organization that operates it — or to nobody, for a public space.
+     * What the price would be measured in if the operator says nothing — shown as
+     * the select's placeholder, so the implied unit is visible before it is used.
+     */
+    protected static function impliedUnit(mixed $mode): string
+    {
+        $mode = is_string($mode) ? SpaceAccessMode::tryFrom($mode) : null;
+
+        return ($mode ?? SpaceAccessMode::OpenAccess)->defaultPriceUnit()->label();
+    }
+
+    /**
+     * Every slot the repeater writes is a tariff of this space, credited to the
+     * organization that operates it — or to nobody, for a public space.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -245,7 +240,12 @@ class SpaceResource extends Resource
                 TextColumn::make('access_mode')
                     ->label('Cum se intră')
                     ->badge()
-                    ->formatStateUsing(fn (SpaceAccessMode $state): string => $state->label()),
+                    // One row can carry both: the hall rented by the hour that
+                    // opens on Friday evenings.
+                    ->state(fn (Space $record): array => $record->accessModes()
+                        ->map(fn (SpaceAccessMode $mode): string => $mode->label())
+                        ->all())
+                    ->placeholder('—'),
                 TextColumn::make('sport.translated_name')
                     ->label('Sport')
                     ->placeholder('—'),

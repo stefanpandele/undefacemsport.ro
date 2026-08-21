@@ -321,18 +321,16 @@ class SportController extends Controller
 
         // The way in is spelled out rather than calling Space::scopeOffering():
         // inside whereHas the builder is not typed to a model, so the scope would
-        // be invisible to static analysis. Same shape as the scope — the space's
-        // own mode, or any interval that overrides it.
+        // be invisible to static analysis. Same shape as the scope — a space is
+        // offered this way when one of its tariffs says so.
         return Location::query()->whereHas(
             'spaces',
             fn (BuilderContract $spaces) => $spaces
                 ->where('status', FacilityStatus::Approved)
                 ->where('sport_id', $sport->getKey())
-                ->where(fn (BuilderContract $offering) => $offering
-                    ->where('access_mode', $mode)
-                    ->orWhereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
-                        ->where('kind', ScheduleSlotKind::Access)
-                        ->where('access_mode', $mode))),
+                ->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                    ->where('kind', ScheduleSlotKind::Access)
+                    ->where('access_mode', $mode)),
         );
     }
 

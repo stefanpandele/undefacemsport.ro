@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\FacilityStatus;
+use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
@@ -135,10 +136,9 @@ test('a sport reached only through a space still shows up at its address', funct
         ['county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. C 3', 'name' => 'Baza Tenis'],
     );
 
-    Space::factory()->for($presence, 'organizationLocation')->create([
+    Space::factory()->rental()->for($presence, 'organizationLocation')->create([
         'location_id' => $presence->location_id,
         'sport_id' => $sport->getKey(),
-        'access_mode' => SpaceAccessMode::ExclusiveRental,
         'status' => FacilityStatus::Approved,
     ]);
 
@@ -167,4 +167,52 @@ test('a sauna is an extra at its address, never a sport', function () {
         ->has('organization.counties.0.locations.0.extras', 1)
         ->where('organization.counties.0.locations.0.extras.0.name', 'Saună')
     );
+});
+
+test('a club that also rents out a space still renders its timetable', function () {
+    // A tariff is credited to the organization that wrote it, so not every slot a
+    // club owns is a training. Reading one as a training killed the page for any
+    // club that rents out its dead hours — which is the whole point of letting it.
+    $organization = Organization::factory()->create(['slug' => 'clubul-cu-sala']);
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+
+    $organization->organizationSports()->create(['sport_id' => $sport->id]);
+
+    $presence = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Sala A'],
+        [$sport->id],
+    );
+
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $presence->organizationLocationSports->first()->id,
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '17:00',
+        'end_time' => '18:30',
+    ]);
+
+    $hall = Space::factory()->for($presence, 'organizationLocation')->create([
+        'location_id' => $presence->location_id,
+        'sport_id' => $sport->id,
+    ]);
+
+    // The tariff the club wrote for its own hall, credited to the club.
+    ScheduleSlot::create([
+        'kind' => ScheduleSlotKind::Access,
+        'organization_id' => $organization->id,
+        'space_id' => $hall->getKey(),
+        'access_mode' => SpaceAccessMode::ExclusiveRental,
+        'price' => 100,
+        'day_of_week' => Weekday::Tuesday,
+        'start_time' => '20:00',
+        'end_time' => '22:00',
+    ]);
+
+    $this->get('/la/clubul-cu-sala')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            // Monday holds the training…
+            ->has('organization.courses.0.locations.0.schedule.0.slots', 1)
+            // …and Tuesday holds nothing, because a tariff is not a training.
+            ->has('organization.courses.0.locations.0.schedule.1.slots', 0));
 });

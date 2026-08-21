@@ -38,6 +38,9 @@ class SportSeeder extends Seeder
         // taxonomy needs them: a padel court and a gym are what a venue sells.
         'Padel' => ['🎾', '#14919B'],
         'Fitness' => ['🏋️', '#8E44AD'],
+        'Squash' => ['🏋️', '#8E44AD'],
+        'Tenis de masa' => ['🏋️', '#8E44AD'],
+
     ];
 
     /**
