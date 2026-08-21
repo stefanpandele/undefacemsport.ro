@@ -18,7 +18,7 @@ class ServiceFactory extends Factory
     public function definition(): array
     {
         return [
-            'organization_id' => Organization::factory()->practice(),
+            'organization_id' => Organization::factory(),
             'specialty_id' => Specialty::factory(),
             'name' => 'Consultație '.fake()->unique()->numberBetween(1, 100000),
             'duration_minutes' => 50,

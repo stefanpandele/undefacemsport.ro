@@ -1,20 +1,21 @@
 <?php
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use App\Enums\Plan;
 use App\Filament\Admin\Resources\OrganizationApplications\Pages\ListOrganizationApplications;
 use App\Models\Organization;
 use App\Models\OrganizationApplication;
 use App\Models\User;
+use App\Notifications\OrganizationApplicationRejected;
+use App\Notifications\OrganizationApproved;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
 function pendingApplication(array $overrides = []): OrganizationApplication
 {
     return OrganizationApplication::factory()->create(array_merge([
         'name' => 'Baza Sportivă Olimpia',
-        'type' => OrganizationType::Venue,
         'company_name' => 'OLIMPIA SPORT SRL',
         'fiscal_code' => 'RO12345678',
         'is_vat_payer' => true,
@@ -32,7 +33,6 @@ it('creates the organization from the request when approved', function () {
     $organization = $application->approve($reviewer);
 
     expect($organization->name)->toBe('Baza Sportivă Olimpia')
-        ->and($organization->type)->toBe(OrganizationType::Venue)
         ->and($organization->company_name)->toBe('OLIMPIA SPORT SRL')
         ->and($organization->fiscal_code)->toBe('RO12345678')
         ->and($organization->is_vat_payer)->toBeTrue()
@@ -41,17 +41,11 @@ it('creates the organization from the request when approved', function () {
         ->and($organization->city)->toBe('Brașov');
 });
 
-it('carries the declared type onto the organization', function (OrganizationType $type) {
-    $organization = pendingApplication(['type' => $type])->approve(User::factory()->create());
-
-    expect($organization->type)->toBe($type);
-})->with(OrganizationType::cases());
-
-it('opens the organization on the free plan with no owner yet', function () {
+it('opens the organization on the free plan, with the contact holding it', function () {
     $organization = pendingApplication()->approve(User::factory()->create());
 
     expect($organization->plan)->toBe(Plan::Free)
-        ->and($organization->owner_user_id)->toBeNull();
+        ->and($organization->owner_user_id)->not->toBeNull();
 });
 
 it('records who decided and what the decision produced', function () {
@@ -201,5 +195,90 @@ describe('the admin queue', function () {
             ->set('activeTab', 'rejected')
             ->assertTableActionHidden('approve', $application)
             ->assertTableActionHidden('reject', $application);
+    });
+});
+
+describe('the owner account', function () {
+    beforeEach(function () {
+        Notification::fake();
+    });
+
+    it('creates the contact as owner, so somebody can actually get in', function () {
+        $application = pendingApplication([
+            'contact_name' => 'Andrei Popescu',
+            'contact_email' => 'andrei@exemplu.ro',
+        ]);
+
+        $organization = $application->approve(User::factory()->create());
+
+        $owner = User::query()->firstWhere('email', 'andrei@exemplu.ro');
+
+        expect($owner)->not->toBeNull()
+            ->and($owner->name)->toBe('Andrei Popescu')
+            ->and($organization->fresh()->owner_user_id)->toBe($owner->getKey())
+            ->and($owner->isMasterOf($organization))->toBeTrue();
+    });
+
+    it('sends the new owner a way to set a password', function () {
+        $application = pendingApplication(['contact_email' => 'andrei@exemplu.ro']);
+
+        $application->approve(User::factory()->create());
+
+        $owner = User::query()->firstWhere('email', 'andrei@exemplu.ro');
+
+        Notification::assertSentTo(
+            $owner,
+            OrganizationApproved::class,
+            fn (OrganizationApproved $notification): bool => $notification->passwordToken !== null,
+        );
+    });
+
+    it('reuses an account that already exists on that address', function () {
+        // Months can pass between the request and the review, and the contact may
+        // have signed up as a visitor meanwhile. A second row on the same address
+        // would be a login nobody can use.
+        $existing = User::factory()->create(['email' => 'andrei@exemplu.ro']);
+        $application = pendingApplication(['contact_email' => 'andrei@exemplu.ro']);
+
+        $organization = $application->approve(User::factory()->create());
+
+        expect(User::query()->where('email', 'andrei@exemplu.ro')->count())->toBe(1)
+            ->and($organization->fresh()->owner_user_id)->toBe($existing->getKey());
+
+        // And they are not told to make a password they already have.
+        Notification::assertSentTo(
+            $existing,
+            OrganizationApproved::class,
+            fn (OrganizationApproved $notification): bool => $notification->passwordToken === null,
+        );
+    });
+
+    it('tells the applicant why a request was refused', function () {
+        $application = pendingApplication(['contact_email' => 'andrei@exemplu.ro']);
+
+        $application->reject(User::factory()->create(), 'CUI-ul aparține altei firme.');
+
+        Notification::assertSentOnDemand(
+            OrganizationApplicationRejected::class,
+            fn (OrganizationApplicationRejected $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'andrei@exemplu.ro'
+                && $notification->reason === 'CUI-ul aparține altei firme.',
+        );
+    });
+
+    it('creates no account when the request is refused', function () {
+        pendingApplication(['contact_email' => 'andrei@exemplu.ro'])
+            ->reject(User::factory()->create(), 'Date incomplete.');
+
+        expect(User::query()->where('email', 'andrei@exemplu.ro')->exists())->toBeFalse();
+    });
+
+    it('creates no account when approval fails on the fiscal code', function () {
+        Organization::factory()->create(['fiscal_code' => 'RO12345678']);
+        $application = pendingApplication(['fiscal_code' => 'RO12345678', 'contact_email' => 'andrei@exemplu.ro']);
+
+        expect(fn () => $application->approve(User::factory()->create()))->toThrow(DomainException::class);
+
+        expect(User::query()->where('email', 'andrei@exemplu.ro')->exists())->toBeFalse();
+        Notification::assertNothingSent();
     });
 });

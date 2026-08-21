@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
 use App\Models\OrganizationApplication;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,7 +20,6 @@ class OrganizationApplicationFactory extends Factory
 
         return [
             'name' => $company,
-            'type' => fake()->randomElement(OrganizationType::cases()),
             'company_name' => $company.' SRL',
             'fiscal_code' => 'RO'.fake()->unique()->numberBetween(1_000_000, 99_999_999),
             'is_vat_payer' => fake()->boolean(),
@@ -34,11 +32,6 @@ class OrganizationApplicationFactory extends Factory
             'contact_phone' => fake()->phoneNumber(),
             'status' => OrganizationApplicationStatus::Pending,
         ];
-    }
-
-    public function ofType(OrganizationType $type): static
-    {
-        return $this->state(fn (): array => ['type' => $type]);
     }
 
     public function approved(): static

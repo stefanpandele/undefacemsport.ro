@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
                 SportSeeder::class,
                 AgeGroupSeeder::class,
                 LevelSeeder::class,
+                SurfaceSeeder::class,
                 SpecialtySeeder::class,
                 FacilitySeeder::class,
                 CountySeeder::class,

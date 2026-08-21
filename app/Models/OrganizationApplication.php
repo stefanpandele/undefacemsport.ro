@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use App\Enums\OrganizationApplicationStatus;
-use App\Enums\OrganizationType;
+use App\Notifications\OrganizationApplicationRejected;
+use App\Notifications\OrganizationApproved;
 use Database\Factories\OrganizationApplicationFactory;
 use DomainException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,11 +12,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
  * @property string $name
- * @property OrganizationType $type
  * @property string $fiscal_code
  * @property string|null $company_name
  * @property bool|null $is_vat_payer
@@ -46,7 +50,6 @@ class OrganizationApplication extends Model
      */
     protected $fillable = [
         'name',
-        'type',
         'fiscal_code',
         'company_name',
         'address',
@@ -65,7 +68,6 @@ class OrganizationApplication extends Model
     {
         return [
             'status' => OrganizationApplicationStatus::class,
-            'type' => OrganizationType::class,
             'is_vat_payer' => 'boolean',
             'reviewed_at' => 'datetime',
         ];
@@ -77,12 +79,16 @@ class OrganizationApplication extends Model
     }
 
     /**
-     * Turn the request into a real account holder.
+     * Turn the request into a real account holder, and let somebody in.
      *
      * Everything the organization starts life with comes from the request: the
-     * name and type the applicant declared, and the company details ANAF
-     * returned. It opens on the free plan with no owner — the applicant still
-     * has no way in until somebody attaches a user.
+     * name, and the company details ANAF returned. It opens on the free plan
+     * with nothing published, so it has no public page yet — the approval email
+     * says so, because it is the first thing the applicant will wonder.
+     *
+     * The contact becomes the owner. Creating the organization without a user
+     * used to leave an account nobody could reach: everything in the panel was
+     * built and none of it was touchable by the person who asked for it.
      *
      * The created organization is kept on the request so a second approval is
      * impossible and so the queue can show what each decision produced.
@@ -102,11 +108,10 @@ class OrganizationApplication extends Model
             throw new DomainException('Există deja o organizație cu acest CUI.');
         }
 
-        return DB::transaction(function () use ($reviewer): Organization {
+        [$organization, $owner, $isNewAccount] = DB::transaction(function () use ($reviewer): array {
             $organization = Organization::create([
                 'name' => $this->name,
                 'slug' => Organization::uniqueSlug($this->name, $this->city),
-                'type' => $this->type,
                 'company_name' => $this->company_name,
                 'fiscal_code' => $this->fiscal_code,
                 'is_vat_payer' => $this->is_vat_payer,
@@ -115,6 +120,25 @@ class OrganizationApplication extends Model
                 'city' => $this->city,
             ]);
 
+            // Reused rather than created blindly: the contact may already have
+            // signed up as a visitor in the months since, and a second row on
+            // the same address is a login nobody can use.
+            $owner = User::query()->firstWhere('email', $this->contact_email);
+            $isNewAccount = $owner === null;
+
+            if ($owner === null) {
+                $owner = User::create([
+                    'name' => $this->contact_name,
+                    'email' => $this->contact_email,
+                    // Never used: the welcome mail carries a reset token, and
+                    // until it is spent there is no password that works.
+                    'password' => Hash::make(Str::random(40)),
+                ]);
+            }
+
+            // First member becomes the owner, so this hands over the master seat.
+            $organization->addMember($owner);
+
             $this->forceFill([
                 'organization_id' => $organization->getKey(),
                 'rejection_reason' => null,
@@ -122,20 +146,32 @@ class OrganizationApplication extends Model
 
             $this->markReviewed(OrganizationApplicationStatus::Approved, $reviewer);
 
-            return $organization;
+            return [$organization, $owner, $isNewAccount];
         });
+
+        $owner->notify(new OrganizationApproved(
+            $organization,
+            $isNewAccount ? Password::createToken($owner) : null,
+        ));
+
+        return $organization;
     }
 
     /**
-     * Refuse the request, with the reason the applicant is owed. The reason is
-     * required: "respinsă" on its own tells somebody who filled in a form
-     * nothing about what to fix.
+     * Refuse the request, with the reason the applicant is owed.
+     *
+     * The reason is required and it is sent: "respinsă" on its own tells
+     * somebody who filled in a form nothing about what to fix, and a reason that
+     * never leaves the database is a reason nobody wrote.
      */
     public function reject(User $reviewer, string $reason): void
     {
         $this->forceFill(['rejection_reason' => $reason]);
 
         $this->markReviewed(OrganizationApplicationStatus::Rejected, $reviewer);
+
+        Notification::route('mail', $this->contact_email)
+            ->notify(new OrganizationApplicationRejected($this->name, $reason));
     }
 
     private function markReviewed(OrganizationApplicationStatus $status, User $reviewer): void

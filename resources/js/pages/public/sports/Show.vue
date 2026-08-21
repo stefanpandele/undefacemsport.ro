@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import SiteNav from '@/components/SiteNav.vue';
 import { sportGradient } from '@/lib/gradients';
 import locations from '@/routes/locations';
-import practices from '@/routes/practices';
+import organizations from '@/routes/organizations';
 import sportRoutes from '@/routes/sports';
 
 type CityOption = {
@@ -50,19 +50,32 @@ const props = defineProps<{
     city: string | null;
     cities: CityOption[];
     levels: LevelOption[];
-    filters: { level: string | null };
+    /** What the courts here are played on. Empty for sports nobody asks about. */
+    surfaces: LevelOption[];
+    filters: { level: string | null; surface: string | null };
     ways: Way[];
     care: CareCard[];
 }>();
 
-/** The same page, with or without the level narrowed. */
-function levelUrl(slug: string | null): string {
-    const base = sportRoutes.show.url({
+function cityUrl(): string {
+    return sportRoutes.show.url({
         slug: props.sport.key,
         city: props.cities.find((c) => c.name === props.city)?.slug ?? '',
     });
+}
+
+/** The same page, with or without the level narrowed. */
+function levelUrl(slug: string | null): string {
+    const base = cityUrl();
 
     return slug ? `${base}?nivel=${slug}` : base;
+}
+
+/** The same page, with or without the surface narrowed. */
+function surfaceUrl(slug: string | null): string {
+    const base = cityUrl();
+
+    return slug ? `${base}?suprafata=${slug}` : base;
 }
 
 const gradient = computed(() => sportGradient(props.sport.color));
@@ -181,10 +194,10 @@ const title = computed(() =>
                                 :key="key"
                                 class="rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-sage"
                             >
-                                <template v-if="key === 'organizat'">
+                                <template v-if="key === 'cursuri'">
                                     {{ count }} cu cluburi
                                 </template>
-                                <template v-else-if="key === 'liber'">
+                                <template v-else-if="key === 'agrement'">
                                     {{ count }} cu acces liber
                                 </template>
                                 <template v-else>
@@ -278,6 +291,43 @@ const title = computed(() =>
                     </div>
                 </div>
 
+                <!-- The mirror of the level filter: a surface belongs to a court,
+                     so choosing one drops the organised programmes. Absent for
+                     every sport nobody asks the question about. -->
+                <div v-if="surfaces.length > 1" class="mt-6">
+                    <p
+                        class="mb-2 font-jetbrains text-[10px] font-bold tracking-[0.11em] text-sage uppercase"
+                    >
+                        Suprafață
+                    </p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <Link
+                            :href="surfaceUrl(null)"
+                            class="rounded-full border px-3 py-1 text-[13px] transition"
+                            :class="
+                                filters.surface
+                                    ? 'border-line text-sage hover:border-grass'
+                                    : 'border-grass bg-white font-semibold text-grass-deep'
+                            "
+                        >
+                            Toate
+                        </Link>
+                        <Link
+                            v-for="option in surfaces"
+                            :key="option.slug"
+                            :href="surfaceUrl(option.slug)"
+                            class="rounded-full border px-3 py-1 text-[13px] transition"
+                            :class="
+                                filters.surface === option.slug
+                                    ? 'border-grass bg-white font-semibold text-grass-deep'
+                                    : 'border-line text-sage hover:border-grass'
+                            "
+                        >
+                            {{ option.name }}
+                        </Link>
+                    </div>
+                </div>
+
                 <section
                     v-for="way in ways"
                     :key="way.key"
@@ -343,7 +393,7 @@ const title = computed(() =>
                         <Link
                             v-for="clinic in care"
                             :key="clinic.slug"
-                            :href="practices.show.url({ slug: clinic.slug })"
+                            :href="organizations.show.url({ slug: clinic.slug }) + '#servicii'"
                             class="flex flex-col gap-1.5 rounded-2xl border-[1.5px] border-line bg-white px-4.5 py-4 transition hover:-translate-y-0.5 hover:border-grass"
                         >
                             <span class="font-archivo text-base font-extrabold">

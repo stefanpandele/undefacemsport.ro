@@ -51,6 +51,10 @@ class ServiceResource extends Resource
 
     protected static ?string $navigationLabel = 'Servicii';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Servicii';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $schema): Schema
     {
         return $schema

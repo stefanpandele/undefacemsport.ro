@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\ContactRole;
 use App\Enums\ContactType;
-use App\Enums\OrganizationType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
 use App\Models\Level;
@@ -21,6 +20,14 @@ use Illuminate\Support\Collection;
 
 class OrganizationProfileSeeder extends Seeder
 {
+    /**
+     * How many of the seeded organizations get a training programme — the demo
+     * mix plus the two known login accounts. The rest stay blank for the seeders
+     * that follow, so the fixture ends up with venues and practices rather than
+     * clubs that also happen to rent out a hall.
+     */
+    private const CLUB_TARGET = 38;
+
     /**
      * Romanian names, so the demo data reads like the real thing — the global
      * faker locale is en_US and is shared with every other factory.
@@ -85,8 +92,36 @@ class OrganizationProfileSeeder extends Seeder
     ];
 
     /**
+     * How many counties a club works in, and how many sports it teaches at each
+     * of its addresses.
+     *
+     * A club present in one town tells you nothing about the page that has to
+     * hold three: the county navigator, the per-location sport lists and the
+     * schedules under them are all invisible in a fixture where every club sits
+     * at one address teaching one thing.
+     *
+     * Free stays at one and one, because that is what Free *is* — "un club cu un
+     * singur sport, la o singură sală" is the plan's own promise, and a fixture
+     * that broke it would be showing something the app forbids.
+     */
+    private const COUNTY_TARGET = 3;
+
+    private const SPORTS_PER_LOCATION = 3;
+
+    /**
+     * A club big enough for a fourth address gets its second one in the town it
+     * already works in — two halls in the same city is the commonest real shape,
+     * and it is the only way the county navigator ever shows more than one card
+     * under a county.
+     *
+     * Only Premium reaches it: Pro buys three addresses, and three counties uses
+     * all of them.
+     */
+    private const SECOND_IN_HOME_CITY = self::COUNTY_TARGET + 1;
+
+    /**
      * Give every club without a profile a full public presence: sports with
-     * benefits and age groups, locations picked from one city, people, a
+     * benefits and age groups, addresses across several counties, people, a
      * weekly schedule and contacts.
      *
      * Idempotent by construction: a club that already offers a sport is left
@@ -97,7 +132,12 @@ class OrganizationProfileSeeder extends Seeder
         $sports = Sport::query()->get();
         $ageGroups = AgeGroup::query()->get();
         $levels = Level::query()->orderBy('sort_order')->get();
-        $venuesByCity = Location::query()->get()->groupBy('city');
+        /** @var Collection<string, Collection<int, Location>> $venuesByCity */
+        $venuesByCity = Location::query()
+            ->whereNotNull('county')
+            ->get()
+            ->groupBy('city')
+            ->map(fn ($venues): Collection => collect($venues->all()));
 
         if ($sports->isEmpty() || $ageGroups->isEmpty() || $venuesByCity->isEmpty()) {
             return;
@@ -106,41 +146,58 @@ class OrganizationProfileSeeder extends Seeder
         $cities = $venuesByCity->keys();
 
         // Each city runs on a handful of sports rather than all twenty, and one
-        // of them is the city's anchor: every club here teaches it, at the same
+        // of them is its anchor: every club working here teaches it, at the same
         // anchor venue. That is what makes clubs actually share a hall, which
         // the location page's occupancy view exists to show.
+        /** @var Collection<string, Collection<int, Sport>> $pools */
         $pools = $cities->mapWithKeys(fn (string $city): array => [
-            $city => $sports->shuffle()->take(min(6, $sports->count()))->values(),
+            $city => collect($sports->shuffle()->take(min(6, $sports->count()))->values()->all()),
         ]);
 
-        Organization::query()
-            // Clubs only. A venue has no sports, no age groups and no coaches —
-            // giving it a training programme would be inventing an offer it does
-            // not make. Its spaces come from SpaceSeeder instead.
-            ->where('type', OrganizationType::Club)
-            ->doesntHave('organizationSports')
-            ->get()
-            ->each(function (Organization $organization, int $index) use ($ageGroups, $levels, $venuesByCity, $cities, $pools): void {
-                // Round-robin over cities, two clubs at a time. Handing out one
-                // club per city spread them so thin that no city ever held two,
-                // and a city with a single club has nobody to share a hall with —
-                // which is the whole thing the location page is built to show.
-                $city = $cities[intdiv($index, 2) % $cities->count()];
-                $venues = $venuesByCity->get($city);
-                $pool = $pools->get($city);
+        // Anchored per city rather than per county: București alone spans several
+        // of them, and anchoring a whole county would leave its other cities with
+        // a single club and nobody to share a hall with.
+        $anchors = $cities->mapWithKeys(fn (string $city): array => [
+            $city => [
+                'sport' => $pools->get($city)->first(),
+                'venue' => $venuesByCity->get($city)->first(),
+            ],
+        ]);
 
-                $anchorSport = $pool->first();
-                $anchorVenue = $venues->first();
+        // Whatever is still blank, up to the club target. What is left over goes
+        // to SpaceSeeder and PracticeSeeder, which run after this one — an
+        // organization becomes a club by being handed a programme, not by having
+        // been marked one.
+        // Topped up rather than taken: OrganizationAccessSeeder has already given
+        // the showcase studio its sport, and counting from zero here would push
+        // the fixture one club over every time.
+        $missing = self::CLUB_TARGET - Organization::query()->has('organizationSports')->count();
 
-                $organizationSports = $this->addSports($organization, $pool, $anchorSport, $ageGroups, $levels);
+        if ($missing < 1) {
+            return;
+        }
+
+        $this->blankOrganizations($missing)
+            ->each(function (Organization $organization, int $index) use ($ageGroups, $levels, $cities, $pools, $anchors, $venuesByCity): void {
+                // Round-robin over counties, two clubs at a time. Handing out one
+                // club per county spread them so thin that no hall ever held two,
+                // and a club alone in a hall shares it with nobody — which is the
+                // whole thing the location page is built to show.
+                $home = (string) $cities[intdiv($index, 2) % $cities->count()];
+                $reach = $this->reachOf($organization, $home, $anchors);
+                $venues = $this->venuesFor($organization, $home, $reach, $anchors, $venuesByCity);
+
+                $organizationSports = $this->addSports($organization, $reach, $pools, $anchors, $ageGroups, $levels);
                 $people = $this->addCoaches($organization, $organizationSports);
-                $organizationLocations = $this->addLocations($organization, $venues, $organizationSports, $anchorVenue, $anchorSport);
+                $organizationLocations = $this->addLocations($organization, $venues, $anchors, $organizationSports);
 
                 $this->addSchedule($organization, $organizationLocations, $people, $ageGroups, $levels);
                 $this->addContacts($organization);
 
                 $organization->update([
-                    'description' => 'Club sportiv din '.$city.', cu antrenamente pentru copii, juniori și adulți.',
+                    'description' => $reach->count() > 1
+                        ? 'Club sportiv cu antrenamente în '.$reach->implode(', ').', pentru copii, juniori și adulți.'
+                        : 'Club sportiv din '.$home.', cu antrenamente pentru copii, juniori și adulți.',
                 ]);
             });
 
@@ -148,19 +205,129 @@ class OrganizationProfileSeeder extends Seeder
     }
 
     /**
-     * @param  Collection<int, Sport>  $pool  the city's sports
+     * The organizations still without an offer, spread across the plans.
+     *
+     * Taken in plain id order they came out of one plan at a time: the fixture
+     * creates Free first, then Pro, then Premium, so a straight `limit` handed
+     * every club profile to the two cheapest tiers and left Premium — the only
+     * plan that can hold a fourth address — with none at all.
+     *
+     * @return Collection<int, Organization>
+     */
+    private function blankOrganizations(int $missing): Collection
+    {
+        $byPlan = Organization::query()
+            ->doesntHave('organizationSports')
+            ->doesntHave('services')
+            // Skipped on a re-run: by then the venues have their spaces, and
+            // handing them a programme would invent an offer they never made.
+            ->doesntHave('spaces')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (Organization $organization): string => $organization->plan->value)
+            ->map(fn (Collection $organizations): Collection => $organizations->values());
+
+        /** @var Collection<int, Organization> $spread */
+        $spread = collect();
+
+        for ($round = 0; $spread->count() < $missing; $round++) {
+            $taken = 0;
+
+            foreach ($byPlan as $organizations) {
+                $organization = $organizations->get($round);
+
+                if ($organization === null) {
+                    continue;
+                }
+
+                $taken++;
+
+                if ($spread->count() < $missing) {
+                    $spread->push($organization);
+                }
+            }
+
+            if ($taken === 0) {
+                break;
+            }
+        }
+
+        return $spread;
+    }
+
+    /**
+     * The cities a club works in: its home one, then one per further county.
+     *
+     * Distinct counties on purpose. Three addresses in the same town would fill
+     * the fixture without ever producing the page this exists to show — the one
+     * that has to ask which county you are asking about before it can answer.
+     *
+     * @param  Collection<string, array{sport: Sport, venue: Location}>  $anchors
+     * @return Collection<int, string>
+     */
+    private function reachOf(Organization $organization, string $home, Collection $anchors): Collection
+    {
+        // Premium is unlimited; capped so the demo stays readable.
+        $limit = min($organization->planLimit('locations') ?? self::COUNTY_TARGET, self::COUNTY_TARGET);
+
+        $taken = collect([(string) $anchors->get($home)['venue']->county]);
+
+        // The city names are shuffled, not the map: `shuffle()` reindexes, and a
+        // shuffled map hands back integers where a city name is expected.
+        $elsewhere = $anchors->keys()
+            ->reject(fn (string $city): bool => $city === $home)
+            ->shuffle()
+            ->filter(function (string $city) use ($anchors, $taken): bool {
+                $county = (string) $anchors->get($city)['venue']->county;
+
+                if ($taken->contains($county)) {
+                    return false;
+                }
+
+                $taken->push($county);
+
+                return true;
+            });
+
+        return collect([$home])
+            ->concat($elsewhere)
+            ->take(max(1, $limit))
+            ->values();
+    }
+
+    /**
+     * The sports a club teaches: the anchor of every county it works in, then
+     * filled up so every one of its addresses can carry three.
+     *
+     * @param  Collection<int, string>  $reach  cities
+     * @param  Collection<string, Collection<int, Sport>>  $pools  keyed by city
+     * @param  Collection<string, array{sport: Sport, venue: Location}>  $anchors
      * @param  Collection<int, AgeGroup>  $ageGroups
      * @param  Collection<int, Level>  $levels
      * @return Collection<int, OrganizationSport>
      */
-    private function addSports(Organization $organization, Collection $pool, Sport $anchor, Collection $ageGroups, Collection $levels): Collection
+    private function addSports(Organization $organization, Collection $reach, Collection $pools, Collection $anchors, Collection $ageGroups, Collection $levels): Collection
     {
         // Premium is unlimited; cap it so the demo stays readable.
         $limit = min($organization->planLimit('sports') ?? 5, 5);
 
-        return collect([$anchor])
-            ->concat($pool->reject(fn (Sport $sport): bool => $sport->is($anchor))->shuffle())
-            ->take(fake()->numberBetween(1, $limit))
+        /** @var Collection<int, Sport> $anchorSports */
+        $anchorSports = $reach->map(fn (string $city): Sport => $anchors->get($city)['sport'])->unique('id');
+
+        /** @var Collection<int, Sport> $filler */
+        $filler = $reach
+            ->flatMap(fn (string $city): Collection => $pools->get($city))
+            ->unique('id')
+            ->reject(fn (Sport $sport): bool => $anchorSports->contains('id', $sport->getKey()))
+            ->shuffle();
+
+        // At least three where the plan allows three: every address carries that
+        // many, and an address cannot teach a sport the club does not.
+        $wanted = max(min(self::SPORTS_PER_LOCATION, $limit), $anchorSports->count());
+
+        return $anchorSports
+            ->concat($filler)
+            ->take(min($limit, max($wanted, fake()->numberBetween($wanted, $limit))))
             ->values()
             ->map(function (Sport $sport, int $order) use ($organization, $ageGroups, $levels): OrganizationSport {
                 /** @var OrganizationSport $organizationSport */
@@ -193,6 +360,73 @@ class OrganizationProfileSeeder extends Seeder
 
                 return $organizationSport;
             });
+    }
+
+    /**
+     * The halls a club takes: the anchor of every city it reaches, and — where
+     * the plan runs to a fourth address — a second hall in its home town.
+     *
+     * @param  Collection<int, string>  $reach  cities
+     * @param  Collection<string, array{sport: Sport, venue: Location}>  $anchors
+     * @param  Collection<string, Collection<int, Location>>  $venuesByCity
+     * @return Collection<int, Location>
+     */
+    private function venuesFor(Organization $organization, string $home, Collection $reach, Collection $anchors, Collection $venuesByCity): Collection
+    {
+        $venues = $reach->map(fn (string $city): Location => $anchors->get($city)['venue']);
+
+        $limit = $organization->planLimit('locations');
+
+        if ($limit !== null && $limit < self::SECOND_IN_HOME_CITY) {
+            return $venues->values();
+        }
+
+        $second = $venuesByCity->get($home, collect())
+            ->reject(fn (Location $venue): bool => $venue->is($anchors->get($home)['venue']))
+            ->shuffle()
+            ->first();
+
+        return ($second === null ? $venues : $venues->push($second))->values();
+    }
+
+    /**
+     * One presence per hall, each teaching its city's anchor plus enough of the
+     * club's other sports to reach three.
+     *
+     * @param  Collection<int, Location>  $venues
+     * @param  Collection<string, array{sport: Sport, venue: Location}>  $anchors
+     * @param  Collection<int, OrganizationSport>  $organizationSports
+     * @return Collection<int, OrganizationLocation>
+     */
+    private function addLocations(Organization $organization, Collection $venues, Collection $anchors, Collection $organizationSports): Collection
+    {
+        return $venues
+            ->map(function (Location $venue) use ($organization, $anchors, $organizationSports): OrganizationLocation {
+                $anchor = $anchors->get((string) $venue->city);
+
+                // The anchor first, so every club working in this city ends up in
+                // the same hall for it — then filled to three, or to whatever
+                // the club has if it teaches fewer.
+                $sportIds = collect([$anchor['sport']->getKey()])
+                    ->concat($organizationSports
+                        ->pluck('sport_id')
+                        ->reject(fn (int $id): bool => $id === $anchor['sport']->getKey())
+                        ->shuffle())
+                    ->unique()
+                    ->take(max(self::SPORTS_PER_LOCATION, 1))
+                    ->values()
+                    ->all();
+
+                return $organization->syncLocation([
+                    'county' => $venue->county,
+                    'city' => $venue->city,
+                    'address' => $venue->address,
+                    'name' => $venue->name,
+                    'latitude' => $venue->latitude,
+                    'longitude' => $venue->longitude,
+                ], $sportIds);
+            })
+            ->values();
     }
 
     /**
@@ -245,44 +479,6 @@ class OrganizationProfileSeeder extends Seeder
 
                 return $person;
             });
-    }
-
-    /**
-     * @param  Collection<int, Location>  $venues
-     * @param  Collection<int, OrganizationSport>  $organizationSports
-     * @return Collection<int, OrganizationLocation>
-     */
-    private function addLocations(Organization $organization, Collection $venues, Collection $organizationSports, Location $anchorVenue, Sport $anchorSport): Collection
-    {
-        $limit = min($organization->planLimit('locations') ?? 3, 3, $venues->count());
-
-        // The anchor venue is always taken, so every club in the city ends up
-        // in the same hall for the anchor sport.
-        return collect([$anchorVenue])
-            ->concat($venues->reject(fn (Location $venue): bool => $venue->is($anchorVenue))->shuffle())
-            ->take(max(1, $limit))
-            ->map(function (Location $venue) use ($organization, $organizationSports, $anchorVenue, $anchorSport): OrganizationLocation {
-                // A club rarely teaches every sport at every venue.
-                $sportIds = $organizationSports
-                    ->shuffle()
-                    ->take(fake()->numberBetween(1, $organizationSports->count()))
-                    ->pluck('sport_id')
-                    ->all();
-
-                if ($venue->is($anchorVenue)) {
-                    $sportIds = array_values(array_unique([$anchorSport->getKey(), ...$sportIds]));
-                }
-
-                return $organization->syncLocation([
-                    'county' => $venue->county,
-                    'city' => $venue->city,
-                    'address' => $venue->address,
-                    'name' => $venue->name,
-                    'latitude' => $venue->latitude,
-                    'longitude' => $venue->longitude,
-                ], $sportIds);
-            })
-            ->values();
     }
 
     /**

@@ -11,7 +11,7 @@ use Database\Seeders\SpaceSeeder;
 test('seeding gives every venue something to sell', function () {
     $this->seed();
 
-    $venues = Organization::where('type', OrganizationType::Venue)->withCount('spaces')->get();
+    $venues = Organization::query()->offering(OrganizationType::Venue)->withCount('spaces')->get();
 
     expect($venues)->not->toBeEmpty();
 
@@ -22,18 +22,32 @@ test('seeding gives every venue something to sell', function () {
 test('seeding puts both managed and free public spaces on the map', function () {
     $this->seed();
 
+    $free = Space::query()->unmanaged()->with('accessSlots')->get()
+        ->filter(fn (Space $space): bool => $space->isFree());
+
     expect(Space::query()->managed()->count())->toBeGreaterThan(0)
         ->and(Space::query()->unmanaged()->count())->toBeGreaterThan(0)
         // The reason `organization_location_id` is nullable at all.
-        ->and(Space::query()->unmanaged()->where('price', 0)->count())->toBeGreaterThan(0);
+        ->and($free)->not->toBeEmpty();
 });
 
-test('every seeded space has opening hours', function () {
+test('every seeded space has a tariff, so none of them is unlistable', function () {
     $this->seed();
 
     Space::with('accessSlots')->get()->each(
-        fn (Space $space) => expect($space->accessSlots)->not->toBeEmpty($space->name.' has no hours'),
+        fn (Space $space) => expect($space->accessSlots)->not->toBeEmpty($space->name.' has no tariff'),
     );
+});
+
+test('every seeded tariff says how you get in', function () {
+    $this->seed();
+
+    $modeless = ScheduleSlot::query()
+        ->where('kind', ScheduleSlotKind::Access)
+        ->whereNull('access_mode')
+        ->count();
+
+    expect($modeless)->toBe(0);
 });
 
 test('seeded hours are filed as access, never as trainings', function () {
@@ -64,8 +78,8 @@ test('at least one seeded space charges less in the morning', function () {
 test('both access modes are represented', function () {
     $this->seed();
 
-    expect(Space::query()->ofMode(SpaceAccessMode::OpenAccess)->count())->toBeGreaterThan(0)
-        ->and(Space::query()->ofMode(SpaceAccessMode::ExclusiveRental)->count())->toBeGreaterThan(0);
+    expect(Space::query()->offering(SpaceAccessMode::OpenAccess)->count())->toBeGreaterThan(0)
+        ->and(Space::query()->offering(SpaceAccessMode::ExclusiveRental)->count())->toBeGreaterThan(0);
 });
 
 test('the review queue has something in it after seeding', function () {

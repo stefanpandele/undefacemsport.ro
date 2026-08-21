@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\OrganizationType;
 use App\Enums\PriceUnit;
 use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
@@ -18,6 +17,12 @@ use Illuminate\Support\Collection;
 
 class SpaceSeeder extends Seeder
 {
+    /**
+     * How many of the leftover organizations become venues, each publishing two
+     * or three spaces under its plan limit.
+     */
+    private const VENUE_TARGET = 10;
+
     /**
      * The kinds of thing a venue actually sells, with the shape of each: a pool
      * charges per entry all day, a padel court is booked by the hour, an open-gym
@@ -94,9 +99,20 @@ class SpaceSeeder extends Seeder
     public function run(): void
     {
         $sports = Sport::query()->pluck('id', 'slug');
-        $venues = Organization::query()
-            ->where('type', OrganizationType::Venue)
+        // Organizations still without an offer of their own: OrganizationProfileSeeder
+        // has already handed out the programmes, so what is left reads as a pure
+        // venue once it gets spaces.
+        $missing = self::VENUE_TARGET - Organization::query()
+            ->has('spaces')
+            ->doesntHave('organizationSports')
+            ->count();
+
+        $venues = $missing < 1 ? collect() : Organization::query()
+            ->doesntHave('organizationSports')
+            ->doesntHave('services')
+            ->doesntHave('spaces')
             ->orderBy('id')
+            ->limit($missing)
             ->get();
         $locations = Location::query()->orderBy('id')->get();
 
@@ -149,9 +165,6 @@ class SpaceSeeder extends Seeder
             [
                 'organization_location_id' => $presenceId,
                 'sport_id' => $blueprint['sport'] === null ? null : $sports->get($blueprint['sport']),
-                'access_mode' => SpaceAccessMode::from($blueprint['mode']),
-                'price' => $blueprint['price'],
-                'price_unit' => PriceUnit::from($blueprint['unit']),
                 'capacity' => $blueprint['capacity'],
                 'is_indoor' => $blueprint['indoor'],
             ],
@@ -161,6 +174,11 @@ class SpaceSeeder extends Seeder
             return;
         }
 
+        $this->giveSurface($space);
+
+        $mode = SpaceAccessMode::from($blueprint['mode']);
+        $unit = PriceUnit::from($blueprint['unit']);
+
         $days = $blueprint['days'] === null
             ? Weekday::cases()
             : array_map(fn (int $day): Weekday => Weekday::from($day), $blueprint['days']);
@@ -169,13 +187,13 @@ class SpaceSeeder extends Seeder
             // A cheaper morning where the venue has one, which is what makes the
             // public page say "de la 35 lei" instead of quoting the afternoon rate.
             if ($blueprint['morning_price'] !== null) {
-                $this->slot($space, $organizationId, $day, $blueprint['start'], '12:00', $blueprint['morning_price']);
-                $this->slot($space, $organizationId, $day, '12:00', $blueprint['end'], $blueprint['price']);
+                $this->slot($space, $organizationId, $day, $blueprint['start'], '12:00', $blueprint['morning_price'], $mode, $unit);
+                $this->slot($space, $organizationId, $day, '12:00', $blueprint['end'], $blueprint['price'], $mode, $unit);
 
                 continue;
             }
 
-            $this->slot($space, $organizationId, $day, $blueprint['start'], $blueprint['end'], null);
+            $this->slot($space, $organizationId, $day, $blueprint['start'], $blueprint['end'], $blueprint['price'], $mode, $unit);
         }
 
         if (isset($blueprint['open_gym'])) {
@@ -236,8 +254,6 @@ class SpaceSeeder extends Seeder
                 [
                     'organization_location_id' => null,
                     'sport_id' => $sportId,
-                    'access_mode' => SpaceAccessMode::OpenAccess,
-                    'price' => 0,
                     'is_indoor' => $blueprint['indoor'],
                     'has_floodlights' => $blueprint['floodlights'],
                 ],
@@ -253,15 +269,43 @@ class SpaceSeeder extends Seeder
                     : now()->subMonths($blueprint['verified_months_ago']),
             ])->save();
 
-            // Dawn to dusk, every day. Nobody locks a park.
+            // Dawn to dusk, every day, free. Nobody locks a park.
             foreach (Weekday::cases() as $day) {
-                $this->slot($space, null, $day, '07:00', $blueprint['floodlights'] ? '22:00' : '20:00', null);
+                $this->slot($space, null, $day, '07:00', $blueprint['floodlights'] ? '22:00' : '20:00', 0);
             }
         }
     }
 
-    private function slot(Space $space, ?int $organizationId, Weekday $day, string $start, string $end, ?float $price): void
+    /**
+     * Give the court a surface, where its sport is one anybody asks about.
+     *
+     * Spread by id rather than always taking the first, so a city ends up with
+     * clay courts and hard courts both — otherwise the filter would have nothing
+     * to narrow and the fixture could not show it working.
+     */
+    private function giveSurface(Space $space): void
     {
+        $surfaces = $space->sport?->surfaces;
+
+        if ($surfaces === null || $surfaces->isEmpty()) {
+            return;
+        }
+
+        $space->forceFill([
+            'surface_id' => $surfaces[$space->getKey() % $surfaces->count()]->getKey(),
+        ])->save();
+    }
+
+    private function slot(
+        Space $space,
+        ?int $organizationId,
+        Weekday $day,
+        string $start,
+        string $end,
+        ?float $price,
+        SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+        ?PriceUnit $unit = null,
+    ): void {
         ScheduleSlot::updateOrCreate(
             [
                 'kind' => ScheduleSlotKind::Access,
@@ -273,6 +317,8 @@ class SpaceSeeder extends Seeder
                 'organization_id' => $organizationId,
                 'end_time' => $end,
                 'price' => $price,
+                'access_mode' => $mode,
+                'price_unit' => $unit,
             ],
         );
     }

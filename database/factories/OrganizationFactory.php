@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\OrganizationType;
 use App\Enums\Plan;
 use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -30,7 +29,6 @@ class OrganizationFactory extends Factory
             'county' => fake()->randomElement(config('counties')),
             'city' => fake()->city(),
             'plan' => Plan::Free,
-            'type' => OrganizationType::Club,
         ];
     }
 
@@ -42,22 +40,5 @@ class OrganizationFactory extends Factory
     public function premium(): static
     {
         return $this->state(fn (): array => ['plan' => Plan::Premium]);
-    }
-
-    /**
-     * A company that operates a sports venue and rents it out.
-     */
-    public function venue(): static
-    {
-        return $this->state(fn (): array => ['type' => OrganizationType::Venue]);
-    }
-
-    /**
-     * A clinic, or a single practitioner working as a PFA — same model, fewer
-     * people in it.
-     */
-    public function practice(): static
-    {
-        return $this->state(fn (): array => ['type' => OrganizationType::Practice]);
     }
 }

@@ -21,7 +21,7 @@ const plans = [
                     <span
                         class="font-jetbrains text-[11px] font-semibold tracking-[0.16em] text-[#bdf4d8] uppercase"
                     >
-                        Pentru cluburi & antrenori
+                        Pentru cluburi, baze sportive și cabinete
                     </span>
                     <h2
                         class="my-3 font-archivo text-[clamp(26px,3.6vw,40px)] font-extrabold text-white"
@@ -30,7 +30,8 @@ const plans = [
                     </h2>
                     <p class="max-w-[42ch] text-[15.5px] text-[#dcf3e7]">
                         Sute de oameni caută zilnic unde să facă sport în orașul
-                        lor. Fii vizibil acolo unde te caută.
+                        lor — cursuri, un bazin deschis după program, un
+                        kinetoterapeut. Fii vizibil acolo unde te caută.
                     </p>
                     <div class="mt-[22px] flex flex-wrap gap-3">
                         <Link
@@ -38,12 +39,12 @@ const plans = [
                             class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-[22px] py-3 text-[14.5px] font-semibold text-grass-deep transition hover:bg-[#f2f5ef]"
                             @click="
                                 trackEvent('cta_click', {
-                                    cta: 'add_club',
-                                    location: 'club_cta_section',
+                                    cta: 'add_organization',
+                                    location: 'landing_cta_section',
                                 })
                             "
                         >
-                            Adaugă clubul tău
+                            Înregistrează-ți organizația
                         </Link>
                         <a
                             href="#"

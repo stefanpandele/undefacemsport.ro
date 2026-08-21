@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\OrganizationType;
 use Database\Factories\SportFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,8 +31,9 @@ class Sport extends Model
      * far it reaches: locations, clubs and cities. Shared by the homepage and
      * the sports index so the two can never disagree about what is popular.
      *
-     * Clubs only. A padel court you can rent is not a club teaching padel, and
-     * counting it as one would make "12 cluburi" a lie on the homepage.
+     * Only what is taught. The count reaches the sport through
+     * `organization_location_sport`, so a padel court you can rent never lands in
+     * it — counting one would make "12 cluburi" a lie on the homepage.
      *
      * @param  string|null  $county  narrow every count to a single county
      * @return list<array{key: string, label: string, icon: string, color: string|null, locationCount: int, clubCount: int, cityCount: int}>
@@ -42,9 +42,7 @@ class Sport extends Model
     {
         $stats = DB::table('organization_location_sport')
             ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
-            ->join('organizations', 'organizations.id', '=', 'organization_location.organization_id')
             ->join('locations', 'locations.id', '=', 'organization_location.location_id')
-            ->where('organizations.type', OrganizationType::Club)
             ->when($county, fn ($query) => $query->where('locations.county', $county))
             ->groupBy('organization_location_sport.sport_id')
             ->select(['organization_location_sport.sport_id'])
@@ -97,6 +95,20 @@ class Sport extends Model
         return $this->belongsToMany(Organization::class)
             ->withPivot(['cover_path', 'description', 'sort_order'])
             ->withTimestamps();
+    }
+
+    /**
+     * What this sport is plausibly played on, in the order a player weighs it.
+     *
+     * Empty for most sports, and that is the useful part: nobody asks what a
+     * pool is surfaced with, so the question is never put to them.
+     *
+     * @return BelongsToMany<Surface, $this>
+     */
+    public function surfaces(): BelongsToMany
+    {
+        return $this->belongsToMany(Surface::class, 'sport_surface')
+            ->orderBy('surfaces.sort_order');
     }
 
     public function getRouteKeyName(): string

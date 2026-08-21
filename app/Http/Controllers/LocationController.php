@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\PresentsOrganizations;
+use App\Concerns\PresentsSpaces;
 use App\Enums\ContactType;
+use App\Enums\LocationWay;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Models\Facility;
@@ -26,7 +28,7 @@ use Inertia\Response;
 
 class LocationController extends Controller
 {
-    use PresentsOrganizations;
+    use PresentsOrganizations, PresentsSpaces;
 
     /**
      * Show a single sports location: its amenities, the sports played here and
@@ -51,7 +53,7 @@ class LocationController extends Controller
                 // Club presences only. The page's club blocks, occupancy badges
                 // and "hall is taken" cards are all about organized programmes;
                 // rentable spaces are a different offer, added in a later phase.
-                'organizationLocations' => fn ($query) => $query->ofClubs(),
+                'organizationLocations' => fn ($query) => $query->teaching(),
                 'organizationLocations.organization.contacts',
                 'organizationLocations.organization.people.sports',
                 'organizationLocations.organization.organizationSports.sport',
@@ -160,9 +162,10 @@ class LocationController extends Controller
 
                 if ($sportClubs->isNotEmpty()) {
                     $ways[] = [
-                        'key' => 'organizat',
+                        'key' => LocationWay::Organised->value,
+                        'label' => LocationWay::Organised->label(),
                         'verb' => 'Mă înscriu la un club',
-                        'how' => 'Antrenamente recurente, pe grupe, cu antrenor',
+                        'how' => LocationWay::Organised->description(),
                         // Clubs do not publish prices, and inventing one would be
                         // worse than saying nothing.
                         'price' => null,
@@ -180,9 +183,10 @@ class LocationController extends Controller
                     }
 
                     $ways[] = [
-                        'key' => $mode === SpaceAccessMode::OpenAccess ? 'liber' : 'inchiriere',
+                        'key' => LocationWay::forAccessMode($mode)->value,
+                        'label' => LocationWay::forAccessMode($mode)->label(),
                         'verb' => $mode->verb(),
-                        'how' => $mode->description(),
+                        'how' => LocationWay::forAccessMode($mode)->description(),
                         'price' => $this->cheapest($spaces, $mode),
                         'who' => $this->operators($spaces),
                         'spaces' => $spaces
@@ -237,57 +241,6 @@ class LocationController extends Controller
             ->values();
 
         return $names->isEmpty() ? 'Spațiu public, neadministrat' : $names->implode(' · ');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function presentSpace(Space $space, SpaceAccessMode $mode): array
-    {
-        $today = Weekday::fromDate(Carbon::now())->value;
-
-        return [
-            'id' => $space->getKey(),
-            'name' => $space->name,
-            'operator' => $space->organizationLocation?->organization->name,
-            'unmanaged' => ! $space->isManaged(),
-            'price' => $space->priceFromLabel($mode),
-            'priceNotes' => $space->price_notes,
-            'isFree' => $space->isFree(),
-            'capacity' => $space->capacity,
-            'isIndoor' => $space->is_indoor,
-            'hasFloodlights' => $space->has_floodlights,
-            'surface' => $space->surface,
-            'openNow' => $space->openAt(null, $mode),
-            'closesAt' => $space->closesAt(null, $mode),
-            'lastVerified' => $space->last_verified_at?->diffForHumans(),
-            'today' => $space->hoursByDay($mode)[$today] ?? [],
-            'week' => $this->weekHours($space, $mode),
-        ];
-    }
-
-    /**
-     * Opening hours as a week, one row per day, closed days included so a visitor
-     * can see the shape of the week rather than infer it from gaps.
-     *
-     * @return list<array{day: string, hours: string}>
-     */
-    private function weekHours(Space $space, SpaceAccessMode $mode): array
-    {
-        $byDay = $space->hoursByDay($mode);
-
-        return array_values(collect(Weekday::cases())
-            ->map(function (Weekday $day) use ($byDay): array {
-                $intervals = collect($byDay[$day->value] ?? [])
-                    ->map(fn (array $interval): string => $interval['start'].'–'.$interval['end'])
-                    ->implode(', ');
-
-                return [
-                    'day' => $day->label(),
-                    'hours' => $intervals === '' ? 'închis' : $intervals,
-                ];
-            })
-            ->all());
     }
 
     /**
@@ -388,9 +341,13 @@ class LocationController extends Controller
                     ->map(fn (array $interval): array => [
                         'start' => (int) substr($interval['start'], 0, 2),
                         'end' => (int) substr($interval['end'], 0, 2),
+                        // `priceFromLabel()` already says "Gratuit" for a free
+                        // space, so there is nothing to add — and the phrase this
+                        // replaces said it twice, the first half being the word
+                        // that made a paid pool look free.
                         'label' => $space->accessModes()->count() > 1
                             ? $space->name
-                            : ($space->isFree() ? 'Acces liber, gratuit' : (string) $space->priceFromLabel()),
+                            : (string) $space->priceFromLabel(),
                     ])
                     ->values();
 
@@ -445,8 +402,14 @@ class LocationController extends Controller
     }
 
     /**
-     * One block per (club, sport) taught here — the same club appears once for
-     * every sport it teaches at this location, with the schedule for it.
+     * One block per (organization, sport) taught here — the same organization
+     * appears once for every sport it teaches at this location, with the
+     * schedule for it.
+     *
+     * The payload calls these `clubs`, and that is still the right word: an
+     * organization that teaches *is* a club, and "club" is what a visitor is
+     * shown. What changed is only where the answer comes from — the programme
+     * published here, not a column that once said so.
      *
      * @return list<array<string, mixed>>
      */

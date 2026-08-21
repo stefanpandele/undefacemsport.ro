@@ -13,8 +13,6 @@ import { home } from '@/routes';
 
 const { t } = useTranslations();
 
-const props = defineProps<{ types: string[] }>();
-
 const page = usePage();
 const turnstile = computed(() => page.props.turnstile);
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null);
@@ -28,7 +26,6 @@ type CompanyDetails = {
 
 const form = useForm({
     name: '',
-    type: '',
     fiscal_code: '',
     contact_name: '',
     contact_phone: '',
@@ -36,17 +33,6 @@ const form = useForm({
     company: null as CompanyDetails | null,
     turnstile_token: '',
 });
-
-const nameKey = computed(() =>
-    form.type
-        ? `organization_application.form.name.${form.type}`
-        : 'organization_application.form.name',
-);
-
-function chooseType(type: string) {
-    form.type = type;
-    form.clearErrors('type');
-}
 
 const submitted = ref(false);
 
@@ -100,10 +86,7 @@ function submit() {
     form.post(store.url(), {
         preserveScroll: true,
         onSuccess: () => {
-            trackEvent('form_submit', {
-                form: 'organization_application',
-                organization_type: form.type,
-            });
+            trackEvent('form_submit', { form: 'organization_application' });
             submitted.value = true;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
@@ -148,65 +131,18 @@ const labelClass = 'mb-1.5 block text-[13px] font-semibold text-sage';
                     class="rounded-[20px] border border-line bg-white p-7 sm:p-[34px]"
                     @submit.prevent="submit"
                 >
-                    <fieldset class="mb-4.5">
-                        <legend :class="labelClass">
-                            {{
-                                t('organization_application.form.type.label')
-                            }}
-                        </legend>
-                        <div class="grid gap-2.5 sm:grid-cols-3">
-                            <button
-                                v-for="type in props.types"
-                                :key="type"
-                                type="button"
-                                :aria-pressed="form.type === type"
-                                class="rounded-[14px] border-[1.5px] px-4 py-3.5 text-left transition"
-                                :class="
-                                    form.type === type
-                                        ? 'border-grass-deep bg-[#eaf6ef]'
-                                        : 'border-line bg-[#f7f8f6] hover:border-grass'
-                                "
-                                @click="chooseType(type)"
-                            >
-                                <span
-                                    class="block text-[13.5px] font-bold text-ink"
-                                >
-                                    {{
-                                        t(
-                                            `organization_application.form.type.${type}.label`,
-                                        )
-                                    }}
-                                </span>
-                                <span
-                                    class="mt-1 block text-[12px] leading-snug text-sage"
-                                >
-                                    {{
-                                        t(
-                                            `organization_application.form.type.${type}.description`,
-                                        )
-                                    }}
-                                </span>
-                            </button>
-                        </div>
-                        <p class="mt-2 text-[12px] text-sage">
-                            {{ t('organization_application.form.type.hint') }}
-                        </p>
-                        <InputError
-                            class="mt-1.5"
-                            :message="form.errors.type"
-                        />
-                    </fieldset>
-
                     <div class="mb-4.5">
                         <label for="name" :class="labelClass">
-                            {{ t(`${nameKey}.label`) }}
+                            {{ t('organization_application.form.name.label') }}
                         </label>
                         <input
                             id="name"
                             v-model="form.name"
                             type="text"
                             :class="fieldClass"
-                            :placeholder="t(`${nameKey}.placeholder`)"
+                            :placeholder="
+                                t('organization_application.form.name.placeholder')
+                            "
                         />
                         <InputError
                             class="mt-1.5"

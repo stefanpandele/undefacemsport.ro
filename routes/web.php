@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\AnafLookupController;
-use App\Http\Controllers\ClubController;
+use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\OrganizationApplicationController;
-use App\Http\Controllers\PracticeController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\SportController;
 use App\Http\Middleware\RedirectToHomeArea;
@@ -19,8 +19,22 @@ Route::get('sporturi/{slug}/{city?}', [SportController::class, 'show'])->name('s
 Route::get('preturi', PricingController::class)->name('pricing');
 Route::get('explorare', [ExploreController::class, 'index'])->name('explore');
 Route::get('locatii/{slug}', [LocationController::class, 'show'])->name('locations.show');
-Route::get('cluburi/{slug}', [ClubController::class, 'show'])->name('clubs.show');
-Route::get('specialisti/{slug}', [PracticeController::class, 'show'])->name('practices.show');
+
+// The three ways in, as browsable lists. Two list organizations and one lists
+// places, because that is what the visitor is choosing in each case.
+Route::get('cluburi', [DirectoryController::class, 'clubs'])->name('directory.clubs');
+Route::get('baze-sportive', [DirectoryController::class, 'venues'])->name('directory.venues');
+Route::get('specialisti', [DirectoryController::class, 'practices'])->name('directory.practices');
+
+// A preposition rather than a category: the same company can teach, rent out a
+// pool and employ a physiotherapist, and no single noun is true of it. What it
+// offers decides which tabs the page has; the fragment decides which one opens.
+Route::get('la/{slug}', [OrganizationController::class, 'show'])->name('organizations.show');
+
+// The addresses these pages used to live at. Indexed and shared, so they keep
+// working — permanently, because nothing is coming back to them.
+Route::permanentRedirect('cluburi/{slug}', 'la/{slug}');
+Route::permanentRedirect('specialisti/{slug}', 'la/{slug}');
 
 Route::get('organization-application', [OrganizationApplicationController::class, 'create'])
     ->name('organization-application.create');

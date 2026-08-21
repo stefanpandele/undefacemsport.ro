@@ -7,6 +7,7 @@ use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Filament\Admin\Resources\Spaces\Pages\ManageSpaces;
 use App\Filament\Admin\Resources\Spaces\SpaceResource as AdminSpaceResource;
+use App\Filament\Organization\Resources\Spaces\Pages\ManageSpaces as ManageOrganizationSpaces;
 use App\Filament\Organization\Resources\Spaces\SpaceResource;
 use App\Models\Facility;
 use App\Models\Location;
@@ -62,10 +63,22 @@ test('a space goes away with the location it is at', function () {
 |--------------------------------------------------------------------------
 */
 
-test('an unpriced space is unknown, not free', function () {
-    $space = Space::factory()->create(['price' => null]);
+test('a space with no tariff at all has nothing to say about price', function () {
+    // Not free, not priced: nobody has written a tariff yet, and the page must
+    // not invent one.
+    $space = Space::factory()->create();
 
     expect($space->isFree())->toBeFalse()
+        ->and($space->priceFrom())->toBeNull()
+        ->and($space->priceFromLabel())->toBeNull()
+        ->and($space->accessModes())->toBeEmpty();
+});
+
+test('an unpriced tariff is unknown, not free', function () {
+    $space = Space::factory()->create();
+    tariff($space, SpaceAccessMode::OpenAccess, null);
+
+    expect($space->load('accessSlots')->isFree())->toBeFalse()
         ->and($space->priceFrom())->toBeNull()
         ->and($space->priceFromLabel())->toBeNull();
 });
@@ -86,32 +99,43 @@ test('the unit formats the amount the way it is written on the door', function (
 });
 
 test('a single price is quoted plainly, without "de la"', function () {
-    $space = Space::factory()->create(['price' => 45, 'price_unit' => PriceUnit::Entry]);
+    $space = Space::factory()->openAccess(45)->create();
 
     expect($space->priceFromLabel())->toBe('45 lei / intrare');
 });
 
-test('a varying price is quoted from its cheapest interval', function () {
-    // A pool charging less in the morning must not advertise the afternoon rate,
-    // which would be wrong for half the day.
-    $space = Space::factory()->create(['price' => 45, 'price_unit' => PriceUnit::Entry]);
+test('a varying price is quoted from its cheapest tariff', function () {
+    // The squash hall: one rate until six, a higher one for the evening. The card
+    // must not advertise the evening rate, which is wrong all morning.
+    $space = Space::factory()->create();
 
-    slot($space, Weekday::Monday, '07:00', '12:00', 35);
-    slot($space, Weekday::Monday, '12:00', '22:00', 45);
+    slot($space, Weekday::Monday, '08:00', '18:00', 80, SpaceAccessMode::ExclusiveRental);
+    slot($space, Weekday::Monday, '18:00', '21:00', 110, SpaceAccessMode::ExclusiveRental);
 
     $space->load('accessSlots');
 
     expect($space->hasVaryingPrice())->toBeTrue()
-        ->and($space->priceFrom())->toBe(35.0)
-        ->and($space->priceFromLabel())->toBe('de la 35 lei / intrare');
+        ->and($space->priceFrom())->toBe(80.0)
+        ->and($space->priceFromLabel())->toBe('de la 80 lei / oră');
 });
 
 test('the price unit falls back to what the access mode implies', function () {
-    $rental = Space::factory()->rental(180)->create(['price_unit' => null]);
+    $rental = Space::factory()->rental(180)->create();
 
     expect($rental->priceFromLabel())->toBe('180 lei / oră')
         ->and(SpaceAccessMode::OpenAccess->defaultPriceUnit())->toBe(PriceUnit::Entry)
         ->and(SpaceAccessMode::ExclusiveRental->defaultPriceUnit())->toBe(PriceUnit::Hour);
+});
+
+test('a tariff with no hours means the programme is unknown, not closed', function () {
+    // The park hoop an admin put on the map: the price is known, the timetable is
+    // not. Seven rows saying "închis" would be a claim nobody made.
+    $hoop = Space::factory()->unmanaged()->create();
+
+    expect($hoop->hoursByDay())->toBeEmpty()
+        ->and($hoop->hasKnownHours())->toBeFalse()
+        ->and($hoop->priceFromLabel())->toBe('Gratuit')
+        ->and($hoop->accessModes()->all())->toBe([SpaceAccessMode::OpenAccess]);
 });
 
 /*
@@ -121,16 +145,12 @@ test('the price unit falls back to what the access mode implies', function () {
 */
 
 test('a hall booked by the hour can also run open-gym evenings', function () {
-    // One physical hall, two ways in. Two rows for the same thing would show up
-    // twice on the page, which is why the mode can sit on the interval.
-    $hall = Space::factory()->rental(180)->create(['name' => 'Sala mare']);
+    // One physical hall, two ways in. Two space rows for the same thing would show
+    // up twice on the page, which is why the way in sits on the tariff.
+    $hall = Space::factory()->create(['name' => 'Sala mare']);
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', 25);
-    $openGym->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-        'price_unit' => PriceUnit::Entry,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -143,13 +163,10 @@ test('a hall booked by the hour can also run open-gym evenings', function () {
 });
 
 test('each way in is priced in its own unit, never borrowing the other', function () {
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-        'price_unit' => PriceUnit::Entry,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -157,36 +174,39 @@ test('each way in is priced in its own unit, never borrowing the other', functio
         ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBe('25 lei / intrare');
 });
 
-test('an interval on another way in does not inherit the base price', function () {
+test('an unpriced tariff stays unknown next to a priced one', function () {
     // 180 lei an hour must never be quoted as the price of an open-gym ticket.
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    $openGym = slot($hall, Weekday::Friday, '20:00', '22:00', null);
-    $openGym->forceFill(['access_mode' => SpaceAccessMode::OpenAccess])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', null, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
-    expect($openGym->refresh()->effectivePrice())->toBeNull()
-        ->and($hall->priceFrom(SpaceAccessMode::OpenAccess))->toBeNull()
-        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBeNull();
+    expect($hall->priceFrom(SpaceAccessMode::OpenAccess))->toBeNull()
+        ->and($hall->priceFromLabel(SpaceAccessMode::OpenAccess))->toBeNull()
+        ->and($hall->priceFromLabel(SpaceAccessMode::ExclusiveRental))->toBe('180 lei / oră');
 });
 
-test('an interval without its own mode simply follows the space', function () {
+test('a tariff must say how you get in', function () {
+    // The way in lives here and nowhere else, so a tariff without one would be an
+    // interval nobody could be told how to use.
     $space = Space::factory()->create();
-    $plain = slot($space, Weekday::Monday, '07:00', '22:00', null);
 
-    expect($plain->accessMode())->toBe(SpaceAccessMode::OpenAccess)
-        ->and($plain->effectivePrice())->toBe(45.0)
-        ->and($space->load('accessSlots')->accessModes()->all())->toBe([SpaceAccessMode::OpenAccess]);
+    expect(fn () => ScheduleSlot::create([
+        'kind' => ScheduleSlotKind::Access,
+        'space_id' => $space->getKey(),
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '07:00',
+        'end_time' => '22:00',
+    ]))->toThrow(LogicException::class, 'access_mode');
 });
 
 test('opening hours can be asked for one way in at a time', function () {
-    $hall = Space::factory()->rental(180)->create();
+    $hall = Space::factory()->create();
 
-    slot($hall, Weekday::Monday, '08:00', '22:00', null);
-    slot($hall, Weekday::Friday, '20:00', '22:00', 25)->forceFill([
-        'access_mode' => SpaceAccessMode::OpenAccess,
-    ])->save();
+    slot($hall, Weekday::Monday, '08:00', '22:00', 180, SpaceAccessMode::ExclusiveRental);
+    slot($hall, Weekday::Friday, '20:00', '22:00', 25, SpaceAccessMode::OpenAccess);
 
     $hall->load('accessSlots');
 
@@ -311,6 +331,62 @@ test('a free organization can operate one space then hits its limit', function (
     expect($organization->canAddSpace())->toBeFalse();
 });
 
+test('eleven courts at one address are one offer, not eleven', function () {
+    // A padel club lists every court by name, because indoor and outdoor are a
+    // real choice. Charging each of them against the plan would price the honest
+    // page higher than a vague one, and show a visitor 5 courts out of 11 — not
+    // a smaller page, a false one.
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $presence = presenceFor($organization);
+    $padel = Sport::factory()->create();
+
+    foreach (range(1, 11) as $number) {
+        Space::factory()->rental()->create([
+            'location_id' => $presence->location_id,
+            'organization_location_id' => $presence->getKey(),
+            'sport_id' => $padel->getKey(),
+            'name' => 'Teren '.$number,
+        ]);
+    }
+
+    expect($organization->spaces()->count())->toBe(11)
+        ->and($organization->spaceOfferCount())->toBe(1)
+        // Another court of the same sport, at the same address, is a twelfth unit
+        // of something already paid for.
+        ->and($organization->canAddSpace($presence->location_id, $padel->getKey()))->toBeTrue();
+});
+
+test('a second sport at the same address is a second offer', function () {
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $presence = presenceFor($organization);
+    $padel = Sport::factory()->create();
+    $squash = Sport::factory()->create();
+
+    Space::factory()->rental()->create([
+        'location_id' => $presence->location_id,
+        'organization_location_id' => $presence->getKey(),
+        'sport_id' => $padel->getKey(),
+    ]);
+
+    expect($organization->spaceOfferCount())->toBe(1)
+        ->and($organization->canAddSpace($presence->location_id, $squash->getKey()))->toBeFalse();
+});
+
+test('the same sport at a second address is a second offer', function () {
+    $organization = Organization::factory()->create(); // free: spaces limit 1
+    $here = presenceFor($organization);
+    $there = presenceFor($organization);
+    $padel = Sport::factory()->create();
+
+    Space::factory()->rental()->create([
+        'location_id' => $here->location_id,
+        'organization_location_id' => $here->getKey(),
+        'sport_id' => $padel->getKey(),
+    ]);
+
+    expect($organization->canAddSpace($there->location_id, $padel->getKey()))->toBeFalse();
+});
+
 test('a public space never counts against the quota', function () {
     // Putting a park court on the map is a contribution, not an asset. Charging
     // it against the plan would penalise the organization for the favour.
@@ -380,7 +456,7 @@ function spacePanelContext(Organization $organization): User
 test('spaces are open to a venue and to a club alike', function () {
     // Renting out dead hours does not make a club a different kind of
     // organization, so this resource is deliberately not club-gated.
-    spacePanelContext(Organization::factory()->venue()->create());
+    spacePanelContext(Organization::factory()->create());
     expect(SpaceResource::canAccess())->toBeTrue();
 
     spacePanelContext(Organization::factory()->create());
@@ -388,7 +464,7 @@ test('spaces are open to a venue and to a club alike', function () {
 });
 
 test('a venue sees the spaces at its own locations and the public ones there', function () {
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $presence = presenceFor($venue);
     spacePanelContext($venue);
 
@@ -408,7 +484,7 @@ test('a venue sees the spaces at its own locations and the public ones there', f
 });
 
 test('the ownership toggle decides whether a space becomes the organization own', function () {
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
     $presence = presenceFor($venue);
     spacePanelContext($venue);
 
@@ -470,17 +546,160 @@ function presenceFor(Organization $organization): OrganizationLocation
 }
 
 /**
- * An access interval on a space.
+ * A tariff on a space, limited to one interval of one day.
  */
-function slot(Space $space, Weekday $day, string $start, string $end, ?float $price): ScheduleSlot
-{
+function slot(
+    Space $space,
+    Weekday $day,
+    string $start,
+    string $end,
+    ?float $price,
+    SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+    ?PriceUnit $unit = null,
+): ScheduleSlot {
+    return tariff($space, $mode, $price, $unit, $day, $start, $end);
+}
+
+/**
+ * A tariff on a space: how you get in, what it costs, and when — the hours left
+ * out when nobody knows them.
+ */
+function tariff(
+    Space $space,
+    SpaceAccessMode $mode = SpaceAccessMode::OpenAccess,
+    ?float $price = null,
+    ?PriceUnit $unit = null,
+    ?Weekday $day = null,
+    ?string $start = null,
+    ?string $end = null,
+): ScheduleSlot {
     return ScheduleSlot::create([
         'kind' => ScheduleSlotKind::Access,
         'organization_id' => $space->organizationLocation?->organization_id,
         'space_id' => $space->getKey(),
+        'access_mode' => $mode,
+        'price' => $price,
+        'price_unit' => $unit,
         'day_of_week' => $day,
         'start_time' => $start,
         'end_time' => $end,
-        'price' => $price,
     ]);
 }
+
+/*
+|--------------------------------------------------------------------------
+| Adding many courts at once
+|--------------------------------------------------------------------------
+*/
+
+test('one submit creates a numbered court per unit, sharing the tariffs', function () {
+    // Six squash courts are six rows, and typing six identical forms is the cost
+    // of that rule. The generator pays it once.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+    $squash = Sport::factory()->create();
+
+    $first = SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'sport_id' => $squash->getKey(),
+        'name' => 'Teren',
+        'quantity' => 6,
+        'is_indoor' => true,
+        'tariffs' => [
+            [
+                'access_mode' => SpaceAccessMode::ExclusiveRental->value,
+                'price' => 80,
+                'price_unit' => PriceUnit::Hour->value,
+                'days' => [Weekday::Monday->value, Weekday::Tuesday->value],
+                'start_time' => '08:00',
+                'end_time' => '18:00',
+            ],
+        ],
+    ], null, $venue);
+
+    $courts = Space::query()->where('location_id', $presence->location_id)->orderBy('id')->get();
+
+    expect($courts)->toHaveCount(6)
+        ->and($courts->pluck('name')->all())->toBe([
+            'Teren 1', 'Teren 2', 'Teren 3', 'Teren 4', 'Teren 5', 'Teren 6',
+        ])
+        ->and($first->name)->toBe('Teren 1')
+        ->and($courts->every(fn (Space $court): bool => $court->is_indoor === true))->toBeTrue()
+        // One tariff row per day ticked, on every court.
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(12)
+        ->and($courts->first()->accessSlots->pluck('day_of_week')->map(
+            fn (Weekday $day): int => $day->value,
+        )->all())->toBe([Weekday::Monday->value, Weekday::Tuesday->value]);
+});
+
+test('a tariff with no day ticked is still written once', function () {
+    // The park court: the price is known, the timetable is not.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+
+    SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'name' => 'Masa',
+        'quantity' => 3,
+        'tariffs' => [
+            ['access_mode' => SpaceAccessMode::OpenAccess->value, 'price' => 0, 'days' => []],
+        ],
+    ], null, $venue);
+
+    expect(Space::count())->toBe(3)
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(3)
+        ->and(Space::query()->orderBy('id')->first()->accessSlots->first()->day_of_week)->toBeNull();
+});
+
+test('generating one court leaves its name unnumbered', function () {
+    // "Bazin de înot 1" would be a lie about there being a second.
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+
+    SpaceResource::persistMany([
+        'location_id' => $presence->location_id,
+        'is_operated_by_us' => true,
+        'name' => 'Bazin de înot',
+        'quantity' => 1,
+        'tariffs' => [
+            ['access_mode' => SpaceAccessMode::OpenAccess->value, 'price' => 25, 'days' => []],
+        ],
+    ], null, $venue);
+
+    expect(Space::query()->value('name'))->toBe('Bazin de înot');
+});
+
+test('a venue adds six courts from the spaces screen in one submit', function () {
+    $venue = Organization::factory()->create();
+    $presence = presenceFor($venue);
+    $squash = Sport::factory()->create();
+    spacePanelContext($venue);
+
+    Livewire::test(ManageOrganizationSpaces::class)
+        ->mountAction('createMany')
+        ->set('mountedActions.0.data.location_id', $presence->location_id)
+        ->set('mountedActions.0.data.is_operated_by_us', true)
+        ->set('mountedActions.0.data.name', 'Teren')
+        ->set('mountedActions.0.data.quantity', 6)
+        ->set('mountedActions.0.data.sport_id', $squash->getKey())
+        ->set('mountedActions.0.data.tariffs', [
+            [
+                'access_mode' => SpaceAccessMode::ExclusiveRental->value,
+                'price' => 80,
+                'price_unit' => PriceUnit::Hour->value,
+                'days' => [Weekday::Monday->value, Weekday::Tuesday->value, Weekday::Wednesday->value],
+                'start_time' => '08:00',
+                'end_time' => '18:00',
+            ],
+        ])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect(Space::count())->toBe(6)
+        ->and(Space::query()->pluck('name')->last())->toBe('Teren 6')
+        ->and(ScheduleSlot::query()->where('kind', ScheduleSlotKind::Access)->count())->toBe(18)
+        // Six courts of one sport at one address: one offer, whatever the plan.
+        ->and($venue->spaceOfferCount())->toBe(1);
+});

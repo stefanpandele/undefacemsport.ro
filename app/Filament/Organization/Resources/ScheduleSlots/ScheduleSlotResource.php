@@ -2,8 +2,8 @@
 
 namespace App\Filament\Organization\Resources\ScheduleSlots;
 
+use App\Enums\ScheduleSlotKind;
 use App\Enums\Weekday;
-use App\Filament\Concerns\ClubOnlyResource;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Organization\Resources\ScheduleSlots\Pages\ManageScheduleSlots;
 use App\Models\AgeGroup;
@@ -29,7 +29,7 @@ use Livewire\Component;
 
 class ScheduleSlotResource extends Resource
 {
-    use ClubOnlyResource, ResolvesOrganization;
+    use ResolvesOrganization;
 
     protected static ?string $model = ScheduleSlot::class;
 
@@ -40,6 +40,10 @@ class ScheduleSlotResource extends Resource
     protected static ?string $pluralModelLabel = 'orar';
 
     protected static ?string $navigationLabel = 'Orar';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+
+    protected static ?int $navigationSort = 2;
 
     /**
      * Editing one existing interval: everything, including where it happens.
@@ -257,6 +261,19 @@ class ScheduleSlotResource extends Resource
         }
 
         return Weekday::tryFrom((int) $state)?->label() ?? '';
+    }
+
+    /**
+     * Trainings only.
+     *
+     * A space's tariffs are credited to the organization that wrote them, so they
+     * sit in this table under the same tenant key. They are not sessions anybody
+     * teaches, and they belong on the Spaces screen — showing them here would put
+     * rows in a club's timetable that it never taught and cannot edit from here.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('kind', ScheduleSlotKind::Training);
     }
 
     public static function getPages(): array

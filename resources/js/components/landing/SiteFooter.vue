@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { explore } from '@/routes';
+import directory from '@/routes/directory';
 import organizationApplication from '@/routes/organization-application';
+import sportRoutes from '@/routes/sports';
 
 const columns = [
     {
         h: 'Platformă',
         links: [
-            { label: 'Locații', href: '#' },
-            { label: 'Sporturi', href: '#' },
-            { label: 'Cluburi', href: '#' },
-            { label: 'Hartă', href: '#' },
+            { label: 'Explorează', href: explore.url() },
+            { label: 'Sporturi', href: sportRoutes.index.url() },
+            { label: 'Cluburi', href: directory.clubs.url() },
+            { label: 'Baze sportive', href: directory.venues.url() },
+            { label: 'Recuperare', href: directory.practices.url() },
         ],
     },
     {
-        h: 'Pentru cluburi',
+        h: 'Pentru organizații',
         links: [
-            { label: 'Adaugă club', href: organizationApplication.create.url() },
+            { label: 'Înregistrează-te', href: organizationApplication.create.url() },
             { label: 'Prețuri', href: '#' },
             { label: 'Intră în cont', href: '/cont/login' },
         ],
@@ -48,7 +52,7 @@ const columns = [
                         />
                     </Link>
                     <p class="mt-3 max-w-[32ch] text-sm text-sage">
-                        Găsești locația, vezi cluburile și orarele, suni direct.
+                        Găsești locul, vezi cine e acolo și cu ce program, suni direct.
                     </p>
                 </div>
 

@@ -27,19 +27,19 @@ use Illuminate\Support\Collection as SupportCollection;
  * is here with `organization_location_id` null. When a company starts renting it
  * out, only that column changes; no data moves.
  *
+ * It is a physical thing and nothing more. How you get in and what it costs live
+ * on its tariffs — `accessSlots` — because one room can be sold two ways, and a
+ * price that is written twice is a price that can disagree with itself.
+ *
  * @property int $id
  * @property int $location_id
  * @property int|null $organization_location_id
  * @property string $name
  * @property int|null $sport_id
- * @property SpaceAccessMode $access_mode
- * @property string|null $price
- * @property PriceUnit|null $price_unit
- * @property string|null $price_notes
  * @property int|null $capacity
  * @property bool|null $is_indoor
  * @property bool|null $has_floodlights
- * @property string|null $surface
+ * @property int|null $surface_id
  * @property FacilityStatus $status
  * @property Carbon|null $last_verified_at
  * @property int $sort_order
@@ -108,26 +108,21 @@ class Space extends Model
         'organization_location_id',
         'name',
         'sport_id',
-        'access_mode',
-        'price',
-        'price_unit',
-        'price_notes',
         'capacity',
         'is_indoor',
         'has_floodlights',
-        'surface',
+        'surface_id',
         'sort_order',
     ];
 
     /**
-     * Mirrors the column defaults, so a freshly built space reports its status
-     * and access mode without a round trip to the database.
+     * Mirrors the column default, so a freshly built space reports its status
+     * without a round trip to the database.
      *
      * @var array<string, string>
      */
     protected $attributes = [
         'status' => FacilityStatus::Approved->value,
-        'access_mode' => SpaceAccessMode::OpenAccess->value,
     ];
 
     /**
@@ -136,10 +131,7 @@ class Space extends Model
     protected function casts(): array
     {
         return [
-            'access_mode' => SpaceAccessMode::class,
-            'price_unit' => PriceUnit::class,
             'status' => FacilityStatus::class,
-            'price' => 'decimal:2',
             'capacity' => 'integer',
             'is_indoor' => 'boolean',
             'has_floodlights' => 'boolean',
@@ -193,30 +185,19 @@ class Space extends Model
     }
 
     /**
-     * @param  Builder<$this>  $query
-     */
-    public function scopeOfMode(Builder $query, SpaceAccessMode $mode): void
-    {
-        $query->where('access_mode', $mode);
-    }
-
-    /**
-     * Spaces you can get into this way — their own mode, or any interval that
-     * overrides it.
+     * Spaces you can get into this way, according to their tariffs.
      *
-     * The SQL twin of `accessModes()`. A plain `where('access_mode', …)` would
-     * miss the hall that is booked by the hour all week and runs open-gym on
-     * Friday evenings, which is the entire reason the override exists.
+     * The SQL twin of `accessModes()`. One condition rather than the two it used
+     * to take: the hall booked by the hour all week that runs open-gym on Friday
+     * evenings is found by its Friday tariff, like anything else.
      *
      * @param  Builder<$this>  $query
      */
     public function scopeOffering(Builder $query, SpaceAccessMode $mode): void
     {
-        $query->where(fn (Builder $offering) => $offering
-            ->where('access_mode', $mode)
-            ->orWhereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
-                ->where('kind', ScheduleSlotKind::Access)
-                ->where('access_mode', $mode)));
+        $query->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+            ->where('kind', ScheduleSlotKind::Access)
+            ->where('access_mode', $mode));
     }
 
     public function isManaged(): bool
@@ -231,16 +212,16 @@ class Space extends Model
 
     /**
      * Free means somebody said it costs nothing, not that nobody said anything.
-     * An unpriced space is unknown, and the page says so rather than promising
-     * a visitor it is free.
+     * A space with no tariff, or a tariff with no price, is unknown — and the
+     * page says so rather than promising a visitor it is free.
      */
-    public function isFree(): bool
+    public function isFree(?SpaceAccessMode $mode = null): bool
     {
-        return $this->price !== null && (float) $this->price === 0.0;
+        return $this->priceFrom($mode) === 0.0;
     }
 
     /**
-     * Every way into this space, the space's own first.
+     * Every way into this space, in the order its tariffs were written.
      *
      * Usually one. A municipal sports hall is the exception that earns the list:
      * open-gym on Friday evenings, booked whole by the hour the rest of the week.
@@ -251,9 +232,8 @@ class Space extends Model
     public function accessModes(): SupportCollection
     {
         return collect($this->accessSlots->all())
-            ->map(fn (ScheduleSlot $slot): ?SpaceAccessMode => $slot->accessMode())
+            ->map(fn (ScheduleSlot $slot): ?SpaceAccessMode => $slot->access_mode)
             ->filter()
-            ->prepend($this->access_mode)
             ->unique()
             ->values();
     }
@@ -270,7 +250,31 @@ class Space extends Model
         }
 
         return $this->accessSlots
-            ->filter(fn (ScheduleSlot $slot): bool => $slot->accessMode() === $mode)
+            ->filter(fn (ScheduleSlot $slot): bool => $slot->access_mode === $mode)
+            ->values();
+    }
+
+    /**
+     * Whether anybody has said when this space is open.
+     *
+     * A tariff may carry a price and no hours — a park court is free whenever it
+     * is light, and nobody keeps a timetable for it. The page has to tell that
+     * apart from a week of closed days, which is a claim nobody made.
+     */
+    public function hasKnownHours(?SpaceAccessMode $mode = null): bool
+    {
+        return $this->timedSlots($mode)->isNotEmpty();
+    }
+
+    /**
+     * The tariffs that actually name a weekday and an interval.
+     *
+     * @return Collection<int, ScheduleSlot>
+     */
+    private function timedSlots(?SpaceAccessMode $mode = null): Collection
+    {
+        return $this->slotsFor($mode)
+            ->filter(fn (ScheduleSlot $slot): bool => $slot->hasHours())
             ->values();
     }
 
@@ -313,28 +317,23 @@ class Space extends Model
     }
 
     /**
-     * Every price on offer for a given way in. The base price only joins the list
-     * when it is priced the same way — an hourly rate is not a candidate for the
-     * cheapest entry ticket.
+     * Every price on offer for a given way in, one per tariff. Asked for one way
+     * in, the other way's tariffs are not candidates — an hourly rate is never
+     * the cheapest entry ticket.
      *
      * @return SupportCollection<int, float>
      */
     private function pricesFor(?SpaceAccessMode $mode): SupportCollection
     {
-        $prices = collect($this->slotsFor($mode)->all())
+        return collect($this->slotsFor($mode)->all())
             ->map(fn (ScheduleSlot $slot): ?float => $slot->effectivePrice())
-            ->filter(fn (?float $price): bool => $price !== null);
-
-        if (($mode === null || $mode === $this->access_mode) && $this->price !== null) {
-            $prices->push((float) $this->price);
-        }
-
-        return $prices->values();
+            ->filter(fn (?float $price): bool => $price !== null)
+            ->values();
     }
 
     /**
-     * What the price for this way in is measured in: whatever its intervals say,
-     * else the space's own unit, else what the mode implies.
+     * What the price for this way in is measured in: whatever its tariffs say,
+     * else what the mode implies.
      */
     private function priceUnitFor(?SpaceAccessMode $mode): PriceUnit
     {
@@ -347,8 +346,20 @@ class Space extends Model
             return $fromSlot;
         }
 
-        return $this->price_unit
-            ?? ($mode ?? $this->access_mode)->defaultPriceUnit();
+        return ($mode ?? $this->accessModes()->first() ?? SpaceAccessMode::OpenAccess)->defaultPriceUnit();
+    }
+
+    /**
+     * The note printed under the price — "Abonament 380 lei / 10 intrări" — for
+     * one way in. Belongs to a tariff, so asking for the rental price never
+     * surfaces the season ticket that only applies to walk-ins.
+     */
+    public function priceNotesFor(?SpaceAccessMode $mode = null): ?string
+    {
+        return $this->slotsFor($mode)
+            ->map(fn (ScheduleSlot $slot): ?string => $slot->price_notes)
+            ->filter()
+            ->first();
     }
 
     /**
@@ -359,9 +370,9 @@ class Space extends Model
      */
     public function hoursByDay(?SpaceAccessMode $mode = null): array
     {
-        return $this->slotsFor($mode)
+        return $this->timedSlots($mode)
             ->sortBy([['day_of_week', 'asc'], ['start_time', 'asc']])
-            ->groupBy(fn (ScheduleSlot $slot): int => $slot->day_of_week->value)
+            ->groupBy(fn (ScheduleSlot $slot): int => (int) $slot->day_of_week?->value)
             ->map(fn (Collection $slots): array => array_values($slots
                 ->map(fn (ScheduleSlot $slot): array => [
                     'start' => substr((string) $slot->start_time, 0, 5),
@@ -382,8 +393,8 @@ class Space extends Model
         $day = Weekday::fromDate($moment)->value;
         $time = $moment->format('H:i:s');
 
-        return $this->slotsFor($mode)->contains(
-            fn (ScheduleSlot $slot): bool => $slot->day_of_week->value === $day
+        return $this->timedSlots($mode)->contains(
+            fn (ScheduleSlot $slot): bool => $slot->day_of_week?->value === $day
                 && $slot->start_time <= $time
                 && $slot->end_time >= $time,
         );
@@ -398,8 +409,8 @@ class Space extends Model
         $day = Weekday::fromDate($moment)->value;
         $time = $moment->format('H:i:s');
 
-        $slot = $this->slotsFor($mode)
-            ->filter(fn (ScheduleSlot $slot): bool => $slot->day_of_week->value === $day
+        $slot = $this->timedSlots($mode)
+            ->filter(fn (ScheduleSlot $slot): bool => $slot->day_of_week?->value === $day
                 && $slot->start_time <= $time
                 && $slot->end_time >= $time)
             ->sortBy('end_time')
@@ -432,6 +443,16 @@ class Space extends Model
     public function sport(): BelongsTo
     {
         return $this->belongsTo(Sport::class);
+    }
+
+    /**
+     * What it is played on, when the sport is one anybody asks that about.
+     *
+     * @return BelongsTo<Surface, $this>
+     */
+    public function surface(): BelongsTo
+    {
+        return $this->belongsTo(Surface::class);
     }
 
     /**

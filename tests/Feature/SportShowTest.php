@@ -58,12 +58,12 @@ test('the page groups the places by how you get in', function () {
     $this->get(route('sports.show', ['slug' => 'baschet', 'city' => 'cluj-napoca']))->assertInertia(
         fn ($page) => $page
             ->has('ways', 3)
-            ->where('ways.0.key', 'organizat')
+            ->where('ways.0.key', 'cursuri')
             ->where('ways.0.locations.0.name', 'Sala cu club')
             ->where('ways.0.locations.0.who', 'un club')
             // A club publishes no price, and inventing one would be worse.
             ->where('ways.0.locations.0.price', null)
-            ->where('ways.1.key', 'liber')
+            ->where('ways.1.key', 'agrement')
             ->where('ways.1.locations.0.name', 'Parcul central')
             ->where('ways.1.locations.0.price', 'Gratuit')
             ->where('ways.1.locations.0.who', 'Spațiu public')
@@ -78,7 +78,7 @@ test('a way nobody offers here is absent, not shown empty', function () {
     clubAt($location, $sport, 'CS Test');
 
     $this->get(route('sports.show', ['slug' => 'baschet', 'city' => 'cluj-napoca']))->assertInertia(
-        fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'organizat'),
+        fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'cursuri'),
     );
 });
 
@@ -150,8 +150,8 @@ test('the city cards say which ways in each city has', function () {
 
     $this->get(route('sports.show', 'baschet'))->assertInertia(
         fn ($page) => $page
-            ->where('cities.0.ways.organizat', 1)
-            ->where('cities.0.ways.liber', 1)
+            ->where('cities.0.ways.cursuri', 1)
+            ->where('cities.0.ways.agrement', 1)
             // Absent rather than zero: a way nobody offers is not a fact about
             // the city, it is the absence of one.
             ->missing('cities.0.ways.inchiriere'),

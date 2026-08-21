@@ -2,7 +2,6 @@
 
 namespace App\Filament\Organization\Resources\People;
 
-use App\Filament\Concerns\ClubOnlyResource;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Forms\Components\WebpUpload;
 use App\Filament\Organization\Resources\People\Pages\ManagePeople;
@@ -30,7 +29,7 @@ use Livewire\Component;
 
 class PersonResource extends Resource
 {
-    use ClubOnlyResource, ResolvesOrganization;
+    use ResolvesOrganization;
 
     protected static ?string $model = Person::class;
 
@@ -41,6 +40,10 @@ class PersonResource extends Resource
     protected static ?string $pluralModelLabel = 'antrenori';
 
     protected static ?string $navigationLabel = 'Antrenori';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

@@ -191,7 +191,7 @@ test('amenities are added, never removed, and a proof photo is never overwritten
 test('a space operated through the dropped presence follows it', function () {
     $winner = Location::factory()->create();
     $loser = Location::factory()->create();
-    $venue = Organization::factory()->venue()->create();
+    $venue = Organization::factory()->create();
 
     $atWinner = OrganizationLocation::create([
         'organization_id' => $venue->getKey(),

@@ -21,7 +21,7 @@ class LocationClaimFactory extends Factory
     {
         return [
             'location_id' => Location::factory(),
-            'organization_id' => Organization::factory()->venue(),
+            'organization_id' => Organization::factory(),
             'evidence' => 'Suntem proprietarii bazei. Contract de administrare din 2019.',
             'status' => LocationClaimStatus::Pending,
         ];

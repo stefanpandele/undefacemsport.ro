@@ -10,8 +10,10 @@ use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Organization\Resources\Spaces\Pages\ManageSpaces;
 use App\Models\Location;
 use App\Models\Organization;
+use App\Models\ScheduleSlot;
 use App\Models\Space;
 use App\Models\Sport;
+use App\Models\Surface;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -35,9 +37,8 @@ use Livewire\Component;
 /**
  * The spaces at an organization's locations: a pool, a pitch, a court, a gym.
  *
- * Deliberately **not** `ClubOnlyResource`. This is the resource a venue lives in,
- * and a club that owns its hall uses exactly the same one — renting out dead
- * hours does not make it a different kind of organization.
+ * Publishing one is what makes an organization a venue — nothing is declared, and
+ * a club that rents out its dead hours becomes one without ceasing to be a club.
  */
 class SpaceResource extends Resource
 {
@@ -53,12 +54,22 @@ class SpaceResource extends Resource
 
     protected static ?string $navigationLabel = 'Spații';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Agrement și închiriere';
+
+    protected static ?int $navigationSort = 1;
+
     /**
      * Scoped by hand rather than by Filament's tenancy: a space belongs to a
      * location, and only sometimes to an organization, so there is no
      * `organization_id` for the panel to filter on.
      */
     protected static bool $isScopedToTenant = false;
+
+    /**
+     * The most units one submit may create. High enough for the biggest padel
+     * club, low enough that a typo in the quantity field is not a disaster.
+     */
+    private const BULK_LIMIT = 40;
 
     public static function form(Schema $schema): Schema
     {
@@ -68,22 +79,26 @@ class SpaceResource extends Resource
                     ->label('Locația')
                     ->options(fn (?Component $livewire): array => static::locationOptions($livewire))
                     ->searchable()
+                    // Live because the quota depends on it: a court at an address
+                    // already selling this sport is free.
+                    ->live()
                     ->required(),
                 Toggle::make('is_operated_by_us')
                     ->label('Îl administrăm noi')
-                    ->helperText(fn (?Component $livewire): string => static::atSpaceLimit($livewire)
-                        ? 'Ai atins limita de spații administrate din planul tău. Poți în continuare să adaugi un spațiu public — nu consumă din limită.'
+                    ->helperText(fn (?Component $livewire, $get): string => static::atSpaceLimit($livewire, $get)
+                        ? 'Ai atins limita din planul tău pentru sporturi noi la adrese noi. Poți în continuare să adaugi terenuri la ce vinzi deja, și spații publice — niciunul nu consumă din limită.'
                         : 'Stins înseamnă spațiu public: îl semnalezi pentru toată lumea, fără să-l administrezi. Nu consumă din limita planului.')
                     // Disabled at the quota rather than hiding the whole form: a
                     // club that has run out of its own spaces may still put a park
                     // court on the map, and the plan has no business stopping it.
-                    ->disabled(fn (?Component $livewire): bool => static::atSpaceLimit($livewire))
+                    ->disabled(fn (?Component $livewire, $get): bool => static::atSpaceLimit($livewire, $get))
                     ->default(true)
                     ->dehydrated()
                     ->columnSpanFull(),
                 TextInput::make('name')
                     ->label('Nume')
-                    ->placeholder('Bazin de înot, Teren 1, Saună')
+                    ->helperText('Numele acestui teren, nu al sportului — „Teren 1", „Masa 2", „Bazin de înot". Sportul se alege alături.')
+                    ->placeholder('Teren 1')
                     ->required()
                     ->maxLength(255),
                 Select::make('sport_id')
@@ -94,82 +109,74 @@ class SpaceResource extends Resource
                         ->sortBy(fn (Sport $sport): string => $sport->translated_name)
                         ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
                         ->all())
-                    ->searchable(),
-                Select::make('access_mode')
-                    ->label('Cum se intră')
-                    ->options(SpaceAccessMode::options())
-                    ->default(SpaceAccessMode::OpenAccess)
+                    ->searchable()
                     ->live()
-                    ->afterStateUpdated(function (mixed $state, $set): void {
-                        $mode = is_string($state) ? SpaceAccessMode::tryFrom($state) : null;
-
-                        if ($mode instanceof SpaceAccessMode) {
-                            $set('price_unit', $mode->defaultPriceUnit()->value);
-                        }
-                    })
-                    ->required(),
-                TextInput::make('price')
-                    ->label('Preț')
-                    ->helperText('0 pentru gratuit. Gol înseamnă că nu se știe, și pagina spune asta.')
-                    ->numeric()
-                    ->minValue(0)
-                    ->step('0.01'),
-                Select::make('price_unit')
-                    ->label('Pe')
-                    ->options(PriceUnit::options()),
-                TextInput::make('price_notes')
-                    ->label('Notă la preț')
-                    ->placeholder('Abonament 380 lei / 10 intrări')
-                    ->maxLength(255)
-                    ->columnSpanFull(),
+                    ->afterStateUpdated(fn ($set) => $set('surface_id', null)),
+                Select::make('surface_id')
+                    ->label('Suprafață')
+                    ->options(fn ($get): array => Surface::optionsFor($get('sport_id')))
+                    // Hidden rather than empty: a sport with no surfaces is one
+                    // nobody asks the question about, and an empty select would
+                    // invite an answer that does not exist.
+                    ->visible(fn ($get): bool => Surface::optionsFor($get('sport_id')) !== []),
                 TextInput::make('capacity')
                     ->label('Capacitate')
-                    ->helperText('Informativ: 6 culoare, 2 terenuri.')
+                    // Bricks are counted by rows now — six courts are six spaces.
+                    // So this can only mean people, which is what the public card
+                    // has always printed it as ("5 locuri").
+                    ->helperText('Câte persoane încap. Numărul de terenuri nu se scrie aici — fiecare teren e un spațiu al lui.')
                     ->numeric()
                     ->minValue(1),
-                TextInput::make('surface')
-                    ->label('Suprafață')
-                    ->placeholder('Gazon sintetic, parchet, tartan')
-                    ->maxLength(255),
                 Toggle::make('is_indoor')
                     ->label('Acoperit'),
                 Toggle::make('has_floodlights')
                     ->label('Nocturnă'),
                 Repeater::make('accessSlots')
-                    ->label('Program')
-                    ->helperText('Câte un interval pe zi. O zi fără interval înseamnă închis. Un interval poate avea alt mod de acces decât spațiul — o sală închiriată pe oră care ține open-gym vinerea seara.')
+                    ->label('Tarife')
+                    ->helperText('Un rând spune cum se intră, cât costă și când. Aceeași zi poate avea mai multe — un tarif până la 18:00 și altul seara. Lasă ziua și orele goale dacă programul nu e cunoscut; o zi fără niciun tarif înseamnă închis.')
                     ->relationship()
                     ->schema([
-                        Select::make('day_of_week')
-                            ->label('Zi')
-                            ->options(Weekday::options())
-                            ->required(),
-                        TimePicker::make('start_time')
-                            ->label('De la')
-                            ->seconds(false)
-                            ->required(),
-                        TimePicker::make('end_time')
-                            ->label('Până la')
-                            ->seconds(false)
-                            ->required(),
                         Select::make('access_mode')
                             ->label('Cum se intră')
-                            ->helperText('Gol = ca spațiul.')
                             ->options(SpaceAccessMode::options())
-                            ->placeholder('Ca spațiul'),
+                            ->default(SpaceAccessMode::OpenAccess)
+                            ->live()
+                            ->afterStateUpdated(function (mixed $state, $set): void {
+                                $mode = is_string($state) ? SpaceAccessMode::tryFrom($state) : null;
+
+                                if ($mode instanceof SpaceAccessMode) {
+                                    $set('price_unit', $mode->defaultPriceUnit()->value);
+                                }
+                            })
+                            ->required(),
                         TextInput::make('price')
-                            ->label('Preț pe interval')
-                            ->helperText('Gol = prețul de bază.')
+                            ->label('Preț')
+                            ->helperText('0 pentru gratuit. Gol înseamnă că nu se știe, și pagina spune asta.')
                             ->numeric()
                             ->minValue(0)
                             ->step('0.01'),
                         Select::make('price_unit')
                             ->label('Pe')
                             ->options(PriceUnit::options())
-                            ->placeholder('Ca spațiul'),
+                            ->placeholder(fn ($get): string => static::impliedUnit($get('access_mode'))),
+                        Select::make('day_of_week')
+                            ->label('Zi')
+                            ->options(Weekday::options())
+                            ->placeholder('Nu se știe'),
+                        TimePicker::make('start_time')
+                            ->label('De la')
+                            ->seconds(false),
+                        TimePicker::make('end_time')
+                            ->label('Până la')
+                            ->seconds(false),
+                        TextInput::make('price_notes')
+                            ->label('Notă la preț')
+                            ->placeholder('Abonament 380 lei / 10 intrări')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
                     ])
                     ->columns(3)
-                    ->addActionLabel('Adaugă interval')
+                    ->addActionLabel('Adaugă tarif')
                     // The relationship's `where kind` never reaches an insert, and
                     // the model defaults a slot to `training`, so both have to be
                     // set here or the hours would be filed as trainings.
@@ -180,8 +187,200 @@ class SpaceResource extends Resource
     }
 
     /**
-     * Every slot the repeater writes is a space's own opening hours, credited to
-     * the organization that operates it — or to nobody, for a public space.
+     * The form for adding a whole set of courts at once.
+     *
+     * One row per physical unit is the rule, and typing eleven identical forms is
+     * what it costs. This pays it once: the shared facts and the tariffs are
+     * entered a single time, the courts come out numbered, and whatever differs
+     * — the one outdoor court, the one with the glass wall — is edited after.
+     *
+     * @return array<int, \Filament\Schemas\Components\Component>
+     */
+    public static function bulkFormComponents(): array
+    {
+        return [
+            Select::make('location_id')
+                ->label('Locația')
+                ->options(fn (?Component $livewire): array => static::locationOptions($livewire))
+                ->searchable()
+                ->live()
+                ->required(),
+            Toggle::make('is_operated_by_us')
+                ->label('Le administrăm noi')
+                ->helperText(fn (?Component $livewire, $get): string => static::atSpaceLimit($livewire, $get)
+                    ? 'Ai atins limita din planul tău pentru sporturi noi la adrese noi. Poți în continuare să adaugi terenuri la ce vinzi deja, și spații publice — niciunul nu consumă din limită.'
+                    : 'Oricâte terenuri adaugi aici consumă o singură unitate din plan: sunt același lucru vândut, la aceeași adresă.')
+                ->disabled(fn (?Component $livewire, $get): bool => static::atSpaceLimit($livewire, $get))
+                ->default(true)
+                ->dehydrated()
+                ->columnSpanFull(),
+            TextInput::make('name')
+                ->label('Nume de bază')
+                ->helperText('Se numerotează singur: „Teren" devine Teren 1, Teren 2, Teren 3. Pentru un singur spațiu, numele rămâne neatins.')
+                ->placeholder('Teren')
+                ->required()
+                ->maxLength(240),
+            TextInput::make('quantity')
+                ->label('Câte')
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(self::BULK_LIMIT)
+                ->default(2)
+                ->required(),
+            Select::make('sport_id')
+                ->label('Sport')
+                ->helperText('Lasă gol pentru spații care nu sunt un sport — saune, vestiare.')
+                ->options(fn (): array => Sport::query()
+                    ->get()
+                    ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+                    ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
+                    ->all())
+                ->searchable()
+                ->live()
+                ->afterStateUpdated(fn ($set) => $set('surface_id', null)),
+            Select::make('surface_id')
+                ->label('Suprafață')
+                ->options(fn ($get): array => Surface::optionsFor($get('sport_id')))
+                ->visible(fn ($get): bool => Surface::optionsFor($get('sport_id')) !== []),
+            Toggle::make('is_indoor')
+                ->label('Acoperite'),
+            Toggle::make('has_floodlights')
+                ->label('Nocturnă'),
+            Repeater::make('tariffs')
+                ->label('Tarife')
+                ->helperText('Se scriu o dată și se aplică tuturor. Bifează toate zilele cu același tarif — se desfac într-un rând pe zi, ca să poți corecta o singură zi mai târziu.')
+                ->schema([
+                    Select::make('access_mode')
+                        ->label('Cum se intră')
+                        ->options(SpaceAccessMode::options())
+                        ->default(SpaceAccessMode::OpenAccess)
+                        ->live()
+                        ->afterStateUpdated(function (mixed $state, $set): void {
+                            $mode = is_string($state) ? SpaceAccessMode::tryFrom($state) : null;
+
+                            if ($mode instanceof SpaceAccessMode) {
+                                $set('price_unit', $mode->defaultPriceUnit()->value);
+                            }
+                        })
+                        ->required(),
+                    TextInput::make('price')
+                        ->label('Preț')
+                        ->helperText('0 pentru gratuit. Gol înseamnă că nu se știe.')
+                        ->numeric()
+                        ->minValue(0)
+                        ->step('0.01'),
+                    Select::make('price_unit')
+                        ->label('Pe')
+                        ->options(PriceUnit::options())
+                        ->placeholder(fn ($get): string => static::impliedUnit($get('access_mode'))),
+                    Select::make('days')
+                        ->label('Zile')
+                        ->helperText('Gol = program necunoscut.')
+                        ->options(Weekday::options())
+                        ->multiple()
+                        ->placeholder('Nu se știe'),
+                    TimePicker::make('start_time')
+                        ->label('De la')
+                        ->seconds(false),
+                    TimePicker::make('end_time')
+                        ->label('Până la')
+                        ->seconds(false),
+                ])
+                ->columns(3)
+                ->defaultItems(1)
+                ->minItems(1)
+                ->addActionLabel('Adaugă tarif')
+                ->columnSpanFull(),
+        ];
+    }
+
+    /**
+     * Create one space per unit, each with its own copy of the tariffs.
+     *
+     * A day multi-select is expanded here rather than stored: the table keeps one
+     * row per weekday, so a venue can later correct a single Tuesday without
+     * touching the rest of the week.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function persistMany(array $data, ?Component $livewire = null, ?Organization $organization = null): Space
+    {
+        $organization ??= static::resolveOrganization($livewire);
+        $quantity = max(1, min(self::BULK_LIMIT, (int) ($data['quantity'] ?? 1)));
+        $name = trim((string) $data['name']);
+
+        $attributes = static::resolveOwnership([
+            'location_id' => $data['location_id'],
+            'is_operated_by_us' => $data['is_operated_by_us'] ?? false,
+        ], $livewire, $organization);
+
+        $created = [];
+
+        foreach (range(1, $quantity) as $number) {
+            $space = Space::create($attributes + [
+                // A lone space keeps the name as typed: "Bazin de înot 1" would
+                // claim there is a second one.
+                'name' => $quantity === 1 ? $name : $name.' '.$number,
+                'sport_id' => $data['sport_id'] ?? null,
+                'surface_id' => $data['surface_id'] ?? null,
+                'is_indoor' => $data['is_indoor'] ?? null,
+                'has_floodlights' => $data['has_floodlights'] ?? null,
+            ]);
+
+            static::writeTariffs($space, $data['tariffs'] ?? [], $organization);
+
+            $created[] = $space;
+        }
+
+        // At least one, because the quantity is clamped to a minimum of one.
+        return $created[0];
+    }
+
+    /**
+     * Write each tariff onto the space, once per weekday ticked — or once with no
+     * hours at all, when nobody knows the timetable.
+     *
+     * @param  array<int, array<string, mixed>>  $tariffs
+     */
+    protected static function writeTariffs(Space $space, array $tariffs, ?Organization $organization): void
+    {
+        foreach ($tariffs as $tariff) {
+            $days = array_values(array_filter(
+                (array) ($tariff['days'] ?? []),
+                fn (mixed $day): bool => filled($day),
+            ));
+
+            foreach ($days === [] ? [null] : $days as $day) {
+                ScheduleSlot::create([
+                    'kind' => ScheduleSlotKind::Access,
+                    'organization_id' => $organization?->getKey(),
+                    'space_id' => $space->getKey(),
+                    'access_mode' => $tariff['access_mode'],
+                    'price' => $tariff['price'] ?? null,
+                    'price_unit' => $tariff['price_unit'] ?? null,
+                    'day_of_week' => $day,
+                    // Hours without a day would be a timetable nobody could read.
+                    'start_time' => $day === null ? null : ($tariff['start_time'] ?? null),
+                    'end_time' => $day === null ? null : ($tariff['end_time'] ?? null),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * What the price would be measured in if the operator says nothing — shown as
+     * the select's placeholder, so the implied unit is visible before it is used.
+     */
+    protected static function impliedUnit(mixed $mode): string
+    {
+        $mode = is_string($mode) ? SpaceAccessMode::tryFrom($mode) : null;
+
+        return ($mode ?? SpaceAccessMode::OpenAccess)->defaultPriceUnit()->label();
+    }
+
+    /**
+     * Every slot the repeater writes is a tariff of this space, credited to the
+     * organization that operates it — or to nobody, for a public space.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -202,12 +401,12 @@ class SpaceResource extends Resource
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    public static function resolveOwnership(array $data, ?Component $livewire = null): array
+    public static function resolveOwnership(array $data, ?Component $livewire = null, ?Organization $organization = null): array
     {
         $operated = (bool) ($data['is_operated_by_us'] ?? false);
         unset($data['is_operated_by_us']);
 
-        $organization = static::resolveOrganization($livewire);
+        $organization ??= static::resolveOrganization($livewire);
         $locationId = isset($data['location_id']) ? (int) $data['location_id'] : null;
 
         $data['organization_location_id'] = $operated && $organization instanceof Organization && $locationId !== null
@@ -242,7 +441,12 @@ class SpaceResource extends Resource
                 TextColumn::make('access_mode')
                     ->label('Cum se intră')
                     ->badge()
-                    ->formatStateUsing(fn (SpaceAccessMode $state): string => $state->label()),
+                    // One row can carry both: the hall rented by the hour that
+                    // opens on Friday evenings.
+                    ->state(fn (Space $record): array => $record->accessModes()
+                        ->map(fn (SpaceAccessMode $mode): string => $mode->label())
+                        ->all())
+                    ->placeholder('—'),
                 TextColumn::make('sport.translated_name')
                     ->label('Sport')
                     ->placeholder('—'),
@@ -307,11 +511,28 @@ class SpaceResource extends Resource
             ->all();
     }
 
-    protected static function atSpaceLimit(?Component $livewire = null): bool
+    /**
+     * Whether this particular space would exceed the plan.
+     *
+     * Asked of the location and sport chosen in the form, because another court
+     * of something already on offer costs nothing: the limit counts offers, not
+     * bricks.
+     */
+    protected static function atSpaceLimit(?Component $livewire = null, ?callable $get = null): bool
     {
         $organization = static::resolveOrganization($livewire);
 
-        return $organization instanceof Organization && ! $organization->canAddSpace();
+        if (! $organization instanceof Organization) {
+            return false;
+        }
+
+        $locationId = $get === null ? null : $get('location_id');
+        $sportId = $get === null ? null : $get('sport_id');
+
+        return ! $organization->canAddSpace(
+            filled($locationId) ? (int) $locationId : null,
+            filled($sportId) ? (int) $sportId : null,
+        );
     }
 
     public static function getPages(): array

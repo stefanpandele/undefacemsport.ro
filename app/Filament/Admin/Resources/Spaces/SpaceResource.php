@@ -4,19 +4,24 @@ namespace App\Filament\Admin\Resources\Spaces;
 
 use App\Enums\FacilityStatus;
 use App\Enums\PriceUnit;
+use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
+use App\Enums\Weekday;
 use App\Filament\Admin\Resources\Spaces\Pages\ManageSpaces;
 use App\Models\Location;
 use App\Models\Space;
 use App\Models\Sport;
+use App\Models\Surface;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -27,6 +32,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -81,29 +87,17 @@ class SpaceResource extends Resource
                         ->sortBy(fn (Sport $sport): string => $sport->translated_name)
                         ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
                         ->all())
-                    ->searchable(),
-                Select::make('access_mode')
-                    ->label('Cum se intră')
-                    ->options(SpaceAccessMode::options())
-                    ->default(SpaceAccessMode::OpenAccess)
-                    ->required(),
-                TextInput::make('price')
-                    ->label('Preț')
-                    ->helperText('0 pentru gratuit, gol pentru necunoscut.')
-                    ->numeric()
-                    ->minValue(0)
-                    ->step('0.01')
-                    ->default(0),
-                Select::make('price_unit')
-                    ->label('Pe')
-                    ->options(PriceUnit::options()),
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(fn ($set) => $set('surface_id', null)),
+                Select::make('surface_id')
+                    ->label('Suprafață')
+                    ->options(fn ($get): array => Surface::optionsFor($get('sport_id')))
+                    ->visible(fn ($get): bool => Surface::optionsFor($get('sport_id')) !== []),
                 TextInput::make('capacity')
                     ->label('Capacitate')
                     ->numeric()
                     ->minValue(1),
-                TextInput::make('surface')
-                    ->label('Suprafață')
-                    ->maxLength(255),
                 Toggle::make('is_indoor')
                     ->label('Acoperit'),
                 Toggle::make('has_floodlights')
@@ -116,6 +110,47 @@ class SpaceResource extends Resource
                         ->all())
                     ->default(FacilityStatus::Approved)
                     ->required(),
+                // Without a tariff a space says neither how you get in nor what it
+                // costs, so it can be listed nowhere. For a park court one row is
+                // the whole job: acces liber, gratuit, orele lăsate goale.
+                Repeater::make('accessSlots')
+                    ->label('Tarife')
+                    ->helperText('Cel puțin un rând, altfel spațiul nu apare nicăieri. Lasă ziua și orele goale dacă nu se știe programul.')
+                    ->relationship()
+                    ->schema([
+                        Select::make('access_mode')
+                            ->label('Cum se intră')
+                            ->options(SpaceAccessMode::options())
+                            ->default(SpaceAccessMode::OpenAccess)
+                            ->required(),
+                        TextInput::make('price')
+                            ->label('Preț')
+                            ->helperText('0 pentru gratuit, gol pentru necunoscut.')
+                            ->numeric()
+                            ->minValue(0)
+                            ->step('0.01')
+                            ->default(0),
+                        Select::make('price_unit')
+                            ->label('Pe')
+                            ->options(PriceUnit::options()),
+                        Select::make('day_of_week')
+                            ->label('Zi')
+                            ->options(Weekday::options())
+                            ->placeholder('Nu se știe'),
+                        TimePicker::make('start_time')
+                            ->label('De la')
+                            ->seconds(false),
+                        TimePicker::make('end_time')
+                            ->label('Până la')
+                            ->seconds(false),
+                    ])
+                    ->columns(3)
+                    ->defaultItems(1)
+                    ->minItems(1)
+                    ->addActionLabel('Adaugă tarif')
+                    ->mutateRelationshipDataBeforeCreateUsing(fn (array $data): array => $data + ['kind' => ScheduleSlotKind::Access->value])
+                    ->mutateRelationshipDataBeforeSaveUsing(fn (array $data): array => $data + ['kind' => ScheduleSlotKind::Access->value])
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -142,7 +177,10 @@ class SpaceResource extends Resource
                 TextColumn::make('access_mode')
                     ->label('Cum se intră')
                     ->badge()
-                    ->formatStateUsing(fn (SpaceAccessMode $state): string => $state->label()),
+                    ->state(fn (Space $record): array => $record->accessModes()
+                        ->map(fn (SpaceAccessMode $mode): string => $mode->label())
+                        ->all())
+                    ->placeholder('—'),
                 TextColumn::make('price')
                     ->label('Preț')
                     ->state(fn (Space $record): string => $record->priceFromLabel() ?? 'nespecificat'),
@@ -171,7 +209,16 @@ class SpaceResource extends Resource
             ->filters([
                 SelectFilter::make('access_mode')
                     ->label('Cum se intră')
-                    ->options(SpaceAccessMode::options()),
+                    ->options(SpaceAccessMode::options())
+                    // The mode lives on the tariffs now, so the filter asks them.
+                    // Spelled out rather than calling Space::scopeOffering(): the
+                    // filter's builder is not typed to a model, so the scope would
+                    // be invisible to static analysis.
+                    ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                        ? $query->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                            ->where('kind', ScheduleSlotKind::Access)
+                            ->where('access_mode', SpaceAccessMode::from((string) $data['value'])))
+                        : $query),
             ])
             ->recordActions([
                 Action::make('verify')

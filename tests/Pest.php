@@ -68,6 +68,13 @@ function clubAt(Location $location, Sport $sport, string $name): Organization
 {
     $club = Organization::factory()->create(['name' => $name]);
 
+    // The programme itself, not only its presence at an address: what makes an
+    // organization a club is that it teaches, and `organization_sport` is where
+    // it says so.
+    // firstOrCreate: a test that goes on to configure the programme itself would
+    // otherwise trip the unique index.
+    $club->organizationSports()->firstOrCreate(['sport_id' => $sport->getKey()]);
+
     $presence = OrganizationLocation::create([
         'organization_id' => $club->getKey(),
         'location_id' => $location->getKey(),
@@ -100,7 +107,7 @@ function spaceAt(
     $presence = null;
 
     if ($managed) {
-        $venue = Organization::factory()->venue()->create();
+        $venue = Organization::factory()->create();
         $presence = OrganizationLocation::create([
             'organization_id' => $venue->getKey(),
             'location_id' => $location->getKey(),
@@ -111,9 +118,6 @@ function spaceAt(
         'location_id' => $location->getKey(),
         'organization_location_id' => $presence?->getKey(),
         'sport_id' => $sport?->getKey(),
-        'access_mode' => $mode,
-        'price' => $price,
-        'price_unit' => $mode->defaultPriceUnit(),
     ]);
 
     foreach (Weekday::cases() as $day) {
@@ -121,6 +125,9 @@ function spaceAt(
             'kind' => ScheduleSlotKind::Access,
             'organization_id' => $presence?->organization_id,
             'space_id' => $space->getKey(),
+            'access_mode' => $mode,
+            'price' => $price,
+            'price_unit' => $mode->defaultPriceUnit(),
             'day_of_week' => $day,
             'start_time' => '07:00',
             'end_time' => '22:00',

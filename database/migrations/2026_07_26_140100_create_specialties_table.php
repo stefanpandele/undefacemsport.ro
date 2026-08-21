@@ -23,6 +23,10 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('icon')->nullable();
             $table->string('color')->nullable();
+            // Whether somebody with an injury would search for this. Nearly all of
+            // them qualify — sports massage is the wellness extra that does not,
+            // and listing it under recovery would answer a question nobody asked.
+            $table->boolean('is_medical')->default(true);
             $table->unsignedInteger('sort_order')->default(0);
         });
     }

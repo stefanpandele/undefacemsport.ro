@@ -9,9 +9,13 @@ use App\Enums\Plan;
 use Database\Seeders\AgeGroupSeeder;
 use Database\Seeders\FacilitySeeder;
 use Database\Seeders\LevelSeeder;
+use Database\Seeders\OrganizationProfileSeeder;
 use Database\Seeders\OrganizationSeeder;
+use Database\Seeders\PracticeSeeder;
+use Database\Seeders\SpaceSeeder;
 use Database\Seeders\SpecialtySeeder;
 use Database\Seeders\SportSeeder;
+use Database\Seeders\SurfaceSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
@@ -141,12 +145,14 @@ class BuildDocumentation extends Command
             'specialties.count' => $this->seederCount(SpecialtySeeder::class, 'SPECIALTIES'),
             'facilities.count' => $this->seederCount(FacilitySeeder::class, 'FACILITIES'),
             'levels.count' => $this->seederCount(LevelSeeder::class, 'LEVELS'),
+            'surfaces.count' => $this->seederCount(SurfaceSeeder::class, 'SURFACES'),
             'ageGroups.count' => $this->seederCount(AgeGroupSeeder::class, 'GROUPS'),
             'counties.count' => (string) count((array) config('counties')),
 
-            'seed.clubs' => (string) array_sum($this->constant(OrganizationSeeder::class, 'TARGET')),
-            'seed.venues' => (string) $this->constant(OrganizationSeeder::class, 'VENUE_TARGET'),
-            'seed.practices' => (string) $this->constant(OrganizationSeeder::class, 'PRACTICE_TARGET'),
+            'seed.organizations' => (string) array_sum($this->constant(OrganizationSeeder::class, 'TARGET')),
+            'seed.clubs' => (string) $this->constant(OrganizationProfileSeeder::class, 'CLUB_TARGET'),
+            'seed.venues' => (string) $this->constant(SpaceSeeder::class, 'VENUE_TARGET'),
+            'seed.practices' => (string) $this->constant(PracticeSeeder::class, 'PRACTICE_TARGET'),
 
             'types.count' => (string) count(OrganizationType::cases()),
             'ways.count' => (string) count(LocationWay::cases()),

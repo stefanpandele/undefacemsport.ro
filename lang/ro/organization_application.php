@@ -8,40 +8,11 @@ return [
     'form' => [
         'eyebrow' => 'Cont nou',
         'heading' => 'Înregistrează-ți organizația',
-        'subheading' => 'Îți ia mai puțin de un minut. Restul detaliilor — locații, spații, program — le completezi după aprobare.',
-
-        'type' => [
-            'label' => 'Ce fel de organizație ești?',
-            'hint' => 'Alegerea decide cum arată pagina ta publică și ce poți completa în cont.',
-            'club' => [
-                'label' => 'Club sportiv',
-                'description' => 'Ai grupe, antrenori și program de antrenament.',
-            ],
-            'venue' => [
-                'label' => 'Bază sportivă',
-                'description' => 'Ai terenuri, săli sau bazine — cu bilet de intrare sau închiriate cu ora.',
-            ],
-            'practice' => [
-                'label' => 'Cabinet sau clinică',
-                'description' => 'Lucrezi pe programare: kinetoterapie, recuperare, nutriție.',
-            ],
-        ],
+        'subheading' => 'Club sportiv, bază sportivă sau cabinet — toate se înregistrează aici. Îți ia mai puțin de un minut, iar restul detaliilor le completezi după aprobare.',
 
         'name' => [
             'label' => 'Numele organizației',
             'placeholder' => 'ex. Club Aqua Junior',
-            'club' => [
-                'label' => 'Numele clubului',
-                'placeholder' => 'ex. Club Aqua Junior',
-            ],
-            'venue' => [
-                'label' => 'Numele bazei sportive',
-                'placeholder' => 'ex. Baza Sportivă Olimpia',
-            ],
-            'practice' => [
-                'label' => 'Numele cabinetului',
-                'placeholder' => 'ex. Cabinet Kinetic Recuperare',
-            ],
         ],
         'fiscal_code' => [
             'label' => 'CUI',
@@ -89,10 +60,6 @@ return [
         'name' => [
             'required' => 'Introdu numele organizației.',
             'max' => 'Numele organizației nu poate depăși 255 de caractere.',
-        ],
-        'type' => [
-            'required' => 'Alege ce fel de organizație ești.',
-            'invalid' => 'Alege una dintre cele trei variante.',
         ],
         'fiscal_code' => [
             'required' => 'Introdu codul fiscal (CUI).',

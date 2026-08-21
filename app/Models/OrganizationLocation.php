@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\OrganizationType;
 use Database\Factories\OrganizationLocationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,18 +29,18 @@ class OrganizationLocation extends Model
     protected $fillable = ['organization_id', 'location_id'];
 
     /**
-     * Only the presences of clubs — the organizations that actually run training
-     * programmes. A venue renting out the same hall is a different offer and must
-     * never be counted as a club teaching there.
+     * Only the presences that actually teach something here.
+     *
+     * The question is what happens at this address, never who the organization
+     * is: a venue that hires a coach runs a programme like anybody else, and a
+     * club present at a hall it merely rents out teaches nothing there. Renting
+     * the same hall stays a separate offer, counted through `spaces`.
      *
      * @param  Builder<$this>  $query
      */
-    public function scopeOfClubs(Builder $query): void
+    public function scopeTeaching(Builder $query): void
     {
-        $query->whereHas(
-            'organization',
-            fn (Builder $organizations) => $organizations->where('type', OrganizationType::Club),
-        );
+        $query->whereHas('organizationLocationSports');
     }
 
     /**

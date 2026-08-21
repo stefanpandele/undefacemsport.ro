@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\OrganizationType;
 use App\Models\Location;
 use App\Models\Organization;
 use App\Models\Sport;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -70,11 +70,12 @@ class HomeController extends Controller
     {
         return [
             'locations' => Location::query()->count(),
-            // Clubs only: a venue renting out a hall is not a club, and the
-            // headline number must not quietly claim otherwise.
+            // Only organizations that actually teach somewhere: renting out a hall
+            // is a real offer, but the headline number says "cluburi" and must not
+            // quietly claim otherwise.
             'clubs' => Organization::query()
-                ->where('type', OrganizationType::Club)
-                ->whereHas('organizationLocations')
+                ->whereHas('organizationLocations', fn (Builder $presences) => $presences
+                    ->whereHas('organizationLocationSports'))
                 ->count(),
             'cities' => Location::query()->whereNotNull('city')->distinct()->count('city'),
             'sports' => count(Sport::withReach()),

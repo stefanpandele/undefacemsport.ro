@@ -8,40 +8,11 @@ return [
     'form' => [
         'eyebrow' => 'New account',
         'heading' => 'Register your organization',
-        'subheading' => 'It takes less than a minute. The rest of the details — locations, spaces, schedule — you fill in after approval.',
-
-        'type' => [
-            'label' => 'What kind of organization are you?',
-            'hint' => 'This decides how your public page looks and what you can fill in inside your account.',
-            'club' => [
-                'label' => 'Sports club',
-                'description' => 'You run groups, coaches and a recurring training schedule.',
-            ],
-            'venue' => [
-                'label' => 'Sports venue',
-                'description' => 'You have pitches, halls or pools — entry by ticket or rented by the hour.',
-            ],
-            'practice' => [
-                'label' => 'Practice or clinic',
-                'description' => 'You work by appointment: physiotherapy, recovery, nutrition.',
-            ],
-        ],
+        'subheading' => 'A sports club, a venue or a practice — all register here. It takes less than a minute, and you fill in the rest after approval.',
 
         'name' => [
             'label' => 'Organization name',
             'placeholder' => 'e.g. Club Aqua Junior',
-            'club' => [
-                'label' => 'Club name',
-                'placeholder' => 'e.g. Club Aqua Junior',
-            ],
-            'venue' => [
-                'label' => 'Venue name',
-                'placeholder' => 'e.g. Baza Sportivă Olimpia',
-            ],
-            'practice' => [
-                'label' => 'Practice name',
-                'placeholder' => 'e.g. Cabinet Kinetic Recuperare',
-            ],
         ],
         'fiscal_code' => [
             'label' => 'Fiscal code (CUI)',
@@ -89,10 +60,6 @@ return [
         'name' => [
             'required' => 'Please enter the organization name.',
             'max' => 'The organization name must not exceed 255 characters.',
-        ],
-        'type' => [
-            'required' => 'Please pick what kind of organization you are.',
-            'invalid' => 'Please pick one of the three options.',
         ],
         'fiscal_code' => [
             'required' => 'Please enter the fiscal code (CUI).',

@@ -15,10 +15,10 @@ function clubTeaching(Location $location, Sport $sport, string $name, array $lev
 {
     $club = clubAt($location, $sport, $name);
 
-    $club->organizationSports()->create([
-        'sport_id' => $sport->getKey(),
-        'sort_order' => 0,
-    ])->levels()->sync(collect($levels)->map->getKey()->all());
+    $club->organizationSports()
+        ->firstOrCreate(['sport_id' => $sport->getKey()], ['sort_order' => 0])
+        ->levels()
+        ->sync(collect($levels)->map->getKey()->all());
 
     return $club;
 }
@@ -85,7 +85,7 @@ test('a level drops the ways that have no level at all', function () {
 
     $this->get(route('sports.show', ['slug' => 'baschet', 'city' => 'cluj-napoca', 'nivel' => 'initiere']))
         ->assertInertia(
-            fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'organizat'),
+            fn ($page) => $page->has('ways', 1)->where('ways.0.key', 'cursuri'),
         );
 });
 

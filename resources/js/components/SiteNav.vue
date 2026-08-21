@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { trackEvent } from '@/lib/gtm';
 import { explore, login, pricing, register } from '@/routes';
+import directory from '@/routes/directory';
 import organizationApplication from '@/routes/organization-application';
 import sportRoutes from '@/routes/sports';
 
@@ -24,12 +25,17 @@ function handleOutside(event: MouseEvent) {
 onMounted(() => document.addEventListener('click', handleOutside));
 onBeforeUnmount(() => document.removeEventListener('click', handleOutside));
 
-// The main bar is the catalogue and nothing else. Pricing lives under Club,
-// because a visitor looking for a hall never pays anything — it is the club
-// that needs it, and it is a page you read before deciding, not a nav item.
+// The main bar is the catalogue and nothing else. Pricing lives under the
+// account menu, because a visitor looking for a hall never pays anything — it is
+// the organization that needs it, and it is a page you read before deciding.
 const links = [
     { label: 'Explorează', href: explore.url(), icon: '🔎' },
     { label: 'Sporturi', href: sportRoutes.index.url(), icon: '🏅' },
+    // The three ways in, each its own thread: who teaches, where you can walk
+    // in, and who patches you up afterwards.
+    { label: 'Cluburi', href: directory.clubs.url(), icon: '🏆' },
+    { label: 'Baze sportive', href: directory.venues.url(), icon: '🏟️' },
+    { label: 'Recuperare', href: directory.practices.url(), icon: '🩺' },
 ];
 
 const sectionLabel =
@@ -66,7 +72,7 @@ const btnBase =
 
             <!-- Catalogue on the left, accounts on the right. Listing a club
                  used to sit here too, pointing at the same page as Register
-                 inside the Club menu — one destination, two links. -->
+                 inside the account menu — one destination, two links. -->
             <div class="hidden gap-[26px] min-[900px]:flex">
                 <Link
                     v-for="link in links"
@@ -148,18 +154,18 @@ const btnBase =
                         ]"
                         @click="toggle('club')"
                     >
-                        Club
+                        Cont
                     </button>
                     <div v-if="openMenu === 'club'" :class="menuPanel">
-                        <!-- Club login = panou Filament, deci <a> normal (nu Inertia) -->
+                        <!-- Login în panou = Filament, deci <a> normal (nu Inertia) -->
                         <a href="/cont/login" :class="menuItem">Login</a>
-                        <!-- Club register = formularul nostru Inertia cu aprobare -->
+                        <!-- Register = formularul nostru Inertia, cu aprobare -->
                         <Link
                             :href="organizationApplication.create.url()"
                             :class="menuItem"
                             @click="
                                 trackEvent('cta_click', {
-                                    cta: 'add_club',
+                                    cta: 'add_organization',
                                     location: 'nav_club_menu',
                                 })
                             "
@@ -216,8 +222,8 @@ const btnBase =
                     </Link>
 
                     <div class="mt-4 mb-2 border-t border-line" />
-                    <div :class="sectionLabel">Club</div>
-                    <!-- Club login = panou Filament, deci <a> normal -->
+                    <div :class="sectionLabel">Contul tău</div>
+                    <!-- Login în panou = Filament, deci <a> normal -->
                     <a href="/cont/login" :class="sheetItem">
                         <span :class="sheetIcon">🔑</span>
                         Login
@@ -227,7 +233,7 @@ const btnBase =
                         :class="sheetItem"
                         @click="
                             trackEvent('cta_click', {
-                                cta: 'add_club',
+                                cta: 'add_organization',
                                 location: 'nav_mobile',
                             })
                         "

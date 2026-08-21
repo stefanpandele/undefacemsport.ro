@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Lang;
  * @property string $slug
  * @property string|null $icon
  * @property string|null $color
+ * @property bool $is_medical
  * @property int $sort_order
  * @property-read string $translated_name
  */
@@ -32,7 +33,10 @@ class Specialty extends Model
     public $timestamps = false;
 
     /** @var list<string> */
-    protected $fillable = ['name', 'slug', 'icon', 'color', 'sort_order'];
+    protected $fillable = ['name', 'slug', 'icon', 'color', 'is_medical', 'sort_order'];
+
+    /** @var array<string, bool> */
+    protected $attributes = ['is_medical' => true];
 
     /**
      * @return array<string, string>
@@ -40,6 +44,7 @@ class Specialty extends Model
     protected function casts(): array
     {
         return [
+            'is_medical' => 'boolean',
             'sort_order' => 'integer',
         ];
     }

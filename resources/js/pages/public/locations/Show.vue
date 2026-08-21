@@ -303,17 +303,17 @@ function goToClub(key: string) {
                         <h3
                             class="mb-1.5 font-archivo text-[17px] font-extrabold"
                         >
-                            Ții lecții aici?
+                            Tu ești de aici?
                         </h3>
                         <p class="mb-4 text-[13.5px] text-sage">
-                            Adaugă-ți clubul și programul, ca lumea să te
-                            găsească.
+                            Predai, închiriezi sau tratezi la această adresă?
+                            Publică-ți oferta, ca lumea să te găsească.
                         </p>
                         <Link
                             :href="organizationApplication.create.url()"
                             class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-clay px-5 py-3 text-[14.5px] font-semibold text-white transition hover:bg-[#e6501c]"
                         >
-                            Adaugă-ți clubul
+                            Înregistrează-te
                         </Link>
                     </div>
                 </div>
@@ -431,7 +431,7 @@ function goToClub(key: string) {
 
                 <!-- Organised programmes: the clubs, untouched. Nothing about a
                      venue's hours belongs in here. -->
-                <template v-if="activeWay?.key === 'organizat'">
+                <template v-if="activeWay?.key === 'cursuri'">
                     <h2
                         class="mb-3.5 flex items-center gap-2.5 font-archivo text-[19px] font-extrabold"
                     >
@@ -543,7 +543,17 @@ function goToClub(key: string) {
                                 </ul>
                             </div>
 
-                            <details class="mt-3.5">
+                            <!-- Nobody keeps a timetable for a park court. Saying so
+                                 beats seven rows of "închis", which claims a
+                                 closing nobody announced. -->
+                            <p
+                                v-if="!space.hoursKnown"
+                                class="mt-3.5 font-jetbrains text-[11px] tracking-[0.04em] text-sage"
+                            >
+                                Program neprecizat
+                            </p>
+
+                            <details v-else class="mt-3.5">
                                 <summary
                                     class="cursor-pointer font-jetbrains text-[11px] font-bold tracking-[0.08em] text-sage uppercase"
                                 >

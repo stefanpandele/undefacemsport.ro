@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\FacilityStatus;
 use App\Enums\OrganizationType;
 use App\Enums\Plan;
+use App\Enums\ScheduleSlotKind;
 use Database\Factories\OrganizationFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,14 +22,13 @@ use Illuminate\Support\Str;
 /**
  * The account holder: a legal entity with a plan, staff and an approval flow.
  * The same thing whether it runs training programmes, rents out pitches, or
- * treats athletes — `type` says which, and only decides the public URL and the
- * shape of the public page. What may be published is additive, so a club that
- * owns its hall can also rent it out without a second account.
+ * treats athletes — nothing records which, because `offers()` reads it back from
+ * what has been published. One address, `/la/{slug}`, whatever it turns out to
+ * be.
  *
  * @property int $id
  * @property string $name
  * @property string $slug
- * @property OrganizationType $type
  * @property string|null $company_name
  * @property string|null $fiscal_code
  * @property bool|null $is_vat_payer
@@ -40,6 +42,10 @@ use Illuminate\Support\Str;
  * @property int|null $owner_user_id
  * @property-read string|null $logo_url
  * @property-read string|null $cover_url
+ * @property-read int|null $counties_count  only set by an explicit select alias
+ * @property-read int|null $courses_count  only set by an explicit withCount alias
+ * @property-read int|null $open_access_count  only set by an explicit withCount alias
+ * @property-read int|null $rental_count  only set by an explicit withCount alias
  */
 class Organization extends Model
 {
@@ -50,7 +56,6 @@ class Organization extends Model
     protected $fillable = [
         'name',
         'slug',
-        'type',
         'company_name',
         'fiscal_code',
         'is_vat_payer',
@@ -63,15 +68,12 @@ class Organization extends Model
     ];
 
     /**
-     * Mirrors the column defaults, so a freshly created organization reports its
-     * type and plan without having to be refreshed from the database.
+     * Mirrors the column default, so a freshly created organization reports its
+     * plan without having to be refreshed from the database.
      *
      * @var array<string, string>
      */
-    protected $attributes = [
-        'type' => OrganizationType::Club->value,
-        'plan' => Plan::Free->value,
-    ];
+    protected $attributes = ['plan' => Plan::Free->value];
 
     /**
      * @return array<string, string>
@@ -81,7 +83,6 @@ class Organization extends Model
         return [
             'is_vat_payer' => 'boolean',
             'plan' => Plan::class,
-            'type' => OrganizationType::class,
         ];
     }
 
@@ -111,19 +112,59 @@ class Organization extends Model
         return $base.'-'.$suffix;
     }
 
-    public function isClub(): bool
+    /**
+     * Whether this organization publishes the kind of offer that makes it one of
+     * these.
+     *
+     * A pool operator that also runs a swimming club is both, and nobody had to
+     * declare it — the training programme and the ticketed hours each speak for
+     * themselves. Reading it from the offers is what keeps the answer true: a
+     * stored flag survives the deletion of the last space it stood for.
+     *
+     * A space always carries an access mode, so publishing one *is* the claim
+     * that somebody can get in. Moderation gates it, the same as everywhere else
+     * a visitor is told something.
+     */
+    public function offers(OrganizationType $type): bool
     {
-        return $this->type === OrganizationType::Club;
+        return match ($type) {
+            OrganizationType::Club => $this->organizationSports()->exists(),
+            OrganizationType::Venue => $this->spaces()->approved()->exists(),
+            OrganizationType::Practice => $this->services()->exists(),
+        };
     }
 
-    public function isVenue(): bool
+    /**
+     * @return list<OrganizationType>
+     */
+    public function offeredTypes(): array
     {
-        return $this->type === OrganizationType::Venue;
+        return array_values(array_filter(
+            OrganizationType::cases(),
+            fn (OrganizationType $type): bool => $this->offers($type),
+        ));
     }
 
-    public function isPractice(): bool
+    /**
+     * The SQL twin of `offers()`, for the listings that ask the question of
+     * thousands of rows at once.
+     *
+     * The approved check is spelled out rather than calling `Space::approved()`:
+     * inside `whereHas` the builder is not typed to a model, so the scope would
+     * be invisible to static analysis.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeOffering(Builder $query, OrganizationType $type): void
     {
-        return $this->type === OrganizationType::Practice;
+        match ($type) {
+            OrganizationType::Club => $query->whereHas('organizationSports'),
+            OrganizationType::Venue => $query->whereHas(
+                'spaces',
+                fn (Builder $spaces) => $spaces->where('status', FacilityStatus::Approved),
+            ),
+            OrganizationType::Practice => $query->whereHas('services'),
+        };
     }
 
     /**
@@ -169,16 +210,63 @@ class Organization extends Model
     }
 
     /**
-     * Whether the organization can add another space under its plan's `spaces`
-     * limit.
+     * How many distinct things the organization sells access to, counted as one
+     * sport at one address rather than one row per court.
+     *
+     * Every court is its own row — indoor and outdoor padel are a real choice, so
+     * "Teren 6 outdoor" has to be nameable. But eleven courts are eleven bricks
+     * of one offer, and charging each against the plan would price the honest
+     * page higher than a vague one, then show a visitor five courts out of
+     * eleven: not a smaller page, a false one.
      *
      * Only the spaces it operates count — `spaces()` goes through
      * `organization_location`, so a park court declared for everyone's benefit is
-     * never charged against the quota.
+     * never charged against the quota either.
+     *
+     * Counted over a subquery rather than with `count(distinct a, b)`, which
+     * MariaDB accepts and SQLite does not.
      */
-    public function canAddSpace(): bool
+    public function spaceOfferCount(): int
     {
-        return $this->withinPlanLimit('spaces', $this->spaces()->count());
+        $offers = $this->spaces()
+            ->select('spaces.location_id', 'spaces.sport_id')
+            ->distinct()
+            ->toBase();
+
+        return DB::query()->fromSub($offers, 'offers')->count();
+    }
+
+    /**
+     * Whether the organization can add another space under its plan's `spaces`
+     * limit.
+     *
+     * Given a location and sport it already sells, always: that court is another
+     * unit of something already paid for. The arguments are optional because the
+     * dashboard asks the question before any of it is known.
+     */
+    public function canAddSpace(?int $locationId = null, ?int $sportId = null): bool
+    {
+        if ($locationId !== null && $this->sellsSpaceAt($locationId, $sportId)) {
+            return true;
+        }
+
+        return $this->withinPlanLimit('spaces', $this->spaceOfferCount());
+    }
+
+    /**
+     * Whether this sport at this address is already on offer — a null sport being
+     * the sauna, which is its own kind of offer.
+     */
+    private function sellsSpaceAt(int $locationId, ?int $sportId): bool
+    {
+        return $this->spaces()
+            ->where('spaces.location_id', $locationId)
+            ->when(
+                $sportId === null,
+                fn ($spaces) => $spaces->whereNull('spaces.sport_id'),
+                fn ($spaces) => $spaces->where('spaces.sport_id', $sportId),
+            )
+            ->exists();
     }
 
     /**
@@ -399,6 +487,21 @@ class Organization extends Model
     }
 
     /**
+     * Only the sessions the organization teaches.
+     *
+     * A tariff is credited to whoever wrote it, so a club that rents out its dead
+     * hours owns intervals that are not trainings and have no club sport behind
+     * them. Anything drawing a timetable wants this relation, not the one above.
+     *
+     * @return HasMany<ScheduleSlot, $this>
+     */
+    public function trainingSlots(): HasMany
+    {
+        return $this->hasMany(ScheduleSlot::class)
+            ->where('kind', ScheduleSlotKind::Training);
+    }
+
+    /**
      * @return HasMany<OrganizationLocation, $this>
      */
     public function organizationLocations(): HasMany
@@ -467,6 +570,12 @@ class Organization extends Model
             if (is_null($organization->owner_user_id)) {
                 $organization->owner()->associate($user);
                 $organization->save();
+
+                // The row above is a second instance, locked for the update. The
+                // caller is still holding this one, and would go on believing the
+                // organization has no owner.
+                $this->owner_user_id = $organization->owner_user_id;
+                $this->syncOriginalAttribute('owner_user_id');
             }
         });
     }

@@ -132,7 +132,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants, PasskeyU
 
     /**
      * The URL of the area this user belongs to: the admin panel for staff, the
-     * club panel for club members, otherwise the consumer dashboard. Used to
+     * organization panel for its members, otherwise the consumer dashboard. Used to
      * redirect users away from areas they can't access instead of showing 403.
      */
     public function homeUrl(): string

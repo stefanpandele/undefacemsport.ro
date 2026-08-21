@@ -22,4 +22,5 @@ return [
     'dans-sportiv' => 'Dans sportiv',
     'padel' => 'Padel',
     'fitness' => 'Fitness',
+    'squash' => 'Squash',
 ];

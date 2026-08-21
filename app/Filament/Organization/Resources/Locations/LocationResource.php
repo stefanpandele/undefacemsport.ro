@@ -66,6 +66,10 @@ class LocationResource extends Resource
 
     protected static ?string $navigationLabel = 'Locații';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Organizația';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $schema): Schema
     {
         return $schema

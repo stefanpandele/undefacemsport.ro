@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\ScheduleSlotKind;
+use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use App\Filament\Organization\Resources\ScheduleSlots\Pages\ManageScheduleSlots;
 use App\Filament\Organization\Resources\ScheduleSlots\ScheduleSlotResource;
@@ -9,6 +11,7 @@ use App\Models\OrganizationLocation;
 use App\Models\OrganizationLocationSport;
 use App\Models\Person;
 use App\Models\ScheduleSlot;
+use App\Models\Space;
 use App\Models\Sport;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -127,4 +130,48 @@ test('a club member can open the schedule page without error', function () {
     $this->actingAs($member)
         ->get(ScheduleSlotResource::getUrl(panel: 'organization', tenant: $organization))
         ->assertSuccessful();
+});
+
+test('the timetable screen leaves a space tariff out of the club schedule', function () {
+    // A tariff is credited to the organization that wrote it, so it lands in the
+    // same table as the trainings. It is not one, and a club looking at its
+    // timetable must not find rows it never taught.
+    $member = User::factory()->create();
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
+
+    $organizationLocation = OrganizationLocation::factory()->create(['organization_id' => $organization->id]);
+    $organizationLocationSport = OrganizationLocationSport::factory()->create([
+        'organization_location_id' => $organizationLocation->id,
+        'sport_id' => Sport::factory()->create()->id,
+    ]);
+
+    $training = ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $organizationLocationSport->id,
+    ]);
+
+    $hall = Space::factory()->for($organizationLocation, 'organizationLocation')->create([
+        'location_id' => $organizationLocation->location_id,
+    ]);
+
+    $tariff = ScheduleSlot::create([
+        'kind' => ScheduleSlotKind::Access,
+        'organization_id' => $organization->id,
+        'space_id' => $hall->getKey(),
+        'access_mode' => SpaceAccessMode::ExclusiveRental,
+        'price' => 100,
+        'day_of_week' => Weekday::Friday,
+        'start_time' => '20:00',
+        'end_time' => '22:00',
+    ]);
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    $visible = ScheduleSlotResource::getEloquentQuery()->pluck('id');
+
+    expect($visible)->toContain($training->getKey())
+        ->and($visible)->not->toContain($tariff->getKey());
 });
