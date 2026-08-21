@@ -1,13 +1,19 @@
 <?php
 
 use App\Enums\SpaceAccessMode;
+use App\Filament\Admin\Resources\Surfaces\Pages\ManageSurfaces;
+use App\Filament\Admin\Resources\Surfaces\SurfaceResource;
 use App\Models\Location;
 use App\Models\Space;
 use App\Models\Sport;
 use App\Models\Surface;
+use App\Models\User;
 use Database\Seeders\SportSeeder;
 use Database\Seeders\SurfaceSeeder;
+use Filament\Actions\Testing\TestAction;
+use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 
 /*
 |--------------------------------------------------------------------------
@@ -151,4 +157,49 @@ test('a sport nobody asks the question about offers no surface filter', function
 
     $this->get(route('sports.show', ['slug' => $swimming->slug, 'city' => 'cluj-napoca']))
         ->assertInertia(fn ($page) => $page->where('surfaces', []));
+});
+
+/*
+|--------------------------------------------------------------------------
+| The admin screen
+|--------------------------------------------------------------------------
+*/
+
+test('an admin opens the surfaces screen and edits the map without a deploy', function () {
+    $this->seed([SportSeeder::class, SurfaceSeeder::class]);
+
+    $admin = User::factory()->create(['is_admin' => true]);
+    $clay = Surface::query()->where('name', 'Zgură')->firstOrFail();
+    $padel = Sport::query()->where('name', 'Padel')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(SurfaceResource::getUrl('index', panel: 'admin'))
+        ->assertSuccessful();
+
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+    Livewire::test(ManageSurfaces::class)
+        ->callAction(TestAction::make('edit')->table($clay), [
+            'name' => 'Zgură',
+            'sort_order' => 0,
+            'sports' => [$padel->getKey()],
+        ]);
+
+    // Synced, not appended: tennis was on the list and is not any more.
+    expect($clay->refresh()->sports->pluck('name')->all())->toBe(['Padel']);
+});
+
+test('adding a second surface to a sport makes the form ask the question', function () {
+    // The point of an editable map: squash had one surface and no field. Give it
+    // a second and the field appears, without touching a line of code.
+    $this->seed([SportSeeder::class, SurfaceSeeder::class]);
+
+    $squash = Sport::query()->where('name', 'Squash')->firstOrFail();
+
+    expect(Surface::optionsFor($squash->getKey()))->toBe([]);
+
+    Surface::query()->where('name', 'Beton')->firstOrFail()
+        ->sports()->syncWithoutDetaching([$squash->getKey()]);
+
+    expect(array_values(Surface::optionsFor($squash->getKey())))->toBe(['Parchet', 'Beton']);
 });
