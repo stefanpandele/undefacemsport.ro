@@ -151,7 +151,15 @@ class OrganizationProfileSeeder extends Seeder
             return;
         }
 
-        $cities = $venuesByCity->keys();
+        // Ordered by how many halls a town has, most first. The clubs are
+        // ordered to match below, so the ones whose plan buys a fourth address
+        // land where a second hall exists — two halls in one town is the case
+        // Premium is in the fixture to show, and until now it held only by luck
+        // of index arithmetic: splitting București into sectors broke it.
+        $cities = $venuesByCity
+            ->keys()
+            ->sortByDesc(fn (string $city): int => $venuesByCity->get($city)->count())
+            ->values();
 
         // Each city runs on a handful of sports rather than all twenty, and one
         // of them is its anchor: every club working here teaches it, at the same
@@ -260,7 +268,12 @@ class OrganizationProfileSeeder extends Seeder
             }
         }
 
-        return $spread;
+        // Clubs that can take a fourth address first, so they meet the towns
+        // with the most halls at the head of the rotation. Same set, different
+        // order — the spread across plans above is what keeps the mix honest.
+        return $spread
+            ->sortByDesc(fn (Organization $organization): int => $organization->planLimit('locations') ?? PHP_INT_MAX)
+            ->values();
     }
 
     /**
