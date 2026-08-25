@@ -302,6 +302,12 @@ class Organization extends Model
      * presence there, and sync the sports it teaches. An existing location is
      * reused (its canonical name is preserved) instead of being duplicated.
      *
+     * Saying where you teach a sport is how you declare that you teach it, so
+     * the `organization_sport` row is created here rather than demanded on a
+     * screen beforehand. Rows are only added, never removed: dropping a sport
+     * from the last address that had it would take its gallery and its benefits
+     * with it, and a club moving halls would lose both.
+     *
      * @param  array{county: string, city: string, address: string, name: string, latitude?: float|string|null, longitude?: float|string|null, google_place_id?: string|null}  $attributes
      * @param  array<int>  $sportIds
      * @param  int|null  $knownLocationId  a shared location the caller has confirmed is the right one
@@ -320,9 +326,46 @@ class Organization extends Model
                 : tap($organizationLocation)->update(['location_id' => $location->getKey()]);
 
             $organizationLocation->sports()->sync($sportIds);
+            $this->declareSports($sportIds);
 
             return $organizationLocation;
         });
+    }
+
+    /**
+     * Whether anybody here runs one-to-one sessions for a sport.
+     *
+     * Read from the people rather than ticked on the sport: a club claiming 1:1
+     * with nobody behind it who does it is a promise with no name on it, and the
+     * page already lists which of its people take clients alone.
+     */
+    public function offersPrivateSessionsFor(int $sportId): bool
+    {
+        return $this->people->contains(
+            fn (Person $person): bool => $person->offers_private_sessions
+                && $person->sports->contains('id', $sportId),
+        );
+    }
+
+    /**
+     * Record that this organization teaches each of these sports, keeping the
+     * presentation of any it already had.
+     *
+     * @param  array<int>  $sportIds
+     */
+    public function declareSports(array $sportIds): void
+    {
+        $existing = $this->organizationSports()->pluck('sport_id')->all();
+        $next = $this->organizationSports()->max('sort_order') ?? -1;
+
+        foreach (array_diff(array_unique($sportIds), $existing) as $sportId) {
+            $this->organizationSports()->create([
+                'sport_id' => $sportId,
+                'sort_order' => ++$next,
+            ]);
+        }
+
+        $this->unsetRelation('organizationSports');
     }
 
     /**
@@ -458,7 +501,7 @@ class Organization extends Model
     public function sports(): BelongsToMany
     {
         return $this->belongsToMany(Sport::class)
-            ->withPivot(['offers_private_sessions', 'sort_order'])
+            ->withPivot(['sort_order'])
             ->withTimestamps();
     }
 

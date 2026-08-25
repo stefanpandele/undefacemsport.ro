@@ -24,7 +24,7 @@ function swimmingClubAt(string $locationName, Sport $sport, string $clubName): O
     ]);
     $organization->contacts()->create(['type' => ContactType::Phone, 'value' => '0722111222']);
 
-    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
+    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id]);
     $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
     $organizationSport->images()->create(['path' => 'club-sports/gallery/1.webp', 'collection' => 'gallery']);
 

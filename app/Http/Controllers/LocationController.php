@@ -511,7 +511,7 @@ class LocationController extends Controller
             'photos' => $organizationSport instanceof OrganizationSport
                 ? $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all()
                 : [],
-            'trustChips' => $this->presentTrustChips($organizationSport),
+            'trustChips' => $this->presentTrustChips($organizationSport, $organization->offersPrivateSessionsFor($sport->getKey())),
             // Who is taught here and how far along they are, read from this
             // location's own hours — the club may run children at one pool and
             // adults at another, and the schedule below has to agree with these.

@@ -115,7 +115,7 @@ class OrganizationAccessSeeder extends Seeder
 
         $organizationSport = $organization->organizationSports()->updateOrCreate(
             ['sport_id' => $sport->id],
-            ['offers_private_sessions' => true, 'sort_order' => 0],
+            ['sort_order' => 0],
         );
 
         foreach ([
@@ -144,7 +144,7 @@ class OrganizationAccessSeeder extends Seeder
         $organizationLocation = $organization->syncLocation(
             [
                 'county' => 'București',
-                'city' => 'Sectorul 1',
+                'city' => 'București - Sectorul 1',
                 'address' => 'Str. Studioului 12',
                 'name' => 'Studioul Demo',
                 // Without coordinates the location has no pin on the explore map.

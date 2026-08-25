@@ -275,18 +275,20 @@ class LocationResource extends Resource
                 // one that holds the pen on the place.
                 ->readOnly(fn ($get, ?Component $livewire): bool => (bool) $get('name_locked')
                     && ! static::holdsThePen($get('known_location_id'), $livewire)),
+            // Every sport, not only the ones already declared: ticking one here
+            // is what declares it. The plan is still the ceiling, so the rule
+            // below counts how many of these are new.
             Select::make('sports')
                 ->label('Sporturi predate aici')
-                ->helperText('Doar sporturile declarate la clubul tău.')
-                ->options(function (?Component $livewire): array {
-                    $organization = static::resolveOrganization($livewire);
-
-                    return $organization instanceof Organization
-                        ? $organization->sports->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])->all()
-                        : [];
-                })
+                ->helperText(fn (?Component $livewire): string => static::sportsHelperText($livewire))
+                ->options(fn (): array => Sport::query()
+                    ->get()
+                    ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+                    ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
+                    ->all())
                 ->multiple()
-                ->searchable(),
+                ->searchable()
+                ->rule(fn (?Component $livewire): Closure => static::sportsWithinPlan($livewire)),
             Hidden::make('known_location_id')
                 ->dehydrated(false),
             // The shared location the club explicitly settled on when the address
@@ -713,6 +715,66 @@ class LocationResource extends Resource
                     ->body('Îți mulțumim — un administrator o verifică în curând.')
                     ->send();
             });
+    }
+
+    /**
+     * How many more sports the club's plan still allows, or null when unlimited.
+     */
+    protected static function remainingSports(?Component $livewire): ?int
+    {
+        $organization = static::resolveOrganization($livewire);
+
+        if (! $organization instanceof Organization) {
+            return 0;
+        }
+
+        $limit = $organization->planLimit('sports');
+
+        return $limit === null
+            ? null
+            : max(0, $limit - $organization->organizationSports()->count());
+    }
+
+    protected static function sportsHelperText(?Component $livewire): string
+    {
+        $remaining = static::remainingSports($livewire);
+
+        if ($remaining === null) {
+            return 'Un sport bifat aici e declarat la clubul tău — nu trebuie adăugat separat.';
+        }
+
+        return $remaining === 0
+            ? 'Ai atins limita planului. Poți bifa doar sporturi pe care le predai deja.'
+            : 'Un sport bifat aici e declarat la clubul tău. Mai poți adăuga '.$remaining.' '.($remaining === 1 ? 'sport nou' : 'sporturi noi').'.';
+    }
+
+    /**
+     * The plan caps how many sports a club offers, and this form is now one of
+     * the places one gets added — so the ceiling has to be checked here too,
+     * counting only the sports the club does not already teach.
+     */
+    protected static function sportsWithinPlan(?Component $livewire): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($livewire): void {
+            $remaining = static::remainingSports($livewire);
+
+            if ($remaining === null) {
+                return;
+            }
+
+            $organization = static::resolveOrganization($livewire);
+            $known = $organization instanceof Organization
+                ? $organization->organizationSports()->pluck('sport_id')->all()
+                : [];
+
+            $new = count(array_diff(array_map(intval(...), (array) $value), $known));
+
+            if ($new > $remaining) {
+                $fail($remaining === 0
+                    ? 'Planul tău nu mai permite sporturi noi. Alege dintre cele pe care le predai deja.'
+                    : 'Planul tău mai permite '.$remaining.' '.($remaining === 1 ? 'sport nou' : 'sporturi noi').', iar aici sunt '.$new.'.');
+            }
+        };
     }
 
     /**

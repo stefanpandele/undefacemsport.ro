@@ -11,6 +11,33 @@ use App\Models\ScheduleSlot;
 use App\Models\Space;
 use App\Models\Sport;
 
+test('the 1:1 chip follows the people, not a tick on the sport', function () {
+    $organization = Organization::factory()->pro()->create();
+    $swimming = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $basketball = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+
+    $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazinul A'],
+        [$swimming->getKey(), $basketball->getKey()],
+    );
+
+    // One coach who takes clients alone, and only for swimming.
+    $solo = $organization->people()->create(['name' => 'Ana Ionescu', 'offers_private_sessions' => true]);
+    $solo->sports()->attach($swimming);
+
+    $group = $organization->people()->create(['name' => 'Radu Marin', 'offers_private_sessions' => false]);
+    $group->sports()->attach($basketball);
+
+    $this->get("/la/{$organization->slug}")->assertInertia(function ($page) {
+        $courses = collect($page->toArray()['props']['organization']['courses'])->keyBy('key');
+
+        expect($courses['inot']['sessionFormat'])->toContain('🎯 Antrenament 1:1 disponibil')
+            ->and($courses['baschet']['sessionFormat'])->toBe([]);
+
+        return $page;
+    });
+});
+
 test('the organization page renders its courses, people and schedule', function () {
     $organization = Organization::factory()->create(['slug' => 'clubul-test', 'description' => 'Descriere club']);
     $sport = Sport::factory()->create([
@@ -20,7 +47,7 @@ test('the organization page renders its courses, people and schedule', function 
         'color' => '#1D7FB8',
     ]);
 
-    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
+    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id]);
     $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
     $ageGroup = AgeGroup::factory()->create(['name' => '3–7 ani']);
 

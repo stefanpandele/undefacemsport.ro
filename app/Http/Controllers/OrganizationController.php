@@ -351,6 +351,7 @@ class OrganizationController extends Controller
                 $highlights = $this->presentHighlights(
                     $organizationSport,
                     $this->sportHasAccessibleLocation($organization, $organizationSport->sport_id),
+                    $organization->offersPrivateSessionsFor($organizationSport->sport_id),
                 );
 
                 return [
@@ -523,7 +524,7 @@ class OrganizationController extends Controller
      *
      * @return array{general: list<string>, sessionFormat: list<string>, audience: list<string>}
      */
-    private function presentHighlights(OrganizationSport $organizationSport, bool $locationIsAccessible): array
+    private function presentHighlights(OrganizationSport $organizationSport, bool $locationIsAccessible, bool $offersPrivateSessions): array
     {
         $general = [];
         $sessionFormat = [];
@@ -543,7 +544,7 @@ class OrganizationController extends Controller
             }
         }
 
-        if ($organizationSport->offers_private_sessions) {
+        if ($offersPrivateSessions) {
             $sessionFormat[] = '🎯 Antrenament 1:1 disponibil';
         }
 

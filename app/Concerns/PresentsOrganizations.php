@@ -59,11 +59,11 @@ trait PresentsOrganizations
     }
 
     /**
-     * Benefit chips of a sport, plus the 1:1 chip when it is offered.
+     * Benefit chips of a sport, plus the 1:1 chip when somebody here offers it.
      *
      * @return array<int, array{label: string, solo: bool}>
      */
-    protected function presentTrustChips(?OrganizationSport $organizationSport): array
+    protected function presentTrustChips(?OrganizationSport $organizationSport, bool $offersPrivateSessions = false): array
     {
         if (! $organizationSport instanceof OrganizationSport) {
             return [];
@@ -78,7 +78,7 @@ trait PresentsOrganizations
             ->values()
             ->all();
 
-        if ($organizationSport->offers_private_sessions) {
+        if ($offersPrivateSessions) {
             $chips[] = ['label' => '🎯 Antrenament 1:1 disponibil', 'solo' => true];
         }
 

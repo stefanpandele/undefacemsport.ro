@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\OrganizationSportFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,12 +16,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  *
  * What it does *not* hold is who the club teaches and how far along they are.
  * At one pool a club may take only children and at another only adults, so
- * groups and levels are read from the hours — see `ScheduleSlot::ageGroupNames()`.
+ * groups and levels are read from the hours — see `ScheduleSlot::ageGroupNames()` —
+ * and whether it runs one-to-one sessions is read from its people.
  *
  * @property int $id
  * @property int $organization_id
  * @property int $sport_id
- * @property bool $offers_private_sessions
  * @property int $sort_order
  */
 class OrganizationSport extends Model
@@ -31,7 +32,7 @@ class OrganizationSport extends Model
     protected $table = 'organization_sport';
 
     /** @var list<string> */
-    protected $fillable = ['sport_id', 'offers_private_sessions', 'sort_order'];
+    protected $fillable = ['sport_id', 'sort_order'];
 
     /**
      * @return array<string, string>
@@ -39,7 +40,6 @@ class OrganizationSport extends Model
     protected function casts(): array
     {
         return [
-            'offers_private_sessions' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
@@ -80,6 +80,42 @@ class OrganizationSport extends Model
         return $this->morphMany(Image::class, 'imageable')
             ->where('collection', 'gallery')
             ->orderBy('sort_order');
+    }
+
+    /**
+     * The parts of this sport's presentation still empty — the two sections of
+     * the club page that nothing else can fill in.
+     *
+     * Derived, never a stored flag: a column would go stale the moment a photo
+     * arrives through another path, and nagging a club about work it has already
+     * done is worse than not nagging at all.
+     *
+     * @return list<string>
+     */
+    public function missingPresentation(): array
+    {
+        return array_values(array_filter([
+            $this->galleryImages->isEmpty() ? 'poze' : null,
+            $this->benefits->isEmpty() ? 'beneficii' : null,
+        ]));
+    }
+
+    public function needsEnrichment(): bool
+    {
+        return $this->missingPresentation() !== [];
+    }
+
+    /**
+     * The SQL twin of `needsEnrichment()`, for asking the question of a whole
+     * club at once — a header badge counting what is still unfinished.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeNeedingEnrichment(Builder $query): void
+    {
+        $query->where(fn (Builder $sport) => $sport
+            ->whereDoesntHave('galleryImages')
+            ->orWhereDoesntHave('benefits'));
     }
 
     /**

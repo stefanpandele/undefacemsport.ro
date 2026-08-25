@@ -18,7 +18,6 @@ class OrganizationSportFactory extends Factory
     {
         return [
             'sport_id' => Sport::factory(),
-            'offers_private_sessions' => false,
             'sort_order' => 0,
         ];
     }

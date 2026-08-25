@@ -17,13 +17,13 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
 class OrganizationSportResource extends Resource
@@ -53,8 +53,6 @@ class OrganizationSportResource extends Resource
                     ->options(fn (?OrganizationSport $record, ?Component $livewire): array => static::availableSports($record, $livewire))
                     ->searchable()
                     ->required(),
-                Toggle::make('offers_private_sessions')
-                    ->label('Oferă antrenamente 1:1'),
                 Repeater::make('benefits')
                     ->label('Beneficii')
                     ->relationship()
@@ -99,13 +97,22 @@ class OrganizationSportResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // The two relations the presentation column reads, so a club with
+            // ten sports still costs two queries.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['galleryImages', 'benefits']))
             ->columns([
                 TextColumn::make('sport.translated_name')
                     ->label('Sport')
                     ->sortable(),
-                IconColumn::make('offers_private_sessions')
-                    ->label('1:1')
-                    ->boolean(),
+                // Nothing when the sport is complete: a row that is finished has
+                // nothing to say, and a green tick on every line would bury the
+                // one that is not.
+                IconColumn::make('needs_enrichment')
+                    ->label('Prezentare')
+                    ->state(fn (OrganizationSport $record): bool => $record->needsEnrichment())
+                    ->icon(fn (bool $state): ?Heroicon => $state ? Heroicon::OutlinedXCircle : null)
+                    ->color('danger')
+                    ->tooltip(fn (OrganizationSport $record): ?string => static::enrichmentHint($record)),
                 TextColumn::make('sort_order')
                     ->label('Ordine')
                     ->numeric()
@@ -121,6 +128,20 @@ class OrganizationSportResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * What the club loses on its public page by leaving this sport as it is,
+     * named in terms of what a visitor does not get to see.
+     */
+    protected static function enrichmentHint(OrganizationSport $organizationSport): ?string
+    {
+        return match ($organizationSport->missingPresentation()) {
+            ['poze'] => 'Fără poze — banda de imagini nu apare pe pagina clubului.',
+            ['beneficii'] => 'Fără beneficii — chip-urile de încredere nu apar pe pagina clubului.',
+            ['poze', 'beneficii'] => 'Fără poze și fără beneficii — tab-ul de pe pagina clubului arată doar orarul.',
+            default => null,
+        };
     }
 
     /**

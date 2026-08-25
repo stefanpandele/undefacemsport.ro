@@ -74,10 +74,12 @@ class OfferChecklistWidget extends Widget
             [
                 'key' => LocationWay::Organised->value,
                 'label' => 'Țin cursuri',
-                'help' => 'Grupe, niveluri și un orar săptămânal. Te face '.OrganizationType::Club->label().'.',
+                'help' => 'Un sport devine al tău când spui unde îl predai. Te face '.OrganizationType::Club->label().'.',
                 'count' => $sports,
                 'unit' => $sports === 1 ? 'sport' : 'sporturi',
-                'url' => OrganizationSportResource::getUrl(),
+                // Locations, not the sports screen: that is where a sport gets
+                // declared now, and a club with none has nowhere to start there.
+                'url' => $sports > 0 ? OrganizationSportResource::getUrl() : LocationResource::getUrl(),
                 'icon' => '🏆',
                 'done' => $sports > 0,
             ],

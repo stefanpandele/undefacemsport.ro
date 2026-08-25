@@ -339,7 +339,6 @@ class OrganizationProfileSeeder extends Seeder
                 /** @var OrganizationSport $organizationSport */
                 $organizationSport = $organization->organizationSports()->create([
                     'sport_id' => $sport->getKey(),
-                    'offers_private_sessions' => fake()->boolean(40),
                     'sort_order' => $order,
                 ]);
 

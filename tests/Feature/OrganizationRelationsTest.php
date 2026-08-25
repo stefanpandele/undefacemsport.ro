@@ -6,16 +6,16 @@ use App\Models\Image;
 use App\Models\Organization;
 use App\Models\Sport;
 
-test('a club offers sports with per-sport flags on the pivot', function () {
+test('a club offers sports in the order it presents them', function () {
     $organization = Organization::factory()->create();
     $sport = Sport::factory()->create();
 
-    $organization->sports()->attach($sport, ['offers_private_sessions' => true]);
+    $organization->sports()->attach($sport, ['sort_order' => 2]);
 
     $attached = $organization->sports()->first();
 
     expect($attached->is($sport))->toBeTrue()
-        ->and((bool) $attached->pivot->offers_private_sessions)->toBeTrue();
+        ->and((int) $attached->pivot->sort_order)->toBe(2);
 });
 
 test('a club has polymorphic gallery images', function () {
