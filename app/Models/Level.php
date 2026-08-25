@@ -5,7 +5,7 @@ namespace App\Models;
 use Database\Factories\LevelFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * How far along a training group is: learning the basics, or training to
@@ -40,10 +40,10 @@ class Level extends Model
     }
 
     /**
-     * @return BelongsToMany<OrganizationSport, $this>
+     * @return HasMany<ScheduleSlot, $this>
      */
-    public function organizationSports(): BelongsToMany
+    public function scheduleSlots(): HasMany
     {
-        return $this->belongsToMany(OrganizationSport::class, 'organization_sport_level');
+        return $this->hasMany(ScheduleSlot::class);
     }
 }

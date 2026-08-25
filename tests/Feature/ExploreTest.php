@@ -244,8 +244,18 @@ test('a sport card carries the age groups offered for it in that city', function
     $organization = Organization::factory()->create();
     trainingAt('Cluj-Napoca', 'Bazinul Mare', $sport, $organization);
 
-    $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id]);
-    $organizationSport->ageGroups()->attach(AgeGroup::factory()->create(['name' => '3–7 ani', 'sort_order' => 1]));
+    $organization->organizationSports()->firstOrCreate(['sport_id' => $sport->id]);
+
+    // The card counts the groups the city's training hours are for, so the
+    // group is claimed by an hour rather than declared for the club.
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => OrganizationLocationSport::query()->firstOrFail()->id,
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '17:00',
+        'end_time' => '18:00',
+        'age_group_id' => AgeGroup::factory()->create(['name' => '3–7 ani', 'sort_order' => 1])->id,
+    ]);
 
     $this->get('/explorare?oras=Cluj-Napoca')
         ->assertInertia(fn ($page) => $page->where('sports.0.ages', ['3–7 ani']));

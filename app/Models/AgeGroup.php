@@ -5,11 +5,11 @@ namespace App\Models;
 use Database\Factories\AgeGroupFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A reusable audience/age group (e.g. "3–7 ani", "Seniori") a club serves for a
- * sport, and that its schedule slots target.
+ * A reusable audience/age group (e.g. "3–7 ani", "Seniori") a schedule slot is
+ * for. Nothing else claims a group: who a club teaches is read from its hours.
  *
  * @property int $id
  * @property string $name
@@ -36,10 +36,10 @@ class AgeGroup extends Model
     }
 
     /**
-     * @return BelongsToMany<OrganizationSport, $this>
+     * @return HasMany<ScheduleSlot, $this>
      */
-    public function organizationSports(): BelongsToMany
+    public function scheduleSlots(): HasMany
     {
-        return $this->belongsToMany(OrganizationSport::class, 'organization_sport_age_group');
+        return $this->hasMany(ScheduleSlot::class);
     }
 }

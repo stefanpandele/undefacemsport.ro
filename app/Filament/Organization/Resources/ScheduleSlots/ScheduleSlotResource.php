@@ -152,9 +152,13 @@ class ScheduleSlotResource extends Resource
                 ->label('Grupă')
                 ->options(fn (): array => AgeGroup::query()->orderBy('sort_order')->pluck('name', 'id')->all())
                 ->required(),
+            // Required alongside the group: the public pages read who a club
+            // teaches and how far along they are off these two columns, so a
+            // blank one is a chip missing from the club's own page.
             Select::make('level_id')
                 ->label('Nivel')
-                ->options(fn (): array => Level::query()->orderBy('sort_order')->pluck('name', 'id')->all()),
+                ->options(fn (): array => Level::query()->orderBy('sort_order')->pluck('name', 'id')->all())
+                ->required(),
             Select::make('person_id')
                 ->label('Antrenor')
                 ->options(fn ($get, ?Component $livewire): array => static::coachOptions($get($locationSportPath), $livewire))

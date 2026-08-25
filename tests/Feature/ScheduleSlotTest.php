@@ -6,6 +6,7 @@ use App\Enums\Weekday;
 use App\Filament\Organization\Resources\ScheduleSlots\Pages\ManageScheduleSlots;
 use App\Filament\Organization\Resources\ScheduleSlots\ScheduleSlotResource;
 use App\Models\AgeGroup;
+use App\Models\Level;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
 use App\Models\OrganizationLocationSport;
@@ -71,13 +72,14 @@ test('one submit of the bulk form creates a slot per row', function () {
         'sport_id' => Sport::factory()->create()->id,
     ]);
     $ageGroup = AgeGroup::factory()->create();
+    $level = Level::factory()->create();
     $person = Person::factory()->create(['organization_id' => $organization->id]);
 
     $first = ScheduleSlotResource::persistMany([
         'organization_location_sport_id' => $organizationLocationSport->id,
         'slots' => [
-            ['day_of_week' => Weekday::Monday->value, 'start_time' => '17:00', 'end_time' => '18:00', 'age_group_id' => $ageGroup->id, 'person_id' => $person->id],
-            ['day_of_week' => Weekday::Wednesday->value, 'start_time' => '17:00', 'end_time' => '18:00', 'age_group_id' => $ageGroup->id, 'person_id' => null],
+            ['day_of_week' => Weekday::Monday->value, 'start_time' => '17:00', 'end_time' => '18:00', 'age_group_id' => $ageGroup->id, 'level_id' => $level->id, 'person_id' => $person->id],
+            ['day_of_week' => Weekday::Wednesday->value, 'start_time' => '17:00', 'end_time' => '18:00', 'age_group_id' => $ageGroup->id, 'level_id' => $level->id, 'person_id' => null],
         ],
     ]);
 
@@ -99,6 +101,7 @@ test('a club member adds several intervals from the schedule page', function () 
         'sport_id' => Sport::factory()->create()->id,
     ]);
     $ageGroup = AgeGroup::factory()->create();
+    $level = Level::factory()->create();
 
     $this->actingAs($member);
     Filament::setCurrentPanel(Filament::getPanel('organization'));
@@ -110,9 +113,9 @@ test('a club member adds several intervals from the schedule page', function () 
         ->mountAction('create')
         ->set('mountedActions.0.data.organization_location_sport_id', $organizationLocationSport->id)
         ->set('mountedActions.0.data.slots', [
-            ['day_of_week' => Weekday::Tuesday->value, 'start_time' => '18:00', 'end_time' => '19:30', 'age_group_id' => $ageGroup->id, 'person_id' => null],
-            ['day_of_week' => Weekday::Thursday->value, 'start_time' => '18:00', 'end_time' => '19:30', 'age_group_id' => $ageGroup->id, 'person_id' => null],
-            ['day_of_week' => Weekday::Saturday->value, 'start_time' => '10:00', 'end_time' => '11:30', 'age_group_id' => $ageGroup->id, 'person_id' => null],
+            ['day_of_week' => Weekday::Tuesday->value, 'start_time' => '18:00', 'end_time' => '19:30', 'age_group_id' => $ageGroup->id, 'level_id' => $level->id, 'person_id' => null],
+            ['day_of_week' => Weekday::Thursday->value, 'start_time' => '18:00', 'end_time' => '19:30', 'age_group_id' => $ageGroup->id, 'level_id' => $level->id, 'person_id' => null],
+            ['day_of_week' => Weekday::Saturday->value, 'start_time' => '10:00', 'end_time' => '11:30', 'age_group_id' => $ageGroup->id, 'level_id' => $level->id, 'person_id' => null],
         ])
         ->callMountedAction()
         ->assertHasNoActionErrors();

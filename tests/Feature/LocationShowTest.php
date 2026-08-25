@@ -26,7 +26,6 @@ function swimmingClubAt(string $locationName, Sport $sport, string $clubName): O
 
     $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
     $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
-    $organizationSport->ageGroups()->attach(AgeGroup::firstOrCreate(['name' => '3–7 ani'], ['sort_order' => 0]));
     $organizationSport->images()->create(['path' => 'club-sports/gallery/1.webp', 'collection' => 'gallery']);
 
     $person = $organization->people()->create([
@@ -55,7 +54,7 @@ function swimmingClubAt(string $locationName, Sport $sport, string $clubName): O
         'day_of_week' => Weekday::Monday,
         'start_time' => '17:00',
         'end_time' => '18:00',
-        'age_group_id' => $organizationSport->ageGroups->first()->id,
+        'age_group_id' => AgeGroup::firstOrCreate(['name' => '3–7 ani'], ['sort_order' => 0])->id,
         'person_id' => $person->id,
     ]);
 

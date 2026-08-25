@@ -7,6 +7,7 @@ use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
 use Database\Factories\ScheduleSlotFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -184,6 +185,50 @@ class ScheduleSlot extends Model
     public function space(): BelongsTo
     {
         return $this->belongsTo(Space::class);
+    }
+
+    /**
+     * The distinct age groups a set of slots is for, in vocabulary order.
+     *
+     * Read from the hours rather than declared once per club, because the answer
+     * changes by address: a club may take only children at one pool and only
+     * adults at another, and a single declared list would contradict the
+     * timetable printed underneath it.
+     *
+     * @param  Collection<int, self>  $slots
+     * @return list<string>
+     */
+    public static function ageGroupNames(Collection $slots): array
+    {
+        return self::vocabularyNames($slots, fn (self $slot): ?AgeGroup => $slot->ageGroup);
+    }
+
+    /**
+     * The distinct levels a set of slots trains, in vocabulary order.
+     *
+     * @param  Collection<int, self>  $slots
+     * @return list<string>
+     */
+    public static function levelNames(Collection $slots): array
+    {
+        return self::vocabularyNames($slots, fn (self $slot): ?Level => $slot->level);
+    }
+
+    /**
+     * @param  Collection<int, self>  $slots
+     * @param  callable(self): (AgeGroup|Level|null)  $term
+     * @return list<string>
+     */
+    private static function vocabularyNames(Collection $slots, callable $term): array
+    {
+        return array_values($slots
+            ->filter(fn (self $slot): bool => $slot->isTraining())
+            ->map($term)
+            ->filter()
+            ->unique(fn (AgeGroup|Level $model): int => $model->getKey())
+            ->sortBy('sort_order')
+            ->map(fn (AgeGroup|Level $model): string => $model->name)
+            ->all());
     }
 
     /**

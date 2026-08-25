@@ -908,7 +908,7 @@ a { color: var(--grass-deep); }
 </thead>
 <tbody>
 <tr><td><strong>Locații</strong></td><td>Unde își desfășoară activitatea, cu geocodare și detectarea duplicatelor.</td><td>Organizația</td></tr>
-<tr><td><strong>Sporturi</strong></td><td>Ce predă, cu grupe de vârstă, niveluri, beneficii, galerie.</td><td>Cursuri</td></tr>
+<tr><td><strong>Sporturi</strong></td><td>Ce predă, cu beneficii și galerie. Grupele și nivelurile nu se declară aici — se citesc din orar.</td><td>Cursuri</td></tr>
 <tr><td><strong>Orar</strong></td><td>Intervale săptămânale pe sport, locație, grupă și nivel.</td><td>Cursuri</td></tr>
 <tr><td><strong>Persoane</strong></td><td>Cele {{ professions.count }} profesii — antrenor, medic, fizioterapeut, nutriționist — cu bio, foto și sporturi.</td><td>Cursuri</td></tr>
 <tr><td><strong>Spații</strong></td><td>Bazine, terenuri, săli — ce sunt, plus tarifele: cum se intră, cât costă, când.</td><td>Agrement și închiriere</td></tr>
@@ -1118,6 +1118,17 @@ a { color: var(--grass-deep); }
         </p>
     </div>
     <div class="card">
+        <span class="tag">Descoperire</span>
+        <h3>Grupele se citesc din orar, nu se declară</h3>
+        <p>
+            Cine e primit și cât de departe a ajuns sunt două coloane pe ora din
+            orar, amândouă obligatorii. Un club cu un bazin de copii și unul de
+            adulți arată „6–10 ani" la primul și „Adulți" la al doilea, iar pe
+            pagina clubului reuniunea celor două. O listă declarată o dată pentru
+            tot clubul contrazicea orarul tipărit dedesubt.
+        </p>
+    </div>
+    <div class="card">
         <span class="tag">Căutare</span>
         <h3>Diacriticele nu se cer</h3>
         <p>
@@ -1185,7 +1196,7 @@ a { color: var(--grass-deep); }
 <tbody>
 <tr><td><strong>Sporturi</strong></td><td class="num">{{ sports.count }}</td><td>Cu emoji și culoare de prezentare, folosite peste tot în interfață.</td></tr>
 <tr><td><strong>Specialități</strong></td><td class="num">{{ specialties.count }}</td><td>Fizioterapie, kinetoterapie, medicină sportivă, nutriție, masaj, recuperare, psihologie, podologie. Taxonomie separată de sporturi.</td></tr>
-<tr><td><strong>Grupe de vârstă</strong></td><td class="num">{{ ageGroups.count }}</td><td>De la 0–2 ani la seniori, plus grupele adaptate pentru persoane cu dizabilități. Pentru cine e grupa.</td></tr>
+<tr><td><strong>Grupe de vârstă</strong></td><td class="num">{{ ageGroups.count }}</td><td>De la 0–2 ani la seniori, plus grupele adaptate pentru persoane cu dizabilități. Pentru cine e ora — se alege pe slotul de orar, nu pe club.</td></tr>
 <tr><td><strong>Niveluri</strong></td><td class="num">{{ levels.count }}</td><td>Inițiere, grupă de copii, amatori, avansați, performanță. Cât de departe a ajuns grupa — axă separată de vârstă.</td></tr>
 <tr><td><strong>Suprafețe</strong></td><td class="num">{{ surfaces.count }}</td><td>Zgură, iarbă, hard, gazon sintetic, parchet, tartan, beton. Legate de sporturile care se joacă pe ele — un bazin nu e legat de niciuna.</td></tr>
 <tr><td><strong>Facilități</strong></td><td class="num">{{ facilities.count }}</td><td>Parcare, vestiare, dușuri, acces pentru persoane cu dizabilități, tribună și altele.</td></tr>

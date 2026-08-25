@@ -23,7 +23,6 @@ test('the organization page renders its courses, people and schedule', function 
     $organizationSport = $organization->organizationSports()->create(['sport_id' => $sport->id, 'offers_private_sessions' => true]);
     $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
     $ageGroup = AgeGroup::factory()->create(['name' => '3–7 ani']);
-    $organizationSport->ageGroups()->attach($ageGroup);
 
     $person = $organization->people()->create([
         'name' => 'Andrei Popescu',

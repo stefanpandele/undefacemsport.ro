@@ -1,13 +1,20 @@
 <?php
 
+use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
+use App\Enums\Weekday;
 use App\Models\Level;
 use App\Models\Location;
 use App\Models\Organization;
+use App\Models\ScheduleSlot;
 use App\Models\Sport;
 
 /**
  * A club at the location teaching one sport at the given levels.
+ *
+ * A level is claimed by an hour, not declared once for the club, so each one
+ * gets its own slot here — which is also what makes the filter mean "taught at
+ * this address" rather than "taught by this club somewhere".
  *
  * @param  list<Level>  $levels
  */
@@ -15,10 +22,24 @@ function clubTeaching(Location $location, Sport $sport, string $name, array $lev
 {
     $club = clubAt($location, $sport, $name);
 
-    $club->organizationSports()
-        ->firstOrCreate(['sport_id' => $sport->getKey()], ['sort_order' => 0])
-        ->levels()
-        ->sync(collect($levels)->map->getKey()->all());
+    $taught = $club->organizationLocations()->firstOrFail()
+        ->organizationLocationSports()->firstOrFail();
+
+    foreach (array_values($levels) as $index => $level) {
+        ScheduleSlot::updateOrCreate(
+            [
+                'organization_location_sport_id' => $taught->getKey(),
+                'day_of_week' => Weekday::Monday,
+                'start_time' => $index === 0 ? '17:00' : sprintf('%02d:00', 8 + $index),
+            ],
+            [
+                'kind' => ScheduleSlotKind::Training,
+                'organization_id' => $club->getKey(),
+                'end_time' => '23:00',
+                'level_id' => $level->getKey(),
+            ],
+        );
+    }
 
     return $club;
 }

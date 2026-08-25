@@ -78,8 +78,6 @@ class OrganizationController extends Controller
                 'contacts',
                 'organizationSports.sport',
                 'organizationSports.benefits',
-                'organizationSports.ageGroups',
-                'organizationSports.levels',
                 'organizationSports.galleryImages',
                 'people.sports',
                 'services.specialty',
@@ -91,6 +89,7 @@ class OrganizationController extends Controller
                 'organizationLocations.spaces.accessSlots',
                 'trainingSlots.organizationLocationSport',
                 'trainingSlots.ageGroup',
+                'trainingSlots.level',
             ])
             ->firstOrFail();
 
@@ -348,6 +347,7 @@ class OrganizationController extends Controller
             ->sortBy('sort_order')
             ->map(function (OrganizationSport $organizationSport) use ($organization, $locationsBySport): array {
                 $sport = $organizationSport->sport;
+                $slots = $this->trainingSlotsFor($organization, $organizationSport->sport_id);
                 $highlights = $this->presentHighlights(
                     $organizationSport,
                     $this->sportHasAccessibleLocation($organization, $organizationSport->sport_id),
@@ -362,8 +362,8 @@ class OrganizationController extends Controller
                     'trustChips' => $highlights['general'],
                     'sessionFormat' => $highlights['sessionFormat'],
                     'audience' => $highlights['audience'],
-                    'ages' => $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all(),
-                    'levels' => $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all(),
+                    'ages' => ScheduleSlot::ageGroupNames($slots),
+                    'levels' => ScheduleSlot::levelNames($slots),
                     'gallery' => $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all(),
                     'locations' => $locationsBySport[$sport->slug] ?? [],
                 ];
@@ -571,6 +571,20 @@ class OrganizationController extends Controller
                     Str::of($facility->name)->lower()->ascii()->toString(),
                     'dizabilit',
                 )));
+    }
+
+    /**
+     * Every training hour this club runs for one sport, across all its
+     * locations. The club page speaks for the whole club, so its groups and
+     * levels are the union of what each address teaches.
+     *
+     * @return Collection<int, ScheduleSlot>
+     */
+    private function trainingSlotsFor(Organization $organization, int $sportId): Collection
+    {
+        return $organization->trainingSlots->filter(
+            fn (ScheduleSlot $slot): bool => $slot->organizationLocationSport?->sport_id === $sportId,
+        );
     }
 
     /**

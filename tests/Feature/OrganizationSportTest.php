@@ -2,7 +2,6 @@
 
 use App\Filament\Organization\Resources\OrganizationSports\OrganizationSportResource;
 use App\Filament\Organization\Resources\OrganizationSports\Pages\ManageOrganizationSports;
-use App\Models\AgeGroup;
 use App\Models\Organization;
 use App\Models\OrganizationSport;
 use App\Models\Sport;
@@ -57,14 +56,13 @@ test('a premium club has no sport limit', function () {
     expect($organization->canAddSport())->toBeTrue();
 });
 
-test('a club sport carries a private-sessions flag, age groups, benefits and a gallery', function () {
+test('a club sport carries a private-sessions flag, benefits and a gallery — and nothing about who it teaches', function () {
     $organization = Organization::factory()->create();
     $organizationSport = $organization->organizationSports()->create([
         'sport_id' => Sport::factory()->create()->id,
         'offers_private_sessions' => true,
     ]);
 
-    $organizationSport->ageGroups()->attach(AgeGroup::factory()->count(2)->create());
     $organizationSport->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
     $organizationSport->images()->create(['path' => 'club-sports/gallery/1.jpg', 'collection' => 'gallery']);
     $organizationSport->images()->create(['path' => 'club-sports/gallery/2.jpg', 'collection' => 'cover']);
@@ -72,10 +70,13 @@ test('a club sport carries a private-sessions flag, age groups, benefits and a g
     $organizationSport->refresh();
 
     expect($organizationSport->offers_private_sessions)->toBeTrue()
-        ->and($organizationSport->ageGroups)->toHaveCount(2)
         ->and($organizationSport->benefits->first()->label)->toBe('Licențiat FR Natație')
         ->and($organizationSport->images)->toHaveCount(2)
-        ->and($organizationSport->galleryImages)->toHaveCount(1); // only the gallery-collection image
+        ->and($organizationSport->galleryImages)->toHaveCount(1) // only the gallery-collection image
+        // Groups and levels vary by address, so the club-wide row must not be
+        // able to claim them at all.
+        ->and(method_exists($organizationSport, 'ageGroups'))->toBeFalse()
+        ->and(method_exists($organizationSport, 'levels'))->toBeFalse();
 });
 
 test('a club member can open the sports page without error', function () {

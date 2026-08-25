@@ -354,21 +354,26 @@ class ExploreController extends Controller
     }
 
     /**
-     * Age group names offered for each sport in the city, keyed by sport id.
+     * Age group names taught for each sport in the city, keyed by sport id.
+     *
+     * Counted off the training hours, so a club that teaches children in Cluj
+     * and adults in Iași contributes each group to the city that has the hour,
+     * not both groups to both cities.
      *
      * @return Collection<int|string, Collection<int, mixed>>
      */
     private function ageGroupsBySport(?string $city): Collection
     {
-        return DB::table('organization_sport_age_group')
-            ->join('organization_sport', 'organization_sport.id', '=', 'organization_sport_age_group.organization_sport_id')
-            ->join('age_groups', 'age_groups.id', '=', 'organization_sport_age_group.age_group_id')
-            ->join('organization_location', 'organization_location.organization_id', '=', 'organization_sport.organization_id')
+        return DB::table('schedule_slots')
+            ->join('organization_location_sport', 'organization_location_sport.id', '=', 'schedule_slots.organization_location_sport_id')
+            ->join('organization_location', 'organization_location.id', '=', 'organization_location_sport.organization_location_id')
             ->join('locations', 'locations.id', '=', 'organization_location.location_id')
+            ->join('age_groups', 'age_groups.id', '=', 'schedule_slots.age_group_id')
+            ->where('schedule_slots.kind', ScheduleSlotKind::Training->value)
             ->when($city, fn ($query) => $query->where('locations.city', $city))
             ->distinct()
             ->orderBy('age_groups.sort_order')
-            ->select(['organization_sport.sport_id', 'age_groups.name', 'age_groups.sort_order'])
+            ->select(['organization_location_sport.sport_id', 'age_groups.name', 'age_groups.sort_order'])
             ->get()
             ->groupBy('sport_id')
             ->map(fn (Collection $rows): Collection => $rows->pluck('name')->unique()->values());

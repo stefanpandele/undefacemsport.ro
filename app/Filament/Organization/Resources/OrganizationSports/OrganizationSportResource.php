@@ -55,21 +55,6 @@ class OrganizationSportResource extends Resource
                     ->required(),
                 Toggle::make('offers_private_sessions')
                     ->label('Oferă antrenamente 1:1'),
-                Select::make('ageGroups')
-                    ->label('Grupe / public-țintă')
-                    ->relationship('ageGroups', 'name')
-                    ->multiple()
-                    ->preload()
-                    ->columnSpanFull(),
-                // Who the groups are for and how far along they are: two axes,
-                // because a child and an adult can both be beginners.
-                Select::make('levels')
-                    ->label('Niveluri')
-                    ->helperText('De la inițiere la performanță — ce nivel de pregătire ai la acest sport.')
-                    ->relationship('levels', 'name')
-                    ->multiple()
-                    ->preload()
-                    ->columnSpanFull(),
                 Repeater::make('benefits')
                     ->label('Beneficii')
                     ->relationship()
@@ -121,9 +106,6 @@ class OrganizationSportResource extends Resource
                 IconColumn::make('offers_private_sessions')
                     ->label('1:1')
                     ->boolean(),
-                TextColumn::make('ageGroups.name')
-                    ->label('Grupe')
-                    ->badge(),
                 TextColumn::make('sort_order')
                     ->label('Ordine')
                     ->numeric()

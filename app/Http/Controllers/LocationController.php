@@ -16,6 +16,7 @@ use App\Models\OrganizationLocation;
 use App\Models\OrganizationLocationSport;
 use App\Models\OrganizationSport;
 use App\Models\Person;
+use App\Models\ScheduleSlot;
 use App\Models\Service;
 use App\Models\Space;
 use App\Models\Sport;
@@ -58,8 +59,6 @@ class LocationController extends Controller
                 'organizationLocations.organization.people.sports',
                 'organizationLocations.organization.organizationSports.sport',
                 'organizationLocations.organization.organizationSports.benefits',
-                'organizationLocations.organization.organizationSports.ageGroups',
-                'organizationLocations.organization.organizationSports.levels',
                 'organizationLocations.organization.organizationSports.galleryImages',
                 'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.organizationLocationSports.scheduleSlots.ageGroup',
@@ -513,12 +512,11 @@ class LocationController extends Controller
                 ? $organizationSport->galleryImages->map(fn ($image): string => $image->url)->values()->all()
                 : [],
             'trustChips' => $this->presentTrustChips($organizationSport),
-            'ages' => $organizationSport instanceof OrganizationSport
-                ? $organizationSport->ageGroups->sortBy('sort_order')->pluck('name')->values()->all()
-                : [],
-            'levels' => $organizationSport instanceof OrganizationSport
-                ? $organizationSport->levels->sortBy('sort_order')->pluck('name')->values()->all()
-                : [],
+            // Who is taught here and how far along they are, read from this
+            // location's own hours — the club may run children at one pool and
+            // adults at another, and the schedule below has to agree with these.
+            'ages' => ScheduleSlot::ageGroupNames($organizationLocationSport->scheduleSlots),
+            'levels' => ScheduleSlot::levelNames($organizationLocationSport->scheduleSlots),
             'people' => $this->presentPeople($people),
             'schedule' => $this->presentWeek(
                 $organizationLocationSport->scheduleSlots,

@@ -6,13 +6,16 @@ use Database\Factories\OrganizationSportFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * A sport offered by a specific club, with its own presentation: a photo
- * gallery, trust benefits, and the audience/age groups it serves.
+ * gallery and the trust benefits it claims.
+ *
+ * What it does *not* hold is who the club teaches and how far along they are.
+ * At one pool a club may take only children and at another only adults, so
+ * groups and levels are read from the hours — see `ScheduleSlot::ageGroupNames()`.
  *
  * @property int $id
  * @property int $organization_id
@@ -85,23 +88,5 @@ class OrganizationSport extends Model
     public function benefits(): HasMany
     {
         return $this->hasMany(OrganizationSportBenefit::class)->orderBy('sort_order');
-    }
-
-    /**
-     * @return BelongsToMany<AgeGroup, $this>
-     */
-    public function ageGroups(): BelongsToMany
-    {
-        return $this->belongsToMany(AgeGroup::class, 'organization_sport_age_group');
-    }
-
-    /**
-     * How far along the groups are — a separate axis from who they are for.
-     *
-     * @return BelongsToMany<Level, $this>
-     */
-    public function levels(): BelongsToMany
-    {
-        return $this->belongsToMany(Level::class, 'organization_sport_level');
     }
 }

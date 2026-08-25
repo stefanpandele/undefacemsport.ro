@@ -169,10 +169,12 @@ class SportController extends Controller
     private function levelsInCity(Sport $sport, string $city): array
     {
         return array_values(Level::query()
-            ->whereHas('organizationSports', fn (BuilderContract $sports) => $sports
-                ->where('sport_id', $sport->getKey())
-                ->whereHas('organization.organizationLocations.location', fn (BuilderContract $locations) => $locations
-                    ->where('city', $city)))
+            ->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                ->where('kind', ScheduleSlotKind::Training)
+                ->whereHas('organizationLocationSport', fn (BuilderContract $taught) => $taught
+                    ->where('sport_id', $sport->getKey())
+                    ->whereHas('organizationLocation.location', fn (BuilderContract $locations) => $locations
+                        ->where('city', $city))))
             ->orderBy('sort_order')
             ->get()
             ->map(fn (Level $level): array => [
@@ -351,11 +353,16 @@ class SportController extends Controller
             return Location::query()->whereHas(
                 'organizationLocations',
                 fn (BuilderContract $presences) => $presences
+                    // The level has to be taught *here*: a club that trains for
+                    // competition across town does not make this pool a place
+                    // you can compete from.
                     ->when($levelId, fn (BuilderContract $teaching) => $teaching->whereHas(
-                        'organization.organizationSports',
+                        'organizationLocationSports',
                         fn (BuilderContract $sports) => $sports
                             ->where('sport_id', $sport->getKey())
-                            ->whereHas('levels', fn (BuilderContract $levels) => $levels->whereKey($levelId)),
+                            ->whereHas('scheduleSlots', fn (BuilderContract $slots) => $slots
+                                ->where('kind', ScheduleSlotKind::Training)
+                                ->where('level_id', $levelId)),
                     ))
                     ->whereHas('sports', fn (BuilderContract $sports) => $sports->whereKey($sport->getKey())),
             );

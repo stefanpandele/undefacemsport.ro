@@ -129,14 +129,6 @@ class OrganizationAccessSeeder extends Seeder
             );
         }
 
-        $ageGroup = AgeGroup::firstOrCreate(['name' => 'Adulți'], ['sort_order' => 99]);
-        $organizationSport->ageGroups()->syncWithoutDetaching([$ageGroup->id]);
-
-        // Who the groups are for and how far along they are, both — a showcase
-        // club missing half the axes shows off half a page.
-        $levels = Level::query()->orderBy('sort_order')->limit(2)->pluck('id');
-        $organizationSport->levels()->syncWithoutDetaching($levels->all());
-
         $person = $organization->people()->updateOrCreate(
             ['name' => 'Ioana Marinescu'],
             [
@@ -186,6 +178,12 @@ class OrganizationAccessSeeder extends Seeder
             ->where('sport_id', $sport->id)
             ->firstOrFail();
 
+        // Who the hour is for and how far along they are, both — these two
+        // columns are what the public pages read the club's groups and levels
+        // off, so a showcase club missing one shows off half a page.
+        $ageGroup = AgeGroup::firstOrCreate(['name' => 'Adulți'], ['sort_order' => 99]);
+        $level = Level::query()->orderBy('sort_order')->firstOrFail();
+
         ScheduleSlot::updateOrCreate(
             [
                 'organization_location_sport_id' => $organizationLocationSport->id,
@@ -196,6 +194,7 @@ class OrganizationAccessSeeder extends Seeder
                 'organization_id' => $organization->id,
                 'end_time' => '19:00',
                 'age_group_id' => $ageGroup->id,
+                'level_id' => $level->id,
                 'person_id' => $person->id,
             ],
         );

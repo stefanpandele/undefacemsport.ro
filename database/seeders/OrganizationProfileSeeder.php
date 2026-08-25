@@ -21,6 +21,14 @@ use Illuminate\Support\Collection;
 class OrganizationProfileSeeder extends Seeder
 {
     /**
+     * The groups and levels each address teaches, drawn on first use so every
+     * hour there agrees with the ones beside it.
+     *
+     * @var array<int, array{ages: Collection<int, AgeGroup>, levels: Collection<int, Level>}>
+     */
+    private array $offerByLocationSport = [];
+
+    /**
      * How many of the seeded organizations get a training programme — the demo
      * mix plus the two known login accounts. The rest stay blank for the seeders
      * that follow, so the fixture ends up with venues and practices rather than
@@ -187,7 +195,7 @@ class OrganizationProfileSeeder extends Seeder
                 $reach = $this->reachOf($organization, $home, $anchors);
                 $venues = $this->venuesFor($organization, $home, $reach, $anchors, $venuesByCity);
 
-                $organizationSports = $this->addSports($organization, $reach, $pools, $anchors, $ageGroups, $levels);
+                $organizationSports = $this->addSports($organization, $reach, $pools, $anchors);
                 $people = $this->addCoaches($organization, $organizationSports);
                 $organizationLocations = $this->addLocations($organization, $venues, $anchors, $organizationSports);
 
@@ -302,11 +310,9 @@ class OrganizationProfileSeeder extends Seeder
      * @param  Collection<int, string>  $reach  cities
      * @param  Collection<string, Collection<int, Sport>>  $pools  keyed by city
      * @param  Collection<string, array{sport: Sport, venue: Location}>  $anchors
-     * @param  Collection<int, AgeGroup>  $ageGroups
-     * @param  Collection<int, Level>  $levels
      * @return Collection<int, OrganizationSport>
      */
-    private function addSports(Organization $organization, Collection $reach, Collection $pools, Collection $anchors, Collection $ageGroups, Collection $levels): Collection
+    private function addSports(Organization $organization, Collection $reach, Collection $pools, Collection $anchors): Collection
     {
         // Premium is unlimited; cap it so the demo stays readable.
         $limit = min($organization->planLimit('sports') ?? 5, 5);
@@ -329,7 +335,7 @@ class OrganizationProfileSeeder extends Seeder
             ->concat($filler)
             ->take(min($limit, max($wanted, fake()->numberBetween($wanted, $limit))))
             ->values()
-            ->map(function (Sport $sport, int $order) use ($organization, $ageGroups, $levels): OrganizationSport {
+            ->map(function (Sport $sport, int $order) use ($organization): OrganizationSport {
                 /** @var OrganizationSport $organizationSport */
                 $organizationSport = $organization->organizationSports()->create([
                     'sport_id' => $sport->getKey(),
@@ -344,19 +350,6 @@ class OrganizationProfileSeeder extends Seeder
                         'sort_order' => $position,
                     ]);
                 }
-
-                $organizationSport->ageGroups()->sync(
-                    $ageGroups->shuffle()->take(fake()->numberBetween(1, 3))->pluck('id')->all(),
-                );
-
-                // Levels come as a run from the bottom rather than at random: a
-                // club that trains competitors almost always also runs a
-                // beginners' group, while one that only does initiation has no
-                // competitors. Picking freely would produce clubs offering
-                // "performanță" and nothing below it, which is not a real club.
-                $organizationSport->levels()->sync(
-                    $levels->take(fake()->numberBetween(1, min(3, $levels->count())))->pluck('id')->all(),
-                );
 
                 return $organizationSport;
             });
@@ -430,23 +423,31 @@ class OrganizationProfileSeeder extends Seeder
     }
 
     /**
-     * A level the club actually teaches for this sport, so a slot never claims a
-     * level the club does not offer.
+     * What one address teaches: a subset of the groups and a run of levels,
+     * drawn once and reused by every hour there.
      *
-     * @param  Collection<int, Level>  $levels
+     * Drawn per address rather than per club, because that is the whole point of
+     * reading groups off the hours — a club with a children's pool and an
+     * adults' pool has to come out of the seeder looking like one.
+     *
+     * Levels come as a run from the bottom rather than at random: a club that
+     * trains competitors almost always also runs a beginners' group, while one
+     * that only does initiation has no competitors. Picking freely would produce
+     * clubs offering "performanță" and nothing below it, which is not a real club.
+     *
+     * @param  Collection<int, AgeGroup>  $ageGroups
+     * @param  Collection<int, Level>  $levels  in vocabulary order, easiest first
+     * @param  int  $hours  how many slots there are to spread it over
+     * @return array{ages: Collection<int, AgeGroup>, levels: Collection<int, Level>}
      */
-    private function levelForSport(OrganizationLocationSport $organizationLocationSport, Collection $levels): ?Level
+    private function offerAt(OrganizationLocationSport $organizationLocationSport, Collection $ageGroups, Collection $levels, int $hours = 1): array
     {
-        $organizationSport = $organizationLocationSport->organizationLocation
-            ->organization
-            ->organizationSports
-            ->firstWhere('sport_id', $organizationLocationSport->sport_id);
+        $spread = max(1, min(3, $hours));
 
-        $offered = $organizationSport?->levels;
-
-        return $offered === null || $offered->isEmpty()
-            ? $levels->first()
-            : $offered->random();
+        return $this->offerByLocationSport[$organizationLocationSport->getKey()] ??= [
+            'ages' => $ageGroups->shuffle()->take(fake()->numberBetween(1, $spread))->values(),
+            'levels' => $levels->take(fake()->numberBetween(1, min($spread, $levels->count())))->values(),
+        ];
     }
 
     /**
@@ -506,21 +507,32 @@ class OrganizationProfileSeeder extends Seeder
                 );
                 $eligible = $eligible->isEmpty() ? $people : $eligible;
 
-                foreach ($days as $day) {
-                    $blocks = fake()->randomElements(self::TIME_BLOCKS, fake()->numberBetween(1, 2));
+                /** @var list<array{Weekday, string, string}> $hours */
+                $hours = [];
 
-                    foreach ($blocks as [$start, $end]) {
-                        ScheduleSlot::create([
-                            'organization_id' => $organization->getKey(),
-                            'organization_location_sport_id' => $organizationLocationSport->getKey(),
-                            'day_of_week' => $day,
-                            'start_time' => $start,
-                            'end_time' => $end,
-                            'age_group_id' => $ageGroups->random()->getKey(),
-                            'level_id' => $this->levelForSport($organizationLocationSport, $levels)?->getKey(),
-                            'person_id' => $eligible->random()->getKey(),
-                        ]);
+                foreach ($days as $day) {
+                    foreach (fake()->randomElements(self::TIME_BLOCKS, fake()->numberBetween(1, 2)) as [$start, $end]) {
+                        $hours[] = [$day, $start, $end];
                     }
+                }
+
+                $offer = $this->offerAt($organizationLocationSport, $ageGroups, $levels, count($hours));
+
+                // Dealt round-robin rather than drawn per hour: what the address
+                // teaches is now read back off these rows, so a level nobody was
+                // given never existed. Drawing freely left addresses whose hours
+                // happened to skip the bottom of the run.
+                foreach ($hours as $index => [$day, $start, $end]) {
+                    ScheduleSlot::create([
+                        'organization_id' => $organization->getKey(),
+                        'organization_location_sport_id' => $organizationLocationSport->getKey(),
+                        'day_of_week' => $day,
+                        'start_time' => $start,
+                        'end_time' => $end,
+                        'age_group_id' => $offer['ages'][$index % $offer['ages']->count()]->getKey(),
+                        'level_id' => $offer['levels'][$index % $offer['levels']->count()]->getKey(),
+                        'person_id' => $eligible->random()->getKey(),
+                    ]);
                 }
             });
     }
@@ -568,6 +580,8 @@ class OrganizationProfileSeeder extends Seeder
             fn (Person $candidate): bool => $candidate->sports->contains('id', $organizationLocationSport->sport_id),
         ) ?? $organization->people->first();
 
+        $offer = $this->offerAt($organizationLocationSport, $ageGroups, $levels);
+
         ScheduleSlot::updateOrCreate(
             [
                 'organization_location_sport_id' => $organizationLocationSport->getKey(),
@@ -577,8 +591,8 @@ class OrganizationProfileSeeder extends Seeder
             [
                 'organization_id' => $organization->getKey(),
                 'end_time' => $end,
-                'age_group_id' => $ageGroups->random()->getKey(),
-                'level_id' => $this->levelForSport($organizationLocationSport, $levels)?->getKey(),
+                'age_group_id' => $offer['ages']->random()->getKey(),
+                'level_id' => $offer['levels']->random()->getKey(),
                 'person_id' => $person?->getKey(),
             ],
         );
