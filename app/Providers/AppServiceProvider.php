@@ -6,6 +6,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Date;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureDiacriticInsensitiveSelectSearch();
     }
 
     /**
@@ -77,5 +80,54 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /**
+     * A select whose options are a plain array is searched in the browser, with
+     * a bare `label.includes(query)` — so "inot" never matches "Înot" and the
+     * user has to guess which letters carry a diacritic. Handing every such
+     * select a search callback moves the filtering to PHP, where both the query
+     * and the label are folded to ASCII first.
+     *
+     * Selects built from `->relationship()` overwrite this callback with their
+     * own; those search the database, where `utf8mb4_unicode_ci` already
+     * ignores diacritics.
+     */
+    protected function configureDiacriticInsensitiveSelectSearch(): void
+    {
+        Select::configureUsing(function (Select $select): void {
+            $select->getSearchResultsUsing(function (Select $component, string $search): array {
+                $needle = Str::lower(Str::ascii($search));
+
+                $matches = fn (string $label): bool => str_contains(Str::lower(Str::ascii($label)), $needle);
+
+                $results = [];
+                $remaining = $component->getOptionsLimit();
+
+                foreach ($component->getOptions() as $value => $label) {
+                    if ($remaining <= 0) {
+                        break;
+                    }
+
+                    if (is_array($label)) {
+                        $group = array_slice(array_filter($label, $matches), 0, $remaining, preserve_keys: true);
+
+                        if ($group !== []) {
+                            $results[$value] = $group;
+                            $remaining -= count($group);
+                        }
+
+                        continue;
+                    }
+
+                    if ($matches((string) $label)) {
+                        $results[$value] = $label;
+                        $remaining--;
+                    }
+                }
+
+                return $results;
+            });
+        });
     }
 }
