@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\PersonProfession;
 use App\Models\Organization;
 use App\Models\Person;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,7 +19,6 @@ class PersonFactory extends Factory
         return [
             'organization_id' => Organization::factory(),
             'name' => fake()->name(),
-            'profession' => PersonProfession::Coach,
             'role' => fake()->randomElement(['Antrenor principal', 'Antrenor', 'Antrenoare']),
             'bio' => fake()->sentence(),
             'offers_private_sessions' => false,
@@ -30,15 +28,11 @@ class PersonFactory extends Factory
     }
 
     /**
-     * Someone whose profession is not coaching — a practice's doctor,
-     * physiotherapist or nutritionist. The job title follows the profession, so
-     * the public card does not read "Antrenor principal" above a nutritionist.
+     * Someone who is not a coach — a practice's doctor, physiotherapist or
+     * nutritionist. What they are is the job title itself.
      */
-    public function professional(PersonProfession $profession): static
+    public function professional(string $role): static
     {
-        return $this->state(fn (): array => [
-            'profession' => $profession,
-            'role' => $profession->label(),
-        ]);
+        return $this->state(fn (): array => ['role' => $role]);
     }
 }

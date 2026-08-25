@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\PersonProfession;
 use App\Models\Location;
 use App\Models\Organization;
 use App\Models\OrganizationLocation;
@@ -74,15 +73,19 @@ class PracticeSeeder extends Seeder
      *
      * @var array<string, string>
      */
-    private const PROFESSIONS = [
-        'fizioterapie' => 'physiotherapist',
-        'kinetoterapie' => 'physiotherapist',
-        'medicina-sportiva' => 'doctor',
-        'nutritie-sportiva' => 'nutritionist',
-        'masaj-sportiv' => 'physiotherapist',
-        'recuperare-dupa-accidentare' => 'physiotherapist',
-        'psihologie-sportiva' => 'doctor',
-        'podologie' => 'doctor',
+    /**
+     * The job title that goes with each specialty, so a practice's card never
+     * reads "Antrenor principal" above somebody who does nutrition.
+     */
+    private const ROLES = [
+        'fizioterapie' => 'Fizioterapeut',
+        'kinetoterapie' => 'Kinetoterapeut',
+        'medicina-sportiva' => 'Medic sportiv',
+        'nutritie-sportiva' => 'Nutriționist',
+        'masaj-sportiv' => 'Maseur',
+        'recuperare-dupa-accidentare' => 'Fizioterapeut',
+        'psihologie-sportiva' => 'Psiholog sportiv',
+        'podologie' => 'Podolog',
     ];
 
     /**
@@ -158,15 +161,10 @@ class PracticeSeeder extends Seeder
             ->take($solo ? 1 : 3)
             ->values()
             ->map(function (Specialty $specialty, int $position) use ($practice): Person {
-                $profession = PersonProfession::from(self::PROFESSIONS[$specialty->slug] ?? 'physiotherapist');
-
                 return $practice->people()->create([
                     'name' => self::FIRST_NAMES[($practice->getKey() + $position) % count(self::FIRST_NAMES)]
                         .' '.self::LAST_NAMES[($practice->getKey() + $position) % count(self::LAST_NAMES)],
-                    'profession' => $profession,
-                    // The job title follows the profession, so the card never reads
-                    // "Antrenor principal" above a nutritionist.
-                    'role' => $profession->label(),
+                    'role' => self::ROLES[$specialty->slug] ?? 'Fizioterapeut',
                     'bio' => 'Specializat în '.mb_strtolower($specialty->name).'.',
                     'is_primary' => $position === 0,
                     'sort_order' => $position,

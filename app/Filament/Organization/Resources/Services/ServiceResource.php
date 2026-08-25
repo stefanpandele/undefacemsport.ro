@@ -198,7 +198,7 @@ class ServiceResource extends Resource
             ->orderBy('sort_order')
             ->get()
             ->mapWithKeys(fn (Person $person): array => [
-                $person->getKey() => trim($person->name.' · '.$person->profession->label()),
+                $person->getKey() => trim($person->name.($person->role ? ' · '.$person->role : '')),
             ])
             ->all();
     }

@@ -52,9 +52,12 @@ class PersonResource extends Resource
                 TextInput::make('name')
                     ->label('Nume')
                     ->required(),
+                // One field for what somebody is here, in their own words: a
+                // second structured column asking the same question defaulted
+                // every person to "coach" and was dropped.
                 TextInput::make('role')
                     ->label('Rol')
-                    ->placeholder('Antrenor principal'),
+                    ->placeholder('Antrenor principal, Fizioterapeut, Președinte'),
                 WebpUpload::make('photo_path')
                     ->label('Poză')
                     ->avatar()
@@ -62,7 +65,7 @@ class PersonResource extends Resource
                     ->disk('s3')
                     ->directory('people'),
                 Select::make('sports')
-                    ->label('Sporturi predate')
+                    ->label('Pentru ce sporturi')
                     ->helperText('Doar sporturile declarate la clubul tău.')
                     ->relationship('sports', 'name', fn (Builder $query, ?Component $livewire): Builder => static::scopeToClubSports($query, $livewire))
                     ->getOptionLabelFromRecordUsing(fn (Sport $record): string => $record->translated_name)

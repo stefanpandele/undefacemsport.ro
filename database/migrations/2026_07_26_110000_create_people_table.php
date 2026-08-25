@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\PersonProfession;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +18,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('profession')->default(PersonProfession::Coach->value)->index();
+            // Dropped later: nothing ever asked for it, so it defaulted every
+            // person to a coach. The literal survives the enum it came from.
+            $table->string('profession')->default('coach')->index();
             // The free-text job title shown publicly ("Antrenor principal",
             // "Coordonator") — a different thing from the profession above.
             $table->string('role')->nullable();

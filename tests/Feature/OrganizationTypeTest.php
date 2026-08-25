@@ -2,7 +2,6 @@
 
 use App\Enums\FacilityStatus;
 use App\Enums\OrganizationType;
-use App\Enums\PersonProfession;
 use App\Filament\Organization\Resources\Locations\LocationResource;
 use App\Filament\Organization\Resources\OrganizationSports\OrganizationSportResource;
 use App\Filament\Organization\Resources\People\PersonResource;
@@ -16,6 +15,7 @@ use App\Models\Space;
 use App\Models\Sport;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * @return array{county: string, city: string, address: string, name: string}
@@ -148,25 +148,14 @@ test('an organization and a location meet through organization_location, not the
 |--------------------------------------------------------------------------
 */
 
-test('a person is a coach unless told otherwise', function () {
-    expect((new Person)->profession)->toBe(PersonProfession::Coach)
-        ->and(Person::factory()->create()->profession)->toBe(PersonProfession::Coach);
-});
+test('a person says what they are in their own words', function () {
+    // One field, free text. A second structured column asking the same question
+    // defaulted every person to "coach", so a club's receptionist was filed as
+    // one — the false claim it existed to prevent.
+    $physio = Person::factory()->professional('Fizioterapeut')->create();
 
-test('a person can be a doctor, physiotherapist or nutritionist', function () {
-    $physio = Person::factory()->professional(PersonProfession::Physiotherapist)->create();
-
-    expect($physio->profession)->toBe(PersonProfession::Physiotherapist)
-        // `role` is the job title, a separate thing from the profession.
-        ->and($physio->role)->toBe('Fizioterapeut');
-});
-
-test('every profession has a Romanian label', function () {
-    foreach (PersonProfession::cases() as $profession) {
-        expect($profession->label())->not->toBe('');
-    }
-
-    expect(PersonProfession::options())->toHaveCount(4);
+    expect($physio->role)->toBe('Fizioterapeut')
+        ->and(Schema::hasColumn('people', 'profession'))->toBeFalse();
 });
 
 /*

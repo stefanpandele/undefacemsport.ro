@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Enums\LocationWay;
 use App\Enums\OrganizationType;
-use App\Enums\PersonProfession;
 use App\Enums\Plan;
 use Database\Seeders\AgeGroupSeeder;
 use Database\Seeders\FacilitySeeder;
@@ -156,7 +155,6 @@ class BuildDocumentation extends Command
 
             'types.count' => (string) count(OrganizationType::cases()),
             'ways.count' => (string) count(LocationWay::cases()),
-            'professions.count' => (string) count(PersonProfession::cases()),
 
             'pages.count' => (string) $this->publicPageCount(),
             'admin.resources' => (string) $this->directoryCount('app/Filament/Admin/Resources'),

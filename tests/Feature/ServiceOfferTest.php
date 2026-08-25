@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\OrganizationType;
-use App\Enums\PersonProfession;
 use App\Filament\Organization\Resources\Services\ServiceResource;
 use App\Models\Organization;
 use App\Models\Person;
@@ -13,6 +12,7 @@ use Database\Seeders\PracticeSeeder;
 use Database\Seeders\SpecialtySeeder;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Str;
 
 /*
 |--------------------------------------------------------------------------
@@ -122,7 +122,7 @@ test('a service outlives the person who used to provide it', function () {
     $practice = Organization::factory()->create();
     $person = $practice->people()->create([
         'name' => 'Ioana Marinescu',
-        'profession' => PersonProfession::Physiotherapist,
+        'role' => 'Fizioterapeut',
         'sort_order' => 0,
     ]);
     $service = Service::factory()->create([
@@ -252,17 +252,16 @@ test('an organization with nothing published still has a page, and no tabs', fun
     );
 });
 
-test('the page names each person by their profession, not as a coach', function () {
+test('the page names each person by what they do, not as a coach', function () {
     $practice = Organization::factory()->create();
     $practice->people()->create([
         'name' => 'Ioana Marinescu',
-        'profession' => PersonProfession::Nutritionist,
         'role' => 'Nutriționist',
         'sort_order' => 0,
     ]);
 
     $this->get(route('organizations.show', $practice->slug))->assertInertia(
-        fn ($page) => $page->where('organization.people.0.profession', 'Nutriționist'),
+        fn ($page) => $page->where('organization.people.0.role', 'Nutriționist'),
     );
 });
 
@@ -304,7 +303,7 @@ test('the seeded practices include lone practitioners, not only clinics', functi
     expect($solo)->not->toBeEmpty();
 });
 
-test('no seeded practice person is filed as a coach', function () {
+test('no seeded practice person is called a coach', function () {
     $this->seed();
 
     $practicePeople = Person::query()
@@ -312,8 +311,10 @@ test('no seeded practice person is filed as a coach', function () {
         ->get();
 
     expect($practicePeople)->not->toBeEmpty()
-        ->and($practicePeople->filter(fn (Person $person): bool => $person->profession === PersonProfession::Coach))
-        ->toBeEmpty();
+        ->and($practicePeople->filter(fn (Person $person): bool => str_contains(
+            Str::lower((string) $person->role),
+            'antrenor',
+        )))->toBeEmpty();
 });
 
 test('at least one seeded service is deliberately unpriced', function () {

@@ -42,10 +42,6 @@ trait PresentsOrganizations
                     'key' => (string) $person->id,
                     'name' => $person->name,
                     'role' => $person->role ?? '',
-                    // What they are, beside what they are called here. A
-                    // nutritionist listed as a coach is a wrong claim about a
-                    // real person.
-                    'profession' => $person->profession->label(),
                     'solo' => $person->offers_private_sessions,
                     'gradient' => self::PERSON_GRADIENTS[$index % count(self::PERSON_GRADIENTS)],
                     'photo' => $person->photo_url,

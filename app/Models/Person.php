@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\PersonProfession;
 use Database\Factories\PersonFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,15 +12,18 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Someone an organization puts in front of the public: a coach at a club, a
  * doctor or physiotherapist at a practice. Same card on the same page, so one
- * model with a `profession`.
+ * model.
  *
- * `role` is a different thing: the free-text job title shown publicly
- * ("Antrenor principal", "Coordonator").
+ * What they are is `role`, in their own words — "Antrenor principal",
+ * "Fizioterapeut", "Președinte". A second, structured profession column used to
+ * sit beside it, defaulting to "coach" because nothing ever asked: every
+ * receptionist a club entered was filed as a coach, which is the false claim
+ * the column existed to prevent. Nothing public read it, and the medical line
+ * is drawn on `specialties.is_medical` rather than on who sells the service.
  *
  * @property int $id
  * @property int $organization_id
  * @property string $name
- * @property PersonProfession $profession
  * @property string|null $role
  * @property string|null $bio
  * @property string|null $photo_path
@@ -37,15 +39,7 @@ class Person extends Model
     protected $table = 'people';
 
     /** @var list<string> */
-    protected $fillable = ['name', 'profession', 'role', 'bio', 'photo_path', 'offers_private_sessions', 'is_primary', 'sort_order'];
-
-    /**
-     * Mirrors the column default, so a freshly created person reports a profession
-     * without having to be refreshed from the database.
-     *
-     * @var array<string, string>
-     */
-    protected $attributes = ['profession' => PersonProfession::Coach->value];
+    protected $fillable = ['name', 'role', 'bio', 'photo_path', 'offers_private_sessions', 'is_primary', 'sort_order'];
 
     /**
      * @return array<string, string>
@@ -56,7 +50,6 @@ class Person extends Model
             'offers_private_sessions' => 'boolean',
             'is_primary' => 'boolean',
             'sort_order' => 'integer',
-            'profession' => PersonProfession::class,
         ];
     }
 
