@@ -21,7 +21,6 @@ class PersonFactory extends Factory
             'name' => fake()->name(),
             'role' => fake()->randomElement(['Antrenor principal', 'Antrenor', 'Antrenoare']),
             'bio' => fake()->sentence(),
-            'offers_private_sessions' => false,
             'is_primary' => false,
             'sort_order' => 0,
         ];

@@ -134,12 +134,13 @@ class OrganizationAccessSeeder extends Seeder
             [
                 'role' => 'Instructor Pilates',
                 'bio' => 'Certificată internațional, specializată în recuperare și antrenament individual.',
-                'offers_private_sessions' => true,
                 'is_primary' => true,
                 'sort_order' => 0,
             ],
         );
-        $person->sports()->syncWithoutDetaching([$sport->id]);
+        // Pilates one to one: the claim is about this person at this sport,
+        // which is the whole reason the flag sits on the pivot.
+        $person->sports()->syncWithoutDetaching([$sport->id => ['offers_private_sessions' => true]]);
 
         $organizationLocation = $organization->syncLocation(
             [

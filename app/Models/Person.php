@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -27,7 +28,6 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $role
  * @property string|null $bio
  * @property string|null $photo_path
- * @property bool $offers_private_sessions
  * @property bool $is_primary
  * @property int $sort_order
  */
@@ -39,7 +39,7 @@ class Person extends Model
     protected $table = 'people';
 
     /** @var list<string> */
-    protected $fillable = ['name', 'role', 'bio', 'photo_path', 'offers_private_sessions', 'is_primary', 'sort_order'];
+    protected $fillable = ['name', 'role', 'bio', 'photo_path', 'is_primary', 'sort_order'];
 
     /**
      * @return array<string, string>
@@ -47,7 +47,6 @@ class Person extends Model
     protected function casts(): array
     {
         return [
-            'offers_private_sessions' => 'boolean',
             'is_primary' => 'boolean',
             'sort_order' => 'integer',
         ];
@@ -66,7 +65,46 @@ class Person extends Model
      */
     public function sports(): BelongsToMany
     {
-        return $this->belongsToMany(Sport::class);
+        return $this->belongsToMany(Sport::class)->withPivot('offers_private_sessions');
+    }
+
+    /**
+     * The person-and-sport rows, read as records rather than through the pivot:
+     * they carry an answer of their own now.
+     *
+     * @return HasMany<PersonSport, $this>
+     */
+    public function sportAssignments(): HasMany
+    {
+        return $this->hasMany(PersonSport::class);
+    }
+
+    /**
+     * Whether this person takes clients one to one for a given sport.
+     *
+     * Asked per sport rather than once per person: a coach who gives individual
+     * swimming lessons and only group basketball used to claim both, and the
+     * chip turned up on a tab nobody had said it about.
+     */
+    public function offersPrivateSessionsIn(int $sportId): bool
+    {
+        return $this->sportAssignments->contains(
+            fn (PersonSport $assignment): bool => $assignment->sport_id === $sportId
+                && $assignment->offers_private_sessions,
+        );
+    }
+
+    /**
+     * The sports this person gives individual sessions in.
+     *
+     * @return list<int>
+     */
+    public function privateSessionSportIds(): array
+    {
+        return array_values($this->sportAssignments
+            ->filter(fn (PersonSport $assignment): bool => $assignment->offers_private_sessions)
+            ->map(fn (PersonSport $assignment): int => $assignment->sport_id)
+            ->all());
     }
 
     public function getPhotoUrlAttribute(): ?string

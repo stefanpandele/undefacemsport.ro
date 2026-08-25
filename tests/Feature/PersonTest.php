@@ -1,10 +1,13 @@
 <?php
 
+use App\Filament\Organization\Resources\People\Pages\ManagePeople;
 use App\Filament\Organization\Resources\People\PersonResource;
 use App\Models\Organization;
 use App\Models\Person;
 use App\Models\Sport;
 use App\Models\User;
+use Filament\Facades\Filament;
+use Livewire\Livewire;
 
 test('a person belongs to a club and teaches sports', function () {
     $organization = Organization::factory()->create();
@@ -13,14 +16,18 @@ test('a person belongs to a club and teaches sports', function () {
     $person = $organization->people()->create([
         'name' => 'Andrei Popescu',
         'role' => 'Antrenor principal',
-        'offers_private_sessions' => true,
         'is_primary' => true,
     ]);
-    $person->sports()->attach($sports);
+
+    // One to one in the first sport, groups only in the second: the claim is
+    // about this person at this sport, not about the person.
+    $person->sports()->attach($sports->first(), ['offers_private_sessions' => true]);
+    $person->sports()->attach($sports->last());
 
     expect($person->organization->is($organization))->toBeTrue()
         ->and($person->sports)->toHaveCount(2)
-        ->and($person->offers_private_sessions)->toBeTrue()
+        ->and($person->offersPrivateSessionsIn($sports->first()->getKey()))->toBeTrue()
+        ->and($person->offersPrivateSessionsIn($sports->last()->getKey()))->toBeFalse()
         ->and($person->is_primary)->toBeTrue();
 });
 
@@ -39,4 +46,58 @@ test('a club member can open the people page without error', function () {
     $this->actingAs($member)
         ->get(PersonResource::getUrl(panel: 'organization', tenant: $organization))
         ->assertSuccessful();
+});
+
+test('the panel asks about 1:1 per sport and writes it to the pair', function () {
+    $member = User::factory()->create();
+    $organization = Organization::factory()->pro()->create();
+    $organization->addMember($member);
+
+    $swimming = Sport::factory()->create(['name' => 'Înot']);
+    $basketball = Sport::factory()->create(['name' => 'Baschet']);
+    $organization->declareSports([$swimming->getKey(), $basketball->getKey()]);
+
+    $person = $organization->people()->create(['name' => 'Andrei Popescu']);
+    $person->sports()->attach([$swimming->getKey(), $basketball->getKey()]);
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    Livewire::test(ManagePeople::class)
+        ->mountTableAction('edit', $person)
+        ->set('mountedActions.0.data.private_session_sports', [$swimming->getKey()])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($person->refresh()->sports)->toHaveCount(2)
+        ->and($person->offersPrivateSessionsIn($swimming->getKey()))->toBeTrue()
+        ->and($person->offersPrivateSessionsIn($basketball->getKey()))->toBeFalse();
+});
+
+test('unticking 1:1 for a sport takes the claim off that sport alone', function () {
+    $member = User::factory()->create();
+    $organization = Organization::factory()->pro()->create();
+    $organization->addMember($member);
+
+    $swimming = Sport::factory()->create(['name' => 'Înot']);
+    $basketball = Sport::factory()->create(['name' => 'Baschet']);
+    $organization->declareSports([$swimming->getKey(), $basketball->getKey()]);
+
+    $person = $organization->people()->create(['name' => 'Andrei Popescu']);
+    $person->sports()->attach($swimming, ['offers_private_sessions' => true]);
+    $person->sports()->attach($basketball, ['offers_private_sessions' => true]);
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    Livewire::test(ManagePeople::class)
+        ->mountTableAction('edit', $person)
+        ->set('mountedActions.0.data.private_session_sports', [$basketball->getKey()])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($person->refresh()->offersPrivateSessionsIn($swimming->getKey()))->toBeFalse()
+        ->and($person->offersPrivateSessionsIn($basketball->getKey()))->toBeTrue();
 });

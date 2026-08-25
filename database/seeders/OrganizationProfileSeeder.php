@@ -477,16 +477,20 @@ class OrganizationProfileSeeder extends Seeder
                     'name' => fake()->randomElement(self::FIRST_NAMES).' '.fake()->randomElement(self::LAST_NAMES),
                     'role' => $position === 1 ? 'Antrenor principal' : fake()->randomElement(self::ROLES),
                     'bio' => fake()->randomElement(self::BIOS),
-                    'offers_private_sessions' => fake()->boolean(35),
                     'is_primary' => $position === 1,
                     'sort_order' => $position - 1,
                 ]);
 
-                // Each person teaches one or two of the club's own sports.
+                // Each person teaches one or two of the club's own sports, and
+                // takes clients alone in some of them — asked per sport, so a
+                // coach can give individual lessons in one and only groups in
+                // the other.
                 $person->sports()->sync(
                     $organizationSports->shuffle()
                         ->take(fake()->numberBetween(1, min(2, $organizationSports->count())))
-                        ->pluck('sport_id')
+                        ->mapWithKeys(fn ($organizationSport): array => [
+                            $organizationSport->sport_id => ['offers_private_sessions' => fake()->boolean(35)],
+                        ])
                         ->all(),
                 );
 

@@ -11,7 +11,7 @@ use App\Models\ScheduleSlot;
 use App\Models\Space;
 use App\Models\Sport;
 
-test('the 1:1 chip follows the people, not a tick on the sport', function () {
+test('the 1:1 chip follows the sport a person offers it in, not the person', function () {
     $organization = Organization::factory()->pro()->create();
     $swimming = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
     $basketball = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
@@ -21,12 +21,10 @@ test('the 1:1 chip follows the people, not a tick on the sport', function () {
         [$swimming->getKey(), $basketball->getKey()],
     );
 
-    // One coach who takes clients alone, and only for swimming.
-    $solo = $organization->people()->create(['name' => 'Ana Ionescu', 'offers_private_sessions' => true]);
-    $solo->sports()->attach($swimming);
-
-    $group = $organization->people()->create(['name' => 'Radu Marin', 'offers_private_sessions' => false]);
-    $group->sports()->attach($basketball);
+    // One coach who teaches both, but takes clients alone only for swimming.
+    $coach = $organization->people()->create(['name' => 'Ana Ionescu']);
+    $coach->sports()->attach($swimming, ['offers_private_sessions' => true]);
+    $coach->sports()->attach($basketball);
 
     $this->get("/la/{$organization->slug}")->assertInertia(function ($page) {
         $courses = collect($page->toArray()['props']['organization']['courses'])->keyBy('key');
@@ -55,9 +53,8 @@ test('the organization page renders its courses, people and schedule', function 
         'name' => 'Andrei Popescu',
         'role' => 'Antrenor principal',
         'is_primary' => true,
-        'offers_private_sessions' => true,
     ]);
-    $person->sports()->attach($sport);
+    $person->sports()->attach($sport, ['offers_private_sessions' => true]);
 
     $organizationLocation = $organization->syncLocation(
         ['county' => 'Brașov', 'city' => 'Brașov', 'address' => 'Str. Bazinului 1', 'name' => 'Bazinul Olimpic'],

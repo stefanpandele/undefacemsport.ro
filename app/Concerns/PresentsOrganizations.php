@@ -6,6 +6,7 @@ use App\Enums\Weekday;
 use App\Models\OrganizationSport;
 use App\Models\Person;
 use App\Models\ScheduleSlot;
+use App\Models\Sport;
 use Illuminate\Support\Collection;
 
 /**
@@ -42,7 +43,9 @@ trait PresentsOrganizations
                     'key' => (string) $person->id,
                     'name' => $person->name,
                     'role' => $person->role ?? '',
-                    'solo' => $person->offers_private_sessions,
+                    // Tied to the sport the card shows: the claim lives on the
+                    // person-and-sport pair now, not on the person.
+                    'solo' => $sport instanceof Sport && $person->offersPrivateSessionsIn($sport->getKey()),
                     'gradient' => self::PERSON_GRADIENTS[$index % count(self::PERSON_GRADIENTS)],
                     'photo' => $person->photo_url,
                     'bio' => $person->bio ?? '',

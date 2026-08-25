@@ -86,8 +86,43 @@ class PersonResource extends Resource
                 Textarea::make('bio')
                     ->label('Descriere')
                     ->columnSpanFull(),
-                Toggle::make('offers_private_sessions')
-                    ->label('Oferă antrenamente 1:1'),
+                // Asked per sport, not once per person: a coach who gives
+                // individual swimming lessons and only group basketball used to
+                // claim both. Its options are whatever is ticked above — you
+                // cannot offer one to one in something you do not do at all.
+                Select::make('private_session_sports')
+                    ->label('La care dintre ele dă antrenamente 1:1')
+                    ->helperText('Lasă gol dacă lucrează doar cu grupe.')
+                    ->options(fn ($get): array => Sport::query()
+                        ->whereKey(array_map(intval(...), (array) $get('sports')))
+                        ->get()
+                        ->sortBy(fn (Sport $sport): string => $sport->translated_name)
+                        ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
+                        ->all())
+                    ->multiple()
+                    ->searchable()
+                    ->columnSpanFull()
+                    ->afterStateHydrated(function (Select $component, ?Person $record): void {
+                        $component->state($record?->privateSessionSportIds() ?? []);
+                    })
+                    // The sports relationship is saved by the field above, so
+                    // this one only marks which of the rows it wrote carry 1:1.
+                    ->dehydrated(false)
+                    ->saveRelationshipsUsing(function (?Person $record, mixed $state): void {
+                        if (! $record instanceof Person) {
+                            return;
+                        }
+
+                        $solo = array_map(intval(...), (array) $state);
+
+                        foreach ($record->sports()->pluck('sports.id') as $sportId) {
+                            $record->sports()->updateExistingPivot($sportId, [
+                                'offers_private_sessions' => in_array((int) $sportId, $solo, strict: true),
+                            ]);
+                        }
+
+                        $record->unsetRelation('sports');
+                    }),
                 Toggle::make('is_primary')
                     ->label('Antrenor principal (afișat în profilul clubului)'),
                 TextInput::make('sort_order')
@@ -114,9 +149,14 @@ class PersonResource extends Resource
                 TextColumn::make('sports.translated_name')
                     ->label('Sporturi')
                     ->badge(),
-                IconColumn::make('offers_private_sessions')
+                TextColumn::make('private_session_sports')
                     ->label('1:1')
-                    ->boolean(),
+                    ->badge()
+                    ->state(fn (Person $record): array => $record->sports
+                        ->filter(fn (Sport $sport): bool => $record->offersPrivateSessionsIn($sport->getKey()))
+                        ->map(fn (Sport $sport): string => $sport->translated_name)
+                        ->values()
+                        ->all()),
                 IconColumn::make('is_primary')
                     ->label('Principal')
                     ->boolean(),

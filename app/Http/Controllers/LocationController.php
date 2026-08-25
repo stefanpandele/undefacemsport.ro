@@ -57,12 +57,14 @@ class LocationController extends Controller
                 'organizationLocations' => fn ($query) => $query->teaching(),
                 'organizationLocations.organization.contacts',
                 'organizationLocations.organization.people.sports',
+                'organizationLocations.organization.people.sportAssignments',
                 'organizationLocations.organization.organizationSports.sport',
                 'organizationLocations.organization.organizationSports.benefits',
                 'organizationLocations.organization.organizationSports.galleryImages',
                 'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.organizationLocationSports.scheduleSlots.ageGroup',
                 'organizationLocations.organizationLocationSports.scheduleSlots.person.sports',
+                'organizationLocations.organizationLocationSports.scheduleSlots.person.sportAssignments',
                 'organizationLocations.organizationLocationSports.scheduleSlots.level',
                 // The other two ways in. Only what an admin has cleared, the same
                 // rule the amenities follow.

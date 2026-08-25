@@ -342,8 +342,7 @@ class Organization extends Model
     public function offersPrivateSessionsFor(int $sportId): bool
     {
         return $this->people->contains(
-            fn (Person $person): bool => $person->offers_private_sessions
-                && $person->sports->contains('id', $sportId),
+            fn (Person $person): bool => $person->offersPrivateSessionsIn($sportId),
         );
     }
 

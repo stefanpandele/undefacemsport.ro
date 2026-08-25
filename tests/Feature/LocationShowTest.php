@@ -32,9 +32,8 @@ function swimmingClubAt(string $locationName, Sport $sport, string $clubName): O
         'name' => 'Andrei Popescu',
         'role' => 'Antrenor principal',
         'is_primary' => true,
-        'offers_private_sessions' => true,
     ]);
-    $person->sports()->attach($sport);
+    $person->sports()->attach($sport, ['offers_private_sessions' => true]);
 
     $organizationLocation = $organization->syncLocation([
         'county' => 'Brașov',

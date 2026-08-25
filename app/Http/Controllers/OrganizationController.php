@@ -80,6 +80,7 @@ class OrganizationController extends Controller
                 'organizationSports.benefits',
                 'organizationSports.galleryImages',
                 'people.sports',
+                'people.sportAssignments',
                 'services.specialty',
                 'services.person',
                 'services.sports',
