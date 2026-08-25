@@ -62,6 +62,7 @@ class LocationController extends Controller
                 'organizationLocations.organization.organizationSports.galleryImages',
                 'organizationLocations.organizationLocationSports.sport',
                 'organizationLocations.organizationLocationSports.scheduleSlots.ageGroup',
+                'organizationLocations.organizationLocationSports.scheduleSlots.person.sports',
                 'organizationLocations.organizationLocationSports.scheduleSlots.level',
                 // The other two ways in. Only what an admin has cleared, the same
                 // rule the amenities follow.
@@ -498,7 +499,7 @@ class LocationController extends Controller
     {
         $sport = $organizationLocationSport->sport;
         $organizationSport = $organization->organizationSports->firstWhere('sport_id', $sport->getKey());
-        $people = $this->coachesForSport($organization, $sport);
+        $people = $this->coachesForSport($organizationLocationSport);
         $primary = $people->first();
 
         return [
@@ -528,20 +529,28 @@ class LocationController extends Controller
     }
 
     /**
-     * A club's people for one sport, falling back to all of them when none is
-     * assigned to it.
+     * The people who run this club's hours for this sport *here*.
+     *
+     * A coach reaches an address through the sessions he teaches at it, so the
+     * names come off the schedule rather than off the club's roster. Listing
+     * everyone with the sport ticked put a coach on the page of a hall he had
+     * never worked in, and a club with nobody assigned to the sport used to
+     * print its whole staff, nutritionist included.
+     *
+     * Nobody named on any hour means nobody is named here — the block falls back
+     * to the club itself for the contact, which is true, instead of guessing.
      *
      * @return Collection<int, Person>
      */
-    private function coachesForSport(Organization $organization, Sport $sport): Collection
+    private function coachesForSport(OrganizationLocationSport $organizationLocationSport): Collection
     {
-        $forSport = $organization->people->filter(
-            fn (Person $person): bool => $person->sports->contains('id', $sport->getKey()),
-        );
-
-        // Same order the block presents them in, so the first one is also the
-        // club's representative and contact.
-        return ($forSport->isNotEmpty() ? $forSport : $organization->people)
+        return $organizationLocationSport->scheduleSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $slot->isTraining())
+            ->map(fn (ScheduleSlot $slot): ?Person => $slot->person)
+            ->filter()
+            ->unique(fn (Person $person): int => $person->getKey())
+            // Same order the block presents them in, so the first one is also
+            // the club's representative and contact.
             ->sortBy([['is_primary', 'desc'], ['sort_order', 'asc']])
             ->values();
     }

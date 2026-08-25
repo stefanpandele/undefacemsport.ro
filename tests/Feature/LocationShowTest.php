@@ -61,6 +61,85 @@ function swimmingClubAt(string $locationName, Sport $sport, string $clubName): O
     return $organizationLocationSport;
 }
 
+test('a coach reaches a location through the hours he teaches there', function () {
+    // Polivalentă → baschet → marți 18:00 → Popescu. A coach with the sport
+    // ticked but no hour in this hall has never worked here.
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+    $organization = Organization::factory()->pro()->create();
+
+    $popescu = $organization->people()->create(['name' => 'Popescu', 'role' => 'Antrenor', 'is_primary' => true]);
+    $ionescu = $organization->people()->create(['name' => 'Ionescu', 'role' => 'Antrenor']);
+    $popescu->sports()->attach($sport);
+    $ionescu->sports()->attach($sport);
+
+    $polivalenta = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Polivalenta'],
+        [$sport->getKey()],
+    );
+    $salaSporturilor = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Sala Sporturilor'],
+        [$sport->getKey()],
+    );
+
+    // Popescu teaches at the first hall, Ionescu at the second.
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $polivalenta->organizationLocationSports->first()->id,
+        'day_of_week' => Weekday::Tuesday,
+        'start_time' => '18:00',
+        'end_time' => '19:30',
+        'age_group_id' => AgeGroup::factory()->create()->id,
+        'person_id' => $popescu->id,
+    ]);
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $salaSporturilor->organizationLocationSports->first()->id,
+        'day_of_week' => Weekday::Thursday,
+        'start_time' => '18:00',
+        'end_time' => '19:30',
+        'age_group_id' => AgeGroup::factory()->create()->id,
+        'person_id' => $ionescu->id,
+    ]);
+
+    $names = fn (string $slug): array => collect(
+        $this->get(route('locations.show', $slug))->viewData('page')['props']['location']['clubs']
+    )->flatMap(fn (array $club): array => array_column($club['people'], 'name'))->all();
+
+    expect($names($polivalenta->location->slug))->toBe(['Popescu'])
+        ->and($names($salaSporturilor->location->slug))->toBe(['Ionescu']);
+});
+
+test('an hour with no coach names nobody rather than the whole staff', function () {
+    $sport = Sport::factory()->create(['slug' => 'baschet', 'name' => 'Baschet']);
+    $organization = Organization::factory()->create();
+
+    // A nutritionist on the roster, and nobody assigned to the hour.
+    $organization->people()->create(['name' => 'Marin', 'role' => 'Nutriționist']);
+
+    $presence = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Polivalenta'],
+        [$sport->getKey()],
+    );
+
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $presence->organizationLocationSports->first()->id,
+        'day_of_week' => Weekday::Tuesday,
+        'start_time' => '18:00',
+        'end_time' => '19:30',
+        'age_group_id' => AgeGroup::factory()->create()->id,
+        'person_id' => null,
+    ]);
+
+    $this->get(route('locations.show', $presence->location->slug))->assertInertia(
+        fn ($page) => $page
+            ->has('location.clubs.0.people', 0)
+            ->where('location.clubs.0.representative', '')
+            // Still reachable: the club itself answers when no person does.
+            ->where('location.clubs.0.contactName', $organization->name),
+    );
+});
+
 test('the location page renders its amenities, sports and club blocks', function () {
     $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot', 'icon' => '🏊', 'color' => '#1D7FB8']);
     $organizationLocationSport = swimmingClubAt('Bazinul Olimpic', $sport, 'Club Aqua Junior');
