@@ -66,9 +66,19 @@ class LocationResource extends Resource
 
     protected static ?string $navigationLabel = 'Locații';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Organizația';
-
     protected static ?int $navigationSort = 1;
+
+    /**
+     * How many addresses the club works at. A count beside the item is what
+     * tells an organization which parts of the panel are already theirs,
+     * without any of them having to be hidden.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -281,11 +291,7 @@ class LocationResource extends Resource
             Select::make('sports')
                 ->label('Sporturi predate aici')
                 ->helperText(fn (?Component $livewire): string => static::sportsHelperText($livewire))
-                ->options(fn (): array => Sport::query()
-                    ->get()
-                    ->sortBy(fn (Sport $sport): string => $sport->translated_name)
-                    ->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])
-                    ->all())
+                ->options(fn (?Component $livewire): array => static::sportOptions($livewire))
                 ->multiple()
                 ->searchable()
                 ->rule(fn (?Component $livewire): Closure => static::sportsWithinPlan($livewire)),
@@ -715,6 +721,40 @@ class LocationResource extends Resource
                     ->body('Îți mulțumim — un administrator o verifică în curând.')
                     ->send();
             });
+    }
+
+    /**
+     * Every sport, with the club's own at the top.
+     *
+     * Grouped rather than filtered: a club that teaches two should not have to
+     * read past forty to find them, and a club that teaches none must not meet
+     * an empty list — that emptiness was the dead end this form is here to
+     * remove.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function sportOptions(?Component $livewire = null): array
+    {
+        $organization = static::resolveOrganization($livewire);
+
+        $all = Sport::query()
+            ->get()
+            ->sortBy(fn (Sport $sport): string => $sport->translated_name);
+
+        $mine = $organization instanceof Organization
+            ? $organization->organizationSports()->pluck('sport_id')->all()
+            : [];
+
+        if ($mine === []) {
+            return ['Toate sporturile' => $all->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])->all()];
+        }
+
+        [$declared, $rest] = $all->partition(fn (Sport $sport): bool => in_array($sport->getKey(), $mine, strict: true));
+
+        return array_filter([
+            'Sporturile tale' => $declared->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])->all(),
+            'Toate sporturile' => $rest->mapWithKeys(fn (Sport $sport): array => [$sport->getKey() => $sport->translated_name])->all(),
+        ]);
     }
 
     /**

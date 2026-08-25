@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Organization\Resources\Locations\LocationResource;
 use App\Filament\Organization\Resources\Locations\Pages\ManageLocations;
 use App\Filament\Organization\Resources\OrganizationSports\OrganizationSportResource;
 use App\Filament\Organization\Resources\OrganizationSports\Pages\ManageOrganizationSports;
@@ -196,6 +197,46 @@ test('the query finds the same sports the accessor flags', function () {
     $complete->benefits()->create(['icon' => '🏅', 'label' => 'Licențiat FR Natație']);
 
     expect(OrganizationSport::needingEnrichment()->pluck('id')->all())->toBe([$bare->getKey()]);
+});
+
+test('the location form puts the club\'s own sports above all the others', function () {
+    $member = User::factory()->create();
+    $organization = Organization::factory()->pro()->create();
+    $organization->addMember($member);
+
+    $swimming = Sport::factory()->create(['name' => 'Înot']);
+    Sport::factory()->create(['name' => 'Baschet']);
+
+    $organization->organizationSports()->create(['sport_id' => $swimming->getKey()]);
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    $options = LocationResource::sportOptions();
+
+    expect(array_keys($options))->toBe(['Sporturile tale', 'Toate sporturile'])
+        ->and($options['Sporturile tale'])->toBe([$swimming->getKey() => 'Înot'])
+        ->and($options['Toate sporturile'])->not->toHaveKey($swimming->getKey());
+});
+
+test('a club with no sports yet meets one list, not an empty one', function () {
+    // The dead end this form exists to remove: a brand new club opening
+    // Locations first used to find a select with nothing in it.
+    $member = User::factory()->create();
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
+
+    Sport::factory()->count(2)->create();
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    $options = LocationResource::sportOptions();
+
+    expect(array_keys($options))->toBe(['Toate sporturile'])
+        ->and($options['Toate sporturile'])->toHaveCount(2);
 });
 
 test('a club member can open the sports page without error', function () {

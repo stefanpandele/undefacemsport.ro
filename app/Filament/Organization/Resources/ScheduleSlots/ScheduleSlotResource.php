@@ -2,6 +2,7 @@
 
 namespace App\Filament\Organization\Resources\ScheduleSlots;
 
+use App\Enums\NavigationGroup;
 use App\Enums\ScheduleSlotKind;
 use App\Enums\Weekday;
 use App\Filament\Concerns\ResolvesOrganization;
@@ -41,9 +42,20 @@ class ScheduleSlotResource extends Resource
 
     protected static ?string $navigationLabel = 'Orar';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+    protected static string|\UnitEnum|null $navigationGroup = NavigationGroup::Courses;
 
     protected static ?int $navigationSort = 2;
+
+    /**
+     * Câte intervale de antrenament are săptămâna. Absent rather than zero: an offer an organization has not made yet is
+     * quieter without a badge than with a nought beside it.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     /**
      * Editing one existing interval: everything, including where it happens.

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Organization\Resources\OrganizationSports;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Forms\Components\WebpUpload;
 use App\Filament\Organization\Resources\OrganizationSports\Pages\ManageOrganizationSports;
@@ -40,9 +41,20 @@ class OrganizationSportResource extends Resource
 
     protected static ?string $navigationLabel = 'Sporturi';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+    protected static string|\UnitEnum|null $navigationGroup = NavigationGroup::Courses;
 
     protected static ?int $navigationSort = 1;
+
+    /**
+     * Câte sporturi predă clubul. Absent rather than zero: an offer an organization has not made yet is
+     * quieter without a badge than with a nought beside it.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     public static function form(Schema $schema): Schema
     {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Organization\Resources\Spaces;
 
+use App\Enums\NavigationGroup;
 use App\Enums\PriceUnit;
 use App\Enums\ScheduleSlotKind;
 use App\Enums\SpaceAccessMode;
@@ -54,9 +55,20 @@ class SpaceResource extends Resource
 
     protected static ?string $navigationLabel = 'Spații';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Agrement și închiriere';
+    protected static string|\UnitEnum|null $navigationGroup = NavigationGroup::Leisure;
 
     protected static ?int $navigationSort = 1;
+
+    /**
+     * Câte spații operează. Absent rather than zero: an offer an organization has not made yet is
+     * quieter without a badge than with a nought beside it.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     /**
      * Scoped by hand rather than by Filament's tenancy: a space belongs to a

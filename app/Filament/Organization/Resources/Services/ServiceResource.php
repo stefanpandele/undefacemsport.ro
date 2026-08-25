@@ -2,6 +2,7 @@
 
 namespace App\Filament\Organization\Resources\Services;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Organization\Resources\Services\Pages\ManageServices;
 use App\Models\Organization;
@@ -51,9 +52,20 @@ class ServiceResource extends Resource
 
     protected static ?string $navigationLabel = 'Servicii';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Servicii';
+    protected static string|\UnitEnum|null $navigationGroup = NavigationGroup::Services;
 
     protected static ?int $navigationSort = 1;
+
+    /**
+     * Câte servicii oferă. Absent rather than zero: an offer an organization has not made yet is
+     * quieter without a badge than with a nought beside it.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     public static function form(Schema $schema): Schema
     {

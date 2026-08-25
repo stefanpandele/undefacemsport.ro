@@ -35,15 +35,25 @@ class PersonResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static ?string $modelLabel = 'antrenor';
+    protected static ?string $modelLabel = 'persoană';
 
-    protected static ?string $pluralModelLabel = 'antrenori';
+    protected static ?string $pluralModelLabel = 'persoane';
 
-    protected static ?string $navigationLabel = 'Antrenori';
+    protected static ?string $navigationLabel = 'Oameni';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Cursuri';
+    protected static ?int $navigationSort = 2;
 
-    protected static ?int $navigationSort = 3;
+    /**
+     * Outside the offer groups, beside the locations: the same people run the
+     * courses and give the services, and which hall and sport each of them is
+     * tied to is answered by the schedule, one row per hour.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
 
     public static function form(Schema $schema): Schema
     {
