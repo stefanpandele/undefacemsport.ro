@@ -28,7 +28,7 @@ test('the sidebar groups the three offers and leaves the two foundations above t
     // give the services.
     expect(LocationResource::getNavigationGroup())->toBeNull()
         ->and(PersonResource::getNavigationGroup())->toBeNull()
-        ->and(PersonResource::getNavigationLabel())->toBe('Oameni')
+        ->and(PersonResource::getNavigationLabel())->toBe('Echipă')
         ->and(OrganizationSportResource::getNavigationGroup())->toBe(NavigationGroup::Courses)
         ->and(ScheduleSlotResource::getNavigationGroup())->toBe(NavigationGroup::Courses)
         ->and(SpaceResource::getNavigationGroup())->toBe(NavigationGroup::Leisure)

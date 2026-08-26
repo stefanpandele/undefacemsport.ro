@@ -37,9 +37,11 @@ class PersonResource extends Resource
 
     protected static ?string $modelLabel = 'persoană';
 
-    protected static ?string $pluralModelLabel = 'persoane';
+    // Plural is the screen's own name; the singular stays a person, so the
+    // buttons read "Adaugă persoană" rather than "Adaugă echipă".
+    protected static ?string $pluralModelLabel = 'echipă';
 
-    protected static ?string $navigationLabel = 'Oameni';
+    protected static ?string $navigationLabel = 'Echipă';
 
     protected static ?int $navigationSort = 2;
 
@@ -74,14 +76,19 @@ class PersonResource extends Resource
                     ->square(600)
                     ->disk('s3')
                     ->directory('people'),
+                // Empty is a real answer, not a gap: a club has a reception and
+                // an office as well as a poolside, and nobody at the desk works
+                // "for a sport". Everything below that only makes sense for
+                // somebody who teaches is asked only once this is filled.
                 Select::make('sports')
-                    ->label('Pentru ce sporturi')
-                    ->helperText('Doar sporturile declarate la clubul tău.')
+                    ->label('Pentru ce sporturi lucrează')
+                    ->helperText('Lasă gol pentru recepție, administrativ sau oricine nu predă. Se aleg doar sporturile declarate la clubul tău.')
                     ->relationship('sports', 'name', fn (Builder $query, ?Component $livewire): Builder => static::scopeToClubSports($query, $livewire))
                     ->getOptionLabelFromRecordUsing(fn (Sport $record): string => $record->translated_name)
                     ->multiple()
                     ->searchable()
                     ->preload()
+                    ->live()
                     ->columnSpanFull(),
                 Textarea::make('bio')
                     ->label('Descriere')
@@ -89,10 +96,12 @@ class PersonResource extends Resource
                 // Asked per sport, not once per person: a coach who gives
                 // individual swimming lessons and only group basketball used to
                 // claim both. Its options are whatever is ticked above — you
-                // cannot offer one to one in something you do not do at all.
+                // cannot offer one to one in something you do not do at all,
+                // and somebody who teaches nothing is never asked.
                 Select::make('private_session_sports')
                     ->label('La care dintre ele dă antrenamente 1:1')
                     ->helperText('Lasă gol dacă lucrează doar cu grupe.')
+                    ->visible(fn ($get): bool => filled($get('sports')))
                     ->options(fn ($get): array => Sport::query()
                         ->whereKey(array_map(intval(...), (array) $get('sports')))
                         ->get()

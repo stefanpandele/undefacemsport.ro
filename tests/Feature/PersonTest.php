@@ -140,3 +140,46 @@ test('the club page speaks through whoever represents it', function () {
         fn ($page) => $page->where('organization.representative', 'Ana Ionescu, Președinte'),
     );
 });
+
+test('somebody who teaches nothing is never asked about 1:1', function () {
+    // A club has a reception and an office as well as a poolside, and asking
+    // the person at the desk which sports they give individual lessons in is
+    // asking a question with no answer.
+    $member = User::factory()->create();
+    $organization = Organization::factory()->create();
+    $organization->addMember($member);
+    $organization->declareSports([Sport::factory()->create()->getKey()]);
+
+    $reception = $organization->people()->create(['name' => 'Maria Ene', 'role' => 'Recepție']);
+
+    $this->actingAs($member);
+    Filament::setCurrentPanel(Filament::getPanel('organization'));
+    Filament::setTenant($organization);
+
+    Livewire::test(ManagePeople::class)
+        ->mountTableAction('edit', $reception)
+        ->assertFormFieldHidden('private_session_sports')
+        // And it comes back the moment somebody says they teach something.
+        ->set('mountedActions.0.data.sports', [$organization->organizationSports()->value('sport_id')])
+        ->assertFormFieldVisible('private_session_sports');
+});
+
+test('a person with no sports is saved and shown without one', function () {
+    $organization = Organization::factory()->create(['slug' => 'cs-delfinul']);
+    $organization->declareSports([Sport::factory()->create()->getKey()]);
+
+    $reception = $organization->people()->create(['name' => 'Maria Ene', 'role' => 'Recepție']);
+
+    expect($reception->sports)->toBeEmpty()
+        ->and($reception->privateSessionSportIds())->toBe([]);
+
+    $this->get('/la/cs-delfinul')->assertInertia(function ($page) {
+        $person = collect($page->toArray()['props']['organization']['people'])->firstWhere('name', 'Maria Ene');
+
+        expect($person['role'])->toBe('Recepție')
+            ->and($person['sportLabel'])->toBe('')
+            ->and($person['solo'])->toBeFalse();
+
+        return $page;
+    });
+});
