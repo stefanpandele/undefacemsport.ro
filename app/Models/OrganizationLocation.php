@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * A club's presence at a shared location, plus the sports it teaches there.
@@ -83,5 +84,20 @@ class OrganizationLocation extends Model
     public function spaces(): HasMany
     {
         return $this->hasMany(Space::class)->orderBy('sort_order')->orderBy('name');
+    }
+
+    /**
+     * Who to call about this address.
+     *
+     * On the presence rather than on the club: the same coach may run two halls
+     * while only one of them publishes a number, and the reception answers at
+     * the other. A club with none of these still has its general line, which the
+     * page falls back to.
+     *
+     * @return MorphMany<Contact, $this>
+     */
+    public function contacts(): MorphMany
+    {
+        return $this->morphMany(Contact::class, 'contactable')->orderBy('sort_order');
     }
 }

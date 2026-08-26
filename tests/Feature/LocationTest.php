@@ -137,3 +137,49 @@ test('saving a location adds the chosen facilities to the shared location', func
     expect($organizationLocation->location->facilities()->count())->toBe(1)
         ->and($organizationLocation->location->facilities->first()->is($facility))->toBeTrue();
 });
+
+test('the location form saves and reloads the contacts of that address', function () {
+    $organization = Organization::factory()->create();
+
+    $presence = LocationResource::persist([
+        'county' => 'Cluj',
+        'city' => 'Cluj-Napoca',
+        'address' => 'Str. A 1',
+        'name' => 'Bazinul A',
+        'sports' => [],
+        'contacts' => [
+            ['type' => 'phone', 'role' => 'person', 'name' => 'Andrei Popescu', 'value' => '0722111111'],
+            // Blank rows are the repeater's, not the club's: dropped rather
+            // than stored as a contact nobody can reach.
+            ['type' => 'phone', 'role' => 'general', 'name' => null, 'value' => ''],
+        ],
+    ], organization: $organization);
+
+    expect($presence->contacts)->toHaveCount(1)
+        ->and($presence->contacts->first()->value)->toBe('0722111111')
+        ->and($presence->contacts->first()->name)->toBe('Andrei Popescu');
+
+    $filled = LocationResource::fillFromRecord([], $presence->refresh());
+
+    expect($filled['contacts'])->toBe([
+        ['type' => 'phone', 'role' => 'person', 'name' => 'Andrei Popescu', 'value' => '0722111111'],
+    ]);
+});
+
+test('removing a contact row stops publishing that number', function () {
+    $organization = Organization::factory()->create();
+
+    $presence = LocationResource::persist([
+        'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazinul A',
+        'sports' => [],
+        'contacts' => [['type' => 'phone', 'role' => 'person', 'name' => 'Andrei', 'value' => '0722111111']],
+    ], organization: $organization);
+
+    LocationResource::persist([
+        'county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazinul A',
+        'sports' => [],
+        'contacts' => [],
+    ], $presence, organization: $organization);
+
+    expect($presence->refresh()->contacts)->toBeEmpty();
+});

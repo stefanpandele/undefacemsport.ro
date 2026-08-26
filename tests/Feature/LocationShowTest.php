@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ContactRole;
 use App\Enums\ContactType;
 use App\Enums\Weekday;
 use App\Models\AgeGroup;
@@ -136,6 +137,94 @@ test('an hour with no coach names nobody rather than the whole staff', function 
             ->where('location.clubs.0.representative', '')
             // Still reachable: the club itself answers when no person does.
             ->where('location.clubs.0.contactName', $organization->name),
+    );
+});
+
+test('a hall shows its own number, and the other one still shows the club\'s', function () {
+    // The same coach runs both, but only one hall publishes his line — at the
+    // other, the club's switchboard answers.
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $organization = Organization::factory()->pro()->create(['name' => 'CS Delfinul']);
+    $organization->contacts()->create(['type' => ContactType::Phone, 'value' => '0722000000']);
+
+    $coach = $organization->people()->create(['name' => 'Andrei Popescu', 'is_primary' => true]);
+    $coach->sports()->attach($sport);
+
+    $his = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazinul A'],
+        [$sport->getKey()],
+    );
+    $theirs = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. B 2', 'name' => 'Bazinul B'],
+        [$sport->getKey()],
+    );
+
+    $his->contacts()->create([
+        'type' => ContactType::Phone,
+        'role' => ContactRole::Person,
+        'name' => 'Andrei Popescu',
+        'value' => '0722111111',
+    ]);
+
+    foreach ([$his, $theirs] as $presence) {
+        ScheduleSlot::factory()->create([
+            'organization_id' => $organization->id,
+            'organization_location_sport_id' => $presence->organizationLocationSports->first()->id,
+            'day_of_week' => Weekday::Monday,
+            'start_time' => '17:00',
+            'end_time' => '18:00',
+            'age_group_id' => AgeGroup::factory()->create()->id,
+            'person_id' => $coach->id,
+        ]);
+    }
+
+    $this->get(route('locations.show', $his->location->slug))->assertInertia(
+        fn ($page) => $page
+            ->where('location.clubs.0.contactPhone', '0722111111')
+            ->where('location.clubs.0.contactName', 'Andrei Popescu'),
+    );
+
+    $this->get(route('locations.show', $theirs->location->slug))->assertInertia(
+        fn ($page) => $page
+            ->where('location.clubs.0.contactPhone', '0722000000')
+            ->where('location.clubs.0.contactName', 'Andrei Popescu'),
+    );
+});
+
+test('a hall number with no name on it is answered by the club, not by a coach', function () {
+    // The reception picks up: pairing the coach's name with a number that is
+    // not his is the mismatch this replaced.
+    $sport = Sport::factory()->create(['slug' => 'inot', 'name' => 'Înot']);
+    $organization = Organization::factory()->create(['name' => 'CS Delfinul']);
+    $organization->contacts()->create(['type' => ContactType::Phone, 'value' => '0722000000']);
+
+    $coach = $organization->people()->create(['name' => 'Andrei Popescu', 'is_primary' => true]);
+    $coach->sports()->attach($sport);
+
+    $presence = $organization->syncLocation(
+        ['county' => 'Cluj', 'city' => 'Cluj-Napoca', 'address' => 'Str. A 1', 'name' => 'Bazinul A'],
+        [$sport->getKey()],
+    );
+    $presence->contacts()->create([
+        'type' => ContactType::Phone,
+        'role' => ContactRole::General,
+        'value' => '0264111111',
+    ]);
+
+    ScheduleSlot::factory()->create([
+        'organization_id' => $organization->id,
+        'organization_location_sport_id' => $presence->organizationLocationSports->first()->id,
+        'day_of_week' => Weekday::Monday,
+        'start_time' => '17:00',
+        'end_time' => '18:00',
+        'age_group_id' => AgeGroup::factory()->create()->id,
+        'person_id' => $coach->id,
+    ]);
+
+    $this->get(route('locations.show', $presence->location->slug))->assertInertia(
+        fn ($page) => $page
+            ->where('location.clubs.0.contactPhone', '0264111111')
+            ->where('location.clubs.0.contactName', 'CS Delfinul'),
     );
 });
 

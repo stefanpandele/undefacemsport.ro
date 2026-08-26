@@ -8,6 +8,7 @@ use App\Enums\ContactType;
 use App\Enums\LocationWay;
 use App\Enums\SpaceAccessMode;
 use App\Enums\Weekday;
+use App\Models\Contact;
 use App\Models\Facility;
 use App\Models\Location;
 use App\Models\LocationRedirect;
@@ -56,6 +57,7 @@ class LocationController extends Controller
                 // rentable spaces are a different offer, added in a later phase.
                 'organizationLocations' => fn ($query) => $query->teaching(),
                 'organizationLocations.organization.contacts',
+                'organizationLocations.contacts',
                 'organizationLocations.organization.people.sports',
                 'organizationLocations.organization.people.sportAssignments',
                 'organizationLocations.organization.organizationSports.sport',
@@ -525,8 +527,10 @@ class LocationController extends Controller
                 $organizationLocationSport->scheduleSlots,
                 $this->otherClubs($occupancy, $organization, $sport->getKey()),
             ),
-            'contactName' => $primary->name ?? $organization->name,
-            'contactPhone' => $organization->contacts->firstWhere('type', ContactType::Phone)?->value,
+            // Both from the same row when this address publishes a number, so
+            // the page stops pairing a coach's name with the club's switchboard.
+            'contactName' => $this->contactName($organizationLocationSport->organizationLocation, $organization, $primary),
+            'contactPhone' => $this->contactPhone($organizationLocationSport->organizationLocation, $organization),
         ];
     }
 
@@ -555,6 +559,39 @@ class LocationController extends Controller
             // the club's representative and contact.
             ->sortBy([['is_primary', 'desc'], ['sort_order', 'asc']])
             ->values();
+    }
+
+    /**
+     * The number to call about this address: its own if it publishes one, else
+     * the club's general line.
+     */
+    private function contactPhone(OrganizationLocation $presence, Organization $organization): ?string
+    {
+        $own = $presence->contacts->firstWhere('type', ContactType::Phone);
+
+        if ($own instanceof Contact) {
+            return $own->value;
+        }
+
+        return $organization->contacts->firstWhere('type', ContactType::Phone)?->value;
+    }
+
+    /**
+     * Who answers it. Named on the contact where there is one — a hall may be
+     * answered by its coach or by the reception, and only the club knows which —
+     * then the coach the block already leads with, then the club itself.
+     */
+    private function contactName(OrganizationLocation $presence, Organization $organization, ?Person $primary): string
+    {
+        $contact = $presence->contacts->firstWhere('type', ContactType::Phone);
+
+        if ($contact instanceof Contact && filled($contact->name)) {
+            return (string) $contact->name;
+        }
+
+        return $contact instanceof Contact
+            ? $organization->name
+            : ($primary->name ?? $organization->name);
     }
 
     private function representative(?Person $person): string

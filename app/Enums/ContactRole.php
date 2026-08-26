@@ -13,7 +13,7 @@ enum ContactRole: string
     {
         return match ($this) {
             self::General => 'Contact general',
-            self::Person => 'Antrenor',
+            self::Person => 'Persoană de contact',
             self::LegalRepresentative => 'Reprezentant legal',
             self::Accounting => 'Contabilitate',
         };

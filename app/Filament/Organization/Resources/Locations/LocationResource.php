@@ -2,12 +2,15 @@
 
 namespace App\Filament\Organization\Resources\Locations;
 
+use App\Enums\ContactRole;
+use App\Enums\ContactType;
 use App\Enums\FacilityStatus;
 use App\Enums\LocationCorrectionField;
 use App\Filament\Concerns\ResolvesOrganization;
 use App\Filament\Forms\Components\LocationMap;
 use App\Filament\Forms\Components\WebpUpload;
 use App\Filament\Organization\Resources\Locations\Pages\ManageLocations;
+use App\Models\Contact;
 use App\Models\County;
 use App\Models\Facility;
 use App\Models\Locality;
@@ -29,6 +32,7 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -88,6 +92,7 @@ class LocationResource extends Resource
                     ->columnSpanFull()
                     ->tabs([
                         Tab::make('Locație')->schema(static::locationFields()),
+                        Tab::make('Contact')->schema(static::contactFields()),
                         Tab::make('Facilități')->schema(static::facilityFields()),
                     ]),
             ]);
@@ -724,6 +729,47 @@ class LocationResource extends Resource
     }
 
     /**
+     * Who answers about this address.
+     *
+     * Left empty, the page falls back to the club's general line — which is why
+     * this is a place to publish a number, not a place a number is required. A
+     * coach running two halls can have their own number here and nowhere else.
+     *
+     * @return array<int, \Filament\Schemas\Components\Component>
+     */
+    protected static function contactFields(): array
+    {
+        return [
+            Repeater::make('contacts')
+                ->label('Contact la această adresă')
+                ->helperText('Lasă gol și se afișează contactul general al clubului.')
+                ->schema([
+                    Select::make('type')
+                        ->label('Tip')
+                        ->options(ContactType::class)
+                        ->default(ContactType::Phone)
+                        ->required(),
+                    Select::make('role')
+                        ->label('Rol')
+                        ->options(ContactRole::class)
+                        ->default(ContactRole::General)
+                        ->required(),
+                    TextInput::make('name')
+                        ->label('Numele persoanei')
+                        ->placeholder('Andrei Popescu'),
+                    TextInput::make('value')
+                        ->label('Valoare')
+                        ->placeholder('0722123456')
+                        ->required(),
+                ])
+                ->columns(2)
+                ->defaultItems(0)
+                ->addActionLabel('Adaugă contact')
+                ->columnSpanFull(),
+        ];
+    }
+
+    /**
      * Every sport, with the club's own at the top.
      *
      * Grouped rather than filtered: a club that teaches two should not have to
@@ -867,6 +913,27 @@ class LocationResource extends Resource
             $organizationLocation->location->facilities()->syncWithoutDetaching($attach);
         }
 
+        // Replaced wholesale rather than merged: the repeater is the whole
+        // answer to "who answers here", and a row removed from it is a number
+        // the club has decided to stop publishing.
+        if (array_key_exists('contacts', $data)) {
+            $organizationLocation->contacts()->delete();
+
+            foreach (array_values((array) $data['contacts']) as $position => $contact) {
+                if (blank($contact['value'] ?? null)) {
+                    continue;
+                }
+
+                $organizationLocation->contacts()->create([
+                    'type' => $contact['type'],
+                    'role' => $contact['role'],
+                    'name' => $contact['name'] ?? null,
+                    'value' => $contact['value'],
+                    'sort_order' => $position,
+                ]);
+            }
+        }
+
         return $organizationLocation;
     }
 
@@ -898,6 +965,12 @@ class LocationResource extends Resource
             'new_facilities' => [],
             'new_facility_photos' => [],
             'sports' => $record->sports->pluck('id')->all(),
+            'contacts' => $record->contacts->map(fn (Contact $contact): array => [
+                'type' => $contact->type->value,
+                'role' => $contact->role->value,
+                'name' => $contact->name,
+                'value' => $contact->value,
+            ])->all(),
         ]);
     }
 
