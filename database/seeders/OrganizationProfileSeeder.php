@@ -598,6 +598,10 @@ class OrganizationProfileSeeder extends Seeder
 
         $offer = $this->offerAt($organizationLocationSport, $ageGroups, $levels);
 
+        // The first of each, not a draw: `updateOrCreate` may land on an hour
+        // the weekly schedule already wrote, and a random level there could take
+        // the bottom of that address's run away — the run is read back off these
+        // rows, so overwriting one is overwriting the answer.
         ScheduleSlot::updateOrCreate(
             [
                 'organization_location_sport_id' => $organizationLocationSport->getKey(),
@@ -607,8 +611,8 @@ class OrganizationProfileSeeder extends Seeder
             [
                 'organization_id' => $organization->getKey(),
                 'end_time' => $end,
-                'age_group_id' => $offer['ages']->random()->getKey(),
-                'level_id' => $offer['levels']->random()->getKey(),
+                'age_group_id' => $offer['ages']->first()->getKey(),
+                'level_id' => $offer['levels']->first()->getKey(),
                 'person_id' => $person?->getKey(),
             ],
         );
