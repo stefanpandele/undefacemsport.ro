@@ -101,3 +101,42 @@ test('unticking 1:1 for a sport takes the claim off that sport alone', function 
     expect($person->refresh()->offersPrivateSessionsIn($swimming->getKey()))->toBeFalse()
         ->and($person->offersPrivateSessionsIn($basketball->getKey()))->toBeTrue();
 });
+
+test('marking somebody as representing the organization takes it off the others', function () {
+    $organization = Organization::factory()->create();
+
+    $first = $organization->people()->create(['name' => 'Andrei Popescu', 'is_primary' => true]);
+    $second = $organization->people()->create(['name' => 'Ana Ionescu', 'is_primary' => true]);
+
+    expect($first->refresh()->is_primary)->toBeFalse()
+        ->and($second->refresh()->is_primary)->toBeTrue();
+
+    // And back again, from the panel or anywhere else.
+    $first->update(['is_primary' => true]);
+
+    expect($first->refresh()->is_primary)->toBeTrue()
+        ->and($second->refresh()->is_primary)->toBeFalse();
+});
+
+test('the mark stops at the organization it was made in', function () {
+    $ours = Organization::factory()->create();
+    $theirs = Organization::factory()->create();
+
+    $mine = $ours->people()->create(['name' => 'Andrei Popescu', 'is_primary' => true]);
+    $theirs->people()->create(['name' => 'Ana Ionescu', 'is_primary' => true]);
+
+    expect($mine->refresh()->is_primary)->toBeTrue();
+});
+
+test('the club page speaks through whoever represents it', function () {
+    $organization = Organization::factory()->create(['slug' => 'cs-delfinul']);
+    $sport = Sport::factory()->create();
+    $organization->declareSports([$sport->getKey()]);
+
+    $organization->people()->create(['name' => 'Andrei Popescu', 'role' => 'Antrenor principal']);
+    $organization->people()->create(['name' => 'Ana Ionescu', 'role' => 'Președinte', 'is_primary' => true]);
+
+    $this->get('/la/cs-delfinul')->assertInertia(
+        fn ($page) => $page->where('organization.representative', 'Ana Ionescu, Președinte'),
+    );
+});

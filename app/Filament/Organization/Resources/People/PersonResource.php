@@ -123,8 +123,11 @@ class PersonResource extends Resource
 
                         $record->unsetRelation('sports');
                     }),
+                // Not a job title — that is "Rol" above, in their own words.
+                // This is the one person the public pages speak through.
                 Toggle::make('is_primary')
-                    ->label('Antrenor principal (afișat în profilul clubului)'),
+                    ->label('Reprezintă organizația')
+                    ->helperText('Numele afișat în antetul paginii publice și ca persoană de contact. Bifând pe cineva, se ia de la altul.'),
                 TextInput::make('sort_order')
                     ->label('Ordine')
                     ->numeric()
@@ -158,7 +161,7 @@ class PersonResource extends Resource
                         ->values()
                         ->all()),
                 IconColumn::make('is_primary')
-                    ->label('Principal')
+                    ->label('Reprezintă')
                     ->boolean(),
                 TextColumn::make('sort_order')
                     ->label('Ordine')

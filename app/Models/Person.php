@@ -42,6 +42,30 @@ class Person extends Model
     protected $fillable = ['name', 'role', 'bio', 'photo_path', 'is_primary', 'sort_order'];
 
     /**
+     * An organization speaks with one voice: whoever is marked as representing
+     * it takes the mark off everybody else.
+     *
+     * Enforced on the model rather than in the form, because the public pages
+     * read it with `firstWhere()` — a second person marked would simply never be
+     * seen, and a tick that changes nothing is worse than no tick at all. The
+     * mass update deliberately fires no events, so this cannot recurse.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $person): void {
+            if (! $person->is_primary) {
+                return;
+            }
+
+            static::query()
+                ->where('organization_id', $person->organization_id)
+                ->whereKeyNot($person->getKey())
+                ->where('is_primary', true)
+                ->update(['is_primary' => false]);
+        });
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
